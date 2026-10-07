@@ -21,5 +21,6 @@ lcov.info
 *.profraw
 
 # Local tooling
+__pycache__/
 .DS_Store
 .claude/
