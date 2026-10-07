@@ -374,6 +374,7 @@ fn reference_limits() -> RunOptions {
         keep_all_cases: true,
         low_priority: false,
         cache_dir: None,
+        collect_only: false,
     }
 }
 
@@ -389,14 +390,12 @@ pub fn reference_outputs(src: &Source, args: &[Value], tools: &Toolchains) -> Re
             expected: Value::Null,
         })
         .collect();
-    let report = runner::execute(
-        &program,
-        &cases,
-        &Comparator::Exact,
-        &reference_limits(),
-        &mut |_, _| {},
-    )
-    .map_err(|e| format!("{}: {e}", src.slug))?;
+    let opts = RunOptions {
+        collect_only: true,
+        ..reference_limits()
+    };
+    let report = runner::execute(&program, &cases, &Comparator::Exact, &opts, &mut |_, _| {})
+        .map_err(|e| format!("{}: {e}", src.slug))?;
     if report.cases.len() != cases.len() {
         return Err(format!(
             "{}: reference solution failed ({:?}): {}",
@@ -709,6 +708,7 @@ pub fn judge_file(
         keep_all_cases: false,
         low_priority: false,
         cache_dir: None,
+        collect_only: false,
     };
     let r = judge_suite(src, language, code, &built.tests, &opts, tools)?;
     let mut out = format!(

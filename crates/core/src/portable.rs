@@ -167,9 +167,11 @@ fn import_native(db: &UserDb, data: Export, apply_settings: bool) -> Result<Impo
         .into_iter()
         .map(|s| (s.problem_id, s.created_at, s.language))
         .collect();
+    let mut existing = existing;
     for s in data.submissions {
         let created_at = time_of(&s.created_at)?;
-        if existing.contains(&(s.problem_id, created_at, s.language.clone())) {
+        // Also dedupes repeated entries within the file itself.
+        if !existing.insert((s.problem_id, created_at, s.language.clone())) {
             summary.submissions_skipped += 1;
             continue;
         }
@@ -221,7 +223,10 @@ fn import_native(db: &UserDb, data: Export, apply_settings: bool) -> Result<Impo
         }
     }
     if apply_settings {
-        db.save_settings(&data.settings)?;
+        // Never take executable paths from a file: an import must not change what gets run.
+        let mut settings = data.settings;
+        settings.eval.toolchain_paths = db.settings()?.eval.toolchain_paths;
+        db.save_settings(&settings)?;
         summary.settings_applied = true;
     }
     Ok(summary)
@@ -325,6 +330,29 @@ mod tests {
         let re = export(&dst, &problems()).unwrap();
         assert_eq!(re.submissions, data.submissions);
         assert_eq!(re.solves, data.solves);
+    }
+
+    #[test]
+    fn imports_cannot_change_toolchains_and_dedupe_within_a_file() {
+        let src = seeded();
+        let mut data = export(&src, &problems()).unwrap();
+        data.settings
+            .eval
+            .toolchain_paths
+            .insert("python".into(), "/tmp/evil".into());
+        data.submissions.push(data.submissions[0].clone());
+        let dst = UserDb::in_memory().unwrap();
+        let summary = import(&dst, &serde_json::to_string(&data).unwrap(), true).unwrap();
+        assert_eq!(
+            (summary.submissions_added, summary.submissions_skipped),
+            (1, 1)
+        );
+        assert!(dst.settings().unwrap().eval.toolchain_paths.is_empty());
+        assert_eq!(
+            dst.settings().unwrap().font_size,
+            20,
+            "other settings still apply"
+        );
     }
 
     #[test]

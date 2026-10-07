@@ -38,7 +38,21 @@ fn numbers_equal(a: &Value, b: &Value) -> bool {
     }
 }
 
+/// Rewrites integral floats (`2.0`) as integers so order-insensitive comparisons agree with
+/// [`numbers_equal`].
+fn normalize(v: &Value) -> Value {
+    match v {
+        Value::Number(n) if n.as_i64().is_none() && n.as_u64().is_none() => match n.as_f64() {
+            Some(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Value::from(f as i64),
+            _ => v.clone(),
+        },
+        Value::Array(items) => Value::Array(items.iter().map(normalize).collect()),
+        other => other.clone(),
+    }
+}
+
 fn canonical(v: &Value, nested: bool) -> String {
+    let v = &normalize(v);
     match v {
         Value::Array(items) if nested => {
             let mut parts: Vec<String> = items.iter().map(|i| canonical(i, false)).collect();
@@ -181,6 +195,17 @@ mod tests {
             json!([[2, 1]])
         ));
         assert!(check(Comparator::Unordered, json!(3), json!(3)));
+        assert!(check(Comparator::Unordered, json!([1, 2]), json!([2.0, 1])));
+        assert!(check(
+            Comparator::UnorderedNested,
+            json!([[1, 2]]),
+            json!([[2.0, 1.0]])
+        ));
+        assert!(!check(
+            Comparator::Unordered,
+            json!([1, 2]),
+            json!([2.5, 1])
+        ));
     }
 
     #[test]

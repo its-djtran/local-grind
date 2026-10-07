@@ -85,6 +85,12 @@ describe("Console", () => {
     expect(screen.getByText("9")).toBeInTheDocument();
   });
 
+  it("says Finished when outputs could not be judged", () => {
+    setup({ tab: "result", result: outcome({ expected_available: false }) });
+    expect(screen.getByText("Finished")).toBeInTheDocument();
+    expect(screen.queryByText("Accepted")).not.toBeInTheDocument();
+  });
+
   it("hides expectations when no reference is available and shows errors", () => {
     setup({ tab: "result", result: outcome({ verdict: "RuntimeError", expected_available: false, error: "boom", cases: [] }) });
     expect(screen.getByText("Runtime Error")).toBeInTheDocument();

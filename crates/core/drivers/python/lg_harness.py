@@ -163,6 +163,9 @@ def encode(value, t):
         return graph_out(value)
     if base == "void":
         return None
+    # JSON has no NaN/Infinity; emit null like the other language harnesses.
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     return value
 
 

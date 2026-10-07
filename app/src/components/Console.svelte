@@ -79,8 +79,9 @@
     {:else if !result}
       <p class="muted">Run your code to see results here.</p>
     {:else}
-      <h3 class="verdict" class:ok={result.verdict === "Accepted"} class:bad={result.verdict !== "Accepted"}>
-        {verdictLabel(result.verdict)}
+      {@const finishedOnly = result.verdict === "Accepted" && !result.expected_available}
+      <h3 class="verdict" class:ok={result.verdict === "Accepted" && !finishedOnly} class:bad={result.verdict !== "Accepted"}>
+        {finishedOnly ? "Finished" : verdictLabel(result.verdict)}
         {#if result.verdict === "Accepted" || result.verdict === "WrongAnswer"}
           <span class="muted runtime">Runtime: {formatRuntime(result.runtime_ms)}</span>
         {/if}

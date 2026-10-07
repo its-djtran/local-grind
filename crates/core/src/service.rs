@@ -146,10 +146,16 @@ pub fn parse_testcases(sig: &Signature, text: &str) -> Result<Vec<Value>> {
             values.len()
         )));
     }
-    Ok(values
+    let cases: Vec<Value> = values
         .chunks(per_case)
         .map(|c| Value::Array(c.to_vec()))
-        .collect())
+        .collect();
+    // Reject malformed input up front: harnesses (C++ especially) must never see it.
+    for (n, case) in cases.iter().enumerate() {
+        sig.check_args(case)
+            .map_err(|e| Error::Invalid(format!("testcase {}: {e}", n + 1)))?;
+    }
+    Ok(cases)
 }
 
 /// Languages whose driver can express `sig`.
@@ -432,6 +438,7 @@ impl Service {
             keep_all_cases: !stop_on_failure,
             low_priority: settings.eval.low_priority,
             cache_dir: self.cache_dir.clone(),
+            collect_only: false,
         })
     }
 
@@ -457,6 +464,7 @@ impl Service {
             .collect();
         let opts = RunOptions {
             keep_all_cases: true,
+            collect_only: true,
             ..self.run_options(problem, false)?
         };
         let tools = self.toolchains.lock().unwrap().clone();
@@ -496,7 +504,10 @@ impl Service {
         let args = parse_testcases(&problem.signature, input)?;
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
-        let opts = self.run_options(&problem, false)?;
+        let opts = RunOptions {
+            collect_only: true,
+            ..self.run_options(&problem, false)?
+        };
         let cases: Vec<TestCase> = args
             .iter()
             .map(|a| TestCase {
@@ -521,9 +532,12 @@ impl Service {
         let mut report = with_install_hint(language, user_report)?;
         let expected = expected.ok().flatten();
         let expected_available = expected.is_some();
+        // The runner only reports how the process ended (collect-only); judge the outputs here.
+        // A crash, timeout or memory overrun keeps its verdict; otherwise any mismatch is a
+        // wrong answer. Without expected outputs the verdict just means "finished".
         if let Some(expected) = expected {
             report.passed = 0;
-            report.failure = None;
+            let mut first_wrong = None;
             for case in &mut report.cases {
                 case.expected = expected[case.index].clone();
                 case.passed = case.output.as_ref().is_some_and(|o| {
@@ -531,14 +545,16 @@ impl Service {
                 });
                 if case.passed {
                     report.passed += 1;
-                } else if report.failure.is_none() {
-                    report.failure = Some(case.clone());
+                } else if case.output.is_some() && first_wrong.is_none() {
+                    first_wrong = Some(case.clone());
                 }
             }
-            if report.verdict == runner::Verdict::WrongAnswer && report.passed == report.total {
-                report.verdict = runner::Verdict::Accepted;
-            } else if report.verdict == runner::Verdict::Accepted && report.passed < report.total {
+            if let Some(f) = &mut report.failure {
+                f.expected = expected[f.index].clone();
+            }
+            if report.verdict == runner::Verdict::Accepted && first_wrong.is_some() {
                 report.verdict = runner::Verdict::WrongAnswer;
+                report.failure = first_wrong;
             }
         }
         Ok(RunOutcome {
@@ -970,6 +986,47 @@ mod tests {
         let ok = svc.run(1, Language::Python, GOOD, "[3,2,4]\n6").unwrap();
         assert_eq!(ok.report.verdict, Verdict::Accepted);
         assert!(svc.check_toolchains().iter().all(|t| t.ok));
+    }
+
+    #[test]
+    fn run_reports_crashes_and_timeouts_instead_of_wrong_answers() {
+        let svc = service();
+        let mut s = svc.settings().unwrap();
+        s.eval.time_limit_multiplier = 0.25; // 500 ms budget for the sample problem
+        svc.save_settings(&s).unwrap();
+        let input = "[2,7,11,15]\n9\n[3,2,4]\n6";
+
+        let hang = "class Solution:\n    def twoSum(self, nums, target):\n        if target == 6:\n            while True: pass\n        return [0, 1]\n";
+        let start = std::time::Instant::now();
+        let r = svc.run(1, Language::Python, hang, input).unwrap();
+        assert!(start.elapsed() < std::time::Duration::from_secs(8));
+        assert_eq!(r.report.verdict, Verdict::TimeLimitExceeded);
+        assert_eq!(r.report.cases.len(), 2);
+        assert!(r.report.cases[0].passed);
+        let f = r.report.failure.unwrap();
+        assert_eq!(
+            (f.index, f.expected),
+            (1, json!([1, 2])),
+            "the hung case shows its expected output"
+        );
+
+        let crash = "class Solution:\n    def twoSum(self, nums, target):\n        print('debug', target)\n        if target == 6:\n            raise ValueError('boom')\n        return [0, 1]\n";
+        let r = svc.run(1, Language::Python, crash, input).unwrap();
+        assert_eq!(r.report.verdict, Verdict::RuntimeError);
+        assert!(r.report.error.unwrap().contains("ValueError: boom"));
+        assert_eq!(
+            r.report.cases[1].stdout, "debug 6\n",
+            "the crashing case keeps its output"
+        );
+
+        let err = svc
+            .run(1, Language::Python, GOOD, "[1,2]\n\"x\"")
+            .unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("testcase 1: `target` is not a valid int"),
+            "{err}"
+        );
     }
 
     #[test]

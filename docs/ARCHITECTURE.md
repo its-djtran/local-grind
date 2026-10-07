@@ -60,6 +60,16 @@ line is a JSON array of arguments. After each test the harness flushes user stdo
 error in an interpreted language yields `{"compile_error":"..."}`. Anything else on stdout is the
 user's output, attributed to the following test.
 
+Result lines are accepted only in index order (duplicates and stray lines are ignored); a result
+line the judge cannot parse (e.g. NaN) is a Runtime Error. Stdout is read with bounded lines
+(64 MB per line, 64 KB of captured user output, 256 MB in total), so a runaway program cannot
+exhaust the app's memory. The verdict is decided by the earliest failure: a wrong answer only
+wins if it happened before a crash, timeout or memory overrun, and the case that was running
+when the process failed is recorded with its stdout. The watchdog also stops a case once the
+solution-time budget plus a grace period is used up, instead of waiting for the wall limit.
+In collect-only mode (used by Run and for reference outputs) the runner records outputs without
+judging them and the verdict only describes how the process ended.
+
 The runner judges each line as it arrives (so a submission stops at the first wrong answer),
 sums the harness-measured solution time (interpreter start-up and parsing are excluded) against
 the problem's time limit, keeps a wall-clock watchdog for hangs, and kills the whole process

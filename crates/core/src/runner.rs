@@ -98,7 +98,15 @@ pub struct RunOptions {
     pub low_priority: bool,
     /// Where compiled artifacts are cached, keyed by [`Program::cache_key`].
     pub cache_dir: Option<PathBuf>,
+    /// Record outputs without judging them (Run computes expectations separately). The verdict
+    /// then only reflects how the process ended: Accepted means every case completed.
+    pub collect_only: bool,
 }
+
+/// Longest single stdout line the runner will buffer (a harness result for a huge output).
+pub const MAX_LINE_BYTES: usize = 64 << 20;
+/// Total stdout a judged program may write before it is stopped.
+pub const MAX_OUTPUT_BYTES: u64 = 256 << 20;
 
 /// Compiled programs kept in the cache; older entries are pruned.
 pub const CACHE_ENTRIES: usize = 64;
@@ -112,34 +120,55 @@ fn cache_lookup(program: &Program, cache_dir: Option<&Path>) -> Option<PathBuf> 
 
 fn cache_store(program: &Program, build_dir: &Path, entry: &Path) {
     let Some(root) = entry.parent() else { return };
-    let staging = root.join(format!(
-        ".staging-{}-{}",
-        std::process::id(),
-        program.cache_key()
-    ));
-    let stored = std::fs::create_dir_all(&staging).is_ok()
-        && program
-            .artifacts
-            .iter()
-            .all(|a| std::fs::copy(build_dir.join(a), staging.join(a)).is_ok())
-        && std::fs::rename(&staging, entry).is_ok();
-    if !stored {
-        let _ = std::fs::remove_dir_all(&staging);
+    if std::fs::create_dir_all(root).is_err() {
         return;
+    }
+    // A unique staging directory per store, so concurrent compiles of the same program (Run and
+    // Submit, or user code identical to a reference) never interfere; the rename is atomic.
+    let Ok(staging) = tempfile::Builder::new()
+        .prefix(".staging-")
+        .tempdir_in(root)
+    else {
+        return;
+    };
+    let copied = program
+        .artifacts
+        .iter()
+        .all(|a| std::fs::copy(build_dir.join(a), staging.path().join(a)).is_ok());
+    if copied && std::fs::rename(staging.path(), entry).is_ok() {
+        // The directory moved; nothing left for the TempDir guard to delete.
+        let _ = staging.keep();
     }
     prune_cache(root, CACHE_ENTRIES);
 }
 
-/// Keeps the `keep` most recently modified cache entries.
+/// Marks a cache entry as used so eviction is least-recently-used.
+fn touch_entry(entry: &Path) {
+    let _ = std::fs::write(entry.join(".used"), b"");
+}
+
+/// Keeps the `keep` most recently used cache entries and removes staging directories left
+/// behind by crashes (older than an hour).
 fn prune_cache(root: &Path, keep: usize) {
     let Ok(read) = std::fs::read_dir(root) else {
         return;
     };
-    let mut entries: Vec<(std::time::SystemTime, PathBuf)> = read
-        .filter_map(|e| e.ok())
-        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
-        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
-        .collect();
+    let mut entries: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+    for e in read.filter_map(|e| e.ok()) {
+        let Some(modified) = e.metadata().ok().and_then(|m| m.modified().ok()) else {
+            continue;
+        };
+        if e.file_name().to_string_lossy().starts_with(".staging-") {
+            if modified
+                .elapsed()
+                .is_ok_and(|age| age > Duration::from_secs(3600))
+            {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        } else if !e.file_name().to_string_lossy().starts_with('.') {
+            entries.push((modified, e.path()));
+        }
+    }
     entries.sort();
     let excess = entries.len().saturating_sub(keep);
     for (_, path) in entries.into_iter().take(excess) {
@@ -297,7 +326,7 @@ fn run_to_completion(cmd: &[String], dir: &Path, timeout: Duration) -> Result<(b
         let _ = stderr.read_to_string(&mut s);
         s
     });
-    let watchdog = Watchdog::arm(pid, timeout, None);
+    let watchdog = Watchdog::arm(pid, timeout, None, None);
     let mut out = String::new();
     let _ = stdout.read_to_string(&mut out);
     let exit = wait_child(pid, || {
@@ -341,9 +370,31 @@ pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
 
 const MEMORY_POLL: Duration = Duration::from_millis(20);
 
-/// Kills the child's process group when it outlives `timeout` or its resident memory exceeds
-/// `memory_limit_kb`. Disarming happens under a lock while the child's pid is still held by its
-/// zombie, so the watchdog can never signal a recycled pid.
+/// Solution-time budget shared between the reader and the watchdog. A case that runs longer
+/// than the remaining budget (plus a grace period for harness overhead) is stopped without
+/// waiting for the wall-clock limit.
+struct Budget {
+    limit: Duration,
+    grace: Duration,
+    /// (time of the last result, solution time used so far)
+    state: Mutex<(Instant, Duration)>,
+}
+
+impl Budget {
+    fn exceeded(&self) -> bool {
+        let (last, used) = *self.state.lock().unwrap();
+        used + last.elapsed() > self.limit + self.grace
+    }
+
+    fn record(&self, used: Duration) {
+        *self.state.lock().unwrap() = (Instant::now(), used);
+    }
+}
+
+/// Kills the child's process group when it outlives `timeout`, exceeds its solution-time
+/// budget, or its resident memory exceeds `memory_limit_kb`. Disarming happens under a lock
+/// while the child's pid is still held by its zombie, so the watchdog can never signal a
+/// recycled pid.
 struct Watchdog {
     disarmed: Arc<Mutex<bool>>,
     timed_out: Arc<AtomicBool>,
@@ -352,16 +403,22 @@ struct Watchdog {
 }
 
 impl Watchdog {
-    fn arm(pid: libc::pid_t, timeout: Duration, memory_limit_kb: Option<u64>) -> Watchdog {
+    fn arm(
+        pid: libc::pid_t,
+        timeout: Duration,
+        memory_limit_kb: Option<u64>,
+        budget: Option<Arc<Budget>>,
+    ) -> Watchdog {
         let disarmed = Arc::new(Mutex::new(false));
         let timed_out = Arc::new(AtomicBool::new(false));
         let out_of_memory = Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::channel::<()>();
         let (d, t, m) = (disarmed.clone(), timed_out.clone(), out_of_memory.clone());
         let deadline = Instant::now() + timeout;
+        let polling = memory_limit_kb.is_some() || budget.is_some();
         thread::spawn(move || loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
-            let wait = if memory_limit_kb.is_some() {
+            let wait = if polling {
                 remaining.min(MEMORY_POLL)
             } else {
                 remaining
@@ -369,7 +426,8 @@ impl Watchdog {
             if rx.recv_timeout(wait) != Err(mpsc::RecvTimeoutError::Timeout) {
                 return;
             }
-            let over_time = Instant::now() >= deadline;
+            let over_time =
+                Instant::now() >= deadline || budget.as_ref().is_some_and(|b| b.exceeded());
             let over_memory =
                 memory_limit_kb.is_some_and(|limit| rss_kb(pid).is_some_and(|rss| rss > limit));
             if over_time || over_memory {
@@ -407,6 +465,44 @@ impl Watchdog {
     }
 }
 
+/// Reads one line (without the newline) into `buf`, keeping at most `cap` bytes; the rest of an
+/// over-long line is consumed and discarded. Stops early once more than `allowance` bytes have
+/// been consumed. Returns `(bytes consumed, truncated)`; 0 bytes consumed means end of stream.
+fn read_line_capped(
+    reader: &mut impl BufRead,
+    buf: &mut Vec<u8>,
+    cap: usize,
+    allowance: u64,
+) -> std::io::Result<(usize, bool)> {
+    buf.clear();
+    let (mut consumed, mut truncated) = (0, false);
+    loop {
+        let available = match reader.fill_buf() {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        if available.is_empty() {
+            return Ok((consumed, truncated));
+        }
+        let (chunk, done) = match available.iter().position(|&b| b == b'\n') {
+            Some(pos) => (&available[..pos], Some(pos + 1)),
+            None => (available, None),
+        };
+        let room = cap.saturating_sub(buf.len());
+        if chunk.len() > room {
+            truncated = true;
+        }
+        buf.extend_from_slice(&chunk[..chunk.len().min(room)]);
+        let used = done.unwrap_or(available.len());
+        reader.consume(used);
+        consumed += used;
+        if done.is_some() || consumed as u64 > allowance {
+            return Ok((consumed, truncated));
+        }
+    }
+}
+
 /// Compiles (if needed) and runs `program` over `cases`. `progress(done, total)` is invoked
 /// after each judged case.
 pub fn execute(
@@ -433,10 +529,14 @@ pub fn execute(
     if let Some(compile) = &program.compile {
         let entry = cache_lookup(program, opts.cache_dir.as_deref());
         let cached = entry.as_ref().is_some_and(|e| {
-            program
+            let hit = program
                 .artifacts
                 .iter()
-                .all(|a| std::fs::copy(e.join(a), dir.path().join(a)).is_ok())
+                .all(|a| std::fs::copy(e.join(a), dir.path().join(a)).is_ok());
+            if hit {
+                touch_entry(e);
+            }
+            hit
         });
         if !cached {
             let timeout = Duration::from_millis(opts.limits.compile_timeout_ms);
@@ -505,93 +605,142 @@ pub fn execute(
         String::from_utf8_lossy(&buf).into_owned()
     });
     let started = Instant::now();
+    let limit = Duration::from_millis(opts.limits.time_limit_ms);
+    let budget = Arc::new(Budget {
+        limit,
+        grace: limit + Duration::from_secs(1),
+        state: Mutex::new((Instant::now(), Duration::ZERO)),
+    });
     let watchdog = Watchdog::arm(
         pid,
         Duration::from_millis(opts.limits.wall_limit_ms),
         Some(opts.limits.memory_limit_kb),
+        Some(budget.clone()),
     );
 
+    // How the run ended abnormally, if it did: (case index, verdict, message).
+    let mut abnormal: Option<(usize, Verdict, String)> = None;
+    let mut first_wrong: Option<usize> = None;
+    let mut next = 0usize;
     let mut total_ns: u64 = 0;
+    let mut output_bytes: u64 = 0;
     let mut pending_stdout = String::new();
     let mut killed_by_us = false;
-    let mut time_exceeded = false;
-    let mut runtime_error = false;
     let mut harness_compile_error = None;
     let mut reader = BufReader::new(stdout);
     let mut raw = Vec::new();
+    let failed_case = |i: usize, stdout: String| CaseResult {
+        index: i,
+        passed: false,
+        args: cases[i].args.clone(),
+        expected: cases[i].expected.clone(),
+        output: None,
+        stdout,
+        runtime_ns: 0,
+    };
     loop {
-        raw.clear();
-        match reader.read_until(b'\n', &mut raw) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {}
+        let allowance = MAX_OUTPUT_BYTES - output_bytes;
+        let (n, truncated) =
+            match read_line_capped(&mut reader, &mut raw, MAX_LINE_BYTES, allowance) {
+                Ok((0, _)) | Err(_) => break,
+                Ok(r) => r,
+            };
+        output_bytes += n as u64;
+        if output_bytes > MAX_OUTPUT_BYTES {
+            abnormal = Some((
+                next,
+                Verdict::RuntimeError,
+                "Output limit exceeded: the program printed more than 256 MB.".into(),
+            ));
+            break;
         }
         let line = String::from_utf8_lossy(&raw);
-        let line = line.strip_suffix('\n').unwrap_or(&line);
-        let (user, message) = split_line(line);
+        let (user, message) = split_line(&line);
+        push_capped(&mut pending_stdout, user);
         let Some(message) = message else {
-            push_capped(&mut pending_stdout, user);
             push_capped(&mut pending_stdout, "\n");
             continue;
         };
-        push_capped(&mut pending_stdout, user);
-        let Ok(msg) = serde_json::from_str::<HarnessLine>(message) else {
-            continue;
+        let msg = match serde_json::from_str::<HarnessLine>(message) {
+            Ok(m) if !truncated => m,
+            _ => {
+                let why = if truncated {
+                    "too large"
+                } else {
+                    "not valid JSON (for example NaN or Infinity)"
+                };
+                abnormal = Some((next, Verdict::RuntimeError, format!("The program produced a result the judge could not read: the output is {why}.")));
+                break;
+            }
         };
         if let Some(ce) = msg.compile_error {
             harness_compile_error = Some(ce);
             continue;
         }
-        let Some(i) = msg.i.filter(|i| *i < cases.len()) else {
+        // Results must arrive in order; anything else (duplicates, forged lines) is ignored.
+        if msg.i != Some(next) || next >= cases.len() {
             continue;
-        };
-        let case = &cases[i];
+        }
+        let i = next;
         let stdout_text = std::mem::take(&mut pending_stdout);
         if let Some(err) = msg.error {
-            runtime_error = true;
-            report.error = Some(err);
-            report.failure = Some(CaseResult {
-                index: i,
-                passed: false,
-                args: case.args.clone(),
-                expected: case.expected.clone(),
-                output: None,
-                stdout: stdout_text,
-                runtime_ns: 0,
-            });
-            continue;
+            if opts.keep_all_cases {
+                report.cases.push(failed_case(i, stdout_text.clone()));
+            }
+            report.failure = Some(failed_case(i, stdout_text));
+            abnormal = Some((i, Verdict::RuntimeError, err));
+            break;
         }
         let output = msg.out.unwrap_or(Value::Null);
         let ns = msg.ns.unwrap_or(0);
         total_ns += ns;
-        let passed = judge::matches(cmp, &case.args, &case.expected, &output);
+        budget.record(Duration::from_nanos(total_ns));
+        next += 1;
+        if total_ns > opts.limits.time_limit_ms * 1_000_000 {
+            // This case pushed the solution over its time budget: it does not count as passed.
+            if opts.keep_all_cases {
+                report.cases.push(failed_case(i, stdout_text.clone()));
+            }
+            report
+                .failure
+                .get_or_insert_with(|| failed_case(i, stdout_text));
+            abnormal = Some((i, Verdict::TimeLimitExceeded, String::new()));
+            killed_by_us = true;
+            kill_group(pid);
+            break;
+        }
+        let passed =
+            opts.collect_only || judge::matches(cmp, &cases[i].args, &cases[i].expected, &output);
         let result = CaseResult {
             index: i,
             passed,
-            args: case.args.clone(),
-            expected: case.expected.clone(),
+            args: cases[i].args.clone(),
+            expected: cases[i].expected.clone(),
             output: Some(output),
             stdout: stdout_text,
             runtime_ns: ns,
         };
         if passed {
             report.passed += 1;
-        } else if report.failure.is_none() {
+        } else if first_wrong.is_none() {
+            first_wrong = Some(i);
             report.failure = Some(result.clone());
         }
         if opts.keep_all_cases {
             report.cases.push(result);
         }
         progress(report.passed, cases.len());
-        if total_ns > opts.limits.time_limit_ms * 1_000_000 {
-            time_exceeded = true;
-        }
-        if time_exceeded || (!passed && opts.stop_on_failure) {
+        if !passed && opts.stop_on_failure {
             killed_by_us = true;
             kill_group(pid);
             break;
         }
     }
     drop(reader);
+    if abnormal.is_some() {
+        killed_by_us = true;
+        kill_group(pid);
+    }
     let exit = wait_child(pid, || {
         watchdog.disarm();
         kill_group(pid);
@@ -601,38 +750,66 @@ pub fn execute(
     report.runtime_ms = total_ns as f64 / 1e6;
     report.memory_kb = exit.max_rss_kb;
 
-    report.verdict = if let Some(ce) = harness_compile_error {
-        report.error = Some(ce);
-        Verdict::CompileError
-    } else if report.failure.as_ref().is_some_and(|f| f.output.is_some()) {
-        Verdict::WrongAnswer
-    } else if runtime_error {
-        Verdict::RuntimeError
-    } else if time_exceeded || watchdog.fired() {
-        report.error = Some(format!(
+    if abnormal.is_none() {
+        let unfinished = next < cases.len();
+        abnormal = if watchdog.fired() {
+            Some((next, Verdict::TimeLimitExceeded, String::new()))
+        } else if watchdog.out_of_memory() || exit.max_rss_kb > opts.limits.memory_limit_kb {
+            Some((
+                next,
+                Verdict::MemoryLimitExceeded,
+                format!(
+                    "Memory limit of {} MB exceeded.",
+                    opts.limits.memory_limit_kb / 1024
+                ),
+            ))
+        } else if (exit.code != Some(0) && !killed_by_us) || (unfinished && first_wrong.is_none()) {
+            let reason = match (exit.signal, exit.code) {
+                (Some(sig), _) => {
+                    format!("Process terminated by signal {sig} ({}).", signal_name(sig))
+                }
+                (None, Some(code)) if code != 0 => format!("Process exited with code {code}."),
+                _ => "Process exited before all tests completed.".into(),
+            };
+            Some((
+                next,
+                Verdict::RuntimeError,
+                format!("{reason}\n{}", report.stderr)
+                    .trim_end()
+                    .to_string(),
+            ))
+        } else {
+            None
+        };
+    }
+    if let Some((_, Verdict::TimeLimitExceeded, msg)) = &mut abnormal {
+        *msg = format!(
             "Time limit exceeded after {:.0} ms of solution time ({:.1} s wall clock).",
             report.runtime_ms,
             wall.as_secs_f64()
-        ));
-        Verdict::TimeLimitExceeded
-    } else if watchdog.out_of_memory() || exit.max_rss_kb > opts.limits.memory_limit_kb {
-        report.error = Some(format!(
-            "Memory limit of {} MB exceeded.",
-            opts.limits.memory_limit_kb / 1024
-        ));
-        Verdict::MemoryLimitExceeded
-    } else if report.passed < cases.len() || (exit.code != Some(0) && !killed_by_us) {
-        let reason = match (exit.signal, exit.code) {
-            (Some(sig), _) => format!("Process terminated by signal {sig} ({}).", signal_name(sig)),
-            (None, Some(code)) if code != 0 => format!("Process exited with code {code}."),
-            _ => "Process exited before all tests completed.".into(),
-        };
-        report.error = Some(
-            format!("{reason}\n{}", report.stderr)
-                .trim_end()
-                .to_string(),
         );
-        Verdict::RuntimeError
+    }
+
+    // The earliest failure decides: a wrong answer only wins if it came before the process
+    // crashed, ran out of time or memory.
+    report.verdict = if let Some(ce) = harness_compile_error {
+        report.error = Some(ce);
+        Verdict::CompileError
+    } else if first_wrong.is_some_and(|w| abnormal.as_ref().is_none_or(|(a, _, _)| w < *a)) {
+        Verdict::WrongAnswer
+    } else if let Some((index, verdict, msg)) = abnormal {
+        // Record the case that was running when the process failed (errors and budget
+        // overruns were recorded as they happened).
+        let recorded = report.failure.as_ref().is_some_and(|f| f.index == index);
+        if index < cases.len() && !recorded {
+            let case = failed_case(index, std::mem::take(&mut pending_stdout));
+            if opts.keep_all_cases {
+                report.cases.push(case.clone());
+            }
+            report.failure = Some(case);
+        }
+        report.error = (!msg.is_empty()).then_some(msg);
+        verdict
     } else {
         Verdict::Accepted
     };
@@ -892,11 +1069,125 @@ mod tests {
     }
 
     #[test]
-    fn ignores_garbage_harness_lines() {
-        let script = r#"printf '\036LG nonsense\n\036LG {"i":99,"out":1}\n\036LG {"i":0,"ns":1,"out":0}\n'; printf 'tail'"#;
-        let r = run(&shell(script), &cases(1), RunOptions::default());
+    fn unreadable_results_are_runtime_errors() {
+        let script = r#"printf '\036LG {"i":0,"ns":1,"out":0}\n\036LG {"i":1,"ns":1,"out":NaN}\n'"#;
+        let opts = RunOptions {
+            keep_all_cases: true,
+            ..Default::default()
+        };
+        let r = run(&shell(script), &cases(2), opts);
+        assert_eq!(r.verdict, Verdict::RuntimeError);
+        assert!(r.error.unwrap().contains("could not read"));
+        assert_eq!(r.failure.unwrap().index, 1);
+        assert_eq!(r.cases.len(), 2, "the failing case is recorded");
+    }
+
+    #[test]
+    fn out_of_order_and_duplicate_results_are_ignored() {
+        // A duplicated index can't stand in for a missing one, and stray lines are skipped.
+        let script = r#"printf '\036LG {"i":0,"ns":1,"out":0}\n\036LG {"i":0,"ns":1,"out":0}\n\036LG {"i":99,"out":1}\n'; printf 'tail'"#;
+        let r = run(&shell(script), &cases(2), RunOptions::default());
+        assert_eq!(r.verdict, Verdict::RuntimeError);
+        assert_eq!(r.passed, 1);
+        assert!(r.error.unwrap().contains("before all tests"));
+        let ok = r#"printf '\036LG {"i":0,"ns":1,"out":0}\n\036LG {"i":0,"ns":1,"out":7}\n'; printf 'tail'"#;
+        let r = run(&shell(ok), &cases(1), RunOptions::default());
         assert_eq!(r.verdict, Verdict::Accepted);
         assert_eq!(r.stderr, "tail\n");
+    }
+
+    #[test]
+    fn huge_unterminated_output_is_bounded() {
+        let start = Instant::now();
+        let script = "head -c 300000000 /dev/zero | tr '\\000' x";
+        let r = run(&shell(script), &cases(1), RunOptions::default());
+        assert_eq!(r.verdict, Verdict::RuntimeError, "{:?}", r.error);
+        assert!(r.error.unwrap().contains("Output limit exceeded"));
+        assert!(start.elapsed() < Duration::from_secs(15));
+        let mut buf = Vec::new();
+        let mut reader = std::io::Cursor::new(b"abcdef\nxyz".to_vec());
+        assert_eq!(
+            read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
+            (7, true)
+        );
+        assert_eq!(buf, b"abc");
+        assert_eq!(
+            read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
+            (3, false)
+        );
+        assert_eq!(
+            read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
+            (0, false)
+        );
+    }
+
+    #[test]
+    fn hung_case_is_stopped_within_the_budget() {
+        let script = r#"printf '\036LG {"i":0,"ns":1000,"out":0}\n'; sleep 30"#;
+        let opts = RunOptions {
+            limits: Limits {
+                time_limit_ms: 200,
+                wall_limit_ms: 30_000,
+                ..Default::default()
+            },
+            keep_all_cases: true,
+            ..Default::default()
+        };
+        let start = Instant::now();
+        let r = run(&shell(script), &cases(2), opts);
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "{:?}",
+            start.elapsed()
+        );
+        assert_eq!(r.verdict, Verdict::TimeLimitExceeded);
+        assert_eq!(r.passed, 1);
+        let failure = r.failure.unwrap();
+        assert_eq!(
+            (failure.index, failure.output),
+            (1, None),
+            "the hung case is recorded"
+        );
+        assert_eq!(r.cases.len(), 2);
+    }
+
+    #[test]
+    fn earliest_failure_decides_the_verdict() {
+        // Wrong answer on case 0, crash later: the wrong answer came first.
+        let wa_then_crash = r#"printf '\036LG {"i":0,"ns":1,"out":9}\n'; kill -SEGV $$"#;
+        let r = run(&shell(wa_then_crash), &cases(2), RunOptions::default());
+        assert_eq!(r.verdict, Verdict::WrongAnswer);
+        // Crash on case 0 before anything wrong: runtime error.
+        let crash = r#"kill -SEGV $$"#;
+        let r = run(&shell(crash), &cases(2), RunOptions::default());
+        assert_eq!(r.verdict, Verdict::RuntimeError);
+        assert_eq!(r.failure.unwrap().index, 0);
+    }
+
+    #[test]
+    fn collect_only_reports_process_outcomes() {
+        let opts = RunOptions {
+            collect_only: true,
+            keep_all_cases: true,
+            ..Default::default()
+        };
+        // Outputs are recorded, never judged.
+        let r = run(
+            &shell(ECHO_ALL),
+            &[TestCase {
+                args: json!([0]),
+                expected: json!(null),
+            }],
+            opts.clone(),
+        );
+        assert_eq!((r.verdict, r.passed), (Verdict::Accepted, 1));
+        // A crash after the first case is still a crash, with the second case recorded.
+        let script = r#"printf 'dbg\n\036LG {"i":0,"ns":1,"out":5}\nboom\n'; exit 3"#;
+        let r = run(&shell(script), &cases(2), opts);
+        assert_eq!(r.verdict, Verdict::RuntimeError);
+        assert_eq!(r.cases.len(), 2);
+        assert_eq!(r.cases[1].stdout, "boom\n");
+        assert_eq!(r.cases[0].stdout, "dbg\n");
     }
 
     #[test]
@@ -970,13 +1261,19 @@ mod tests {
             std::thread::sleep(Duration::from_millis(15));
         }
         std::fs::create_dir(dir.path().join(".staging-x")).unwrap();
+        // Using an old entry makes it the most recent one.
+        touch_entry(&dir.path().join("e0"));
         prune_cache(dir.path(), 2);
         let mut left: Vec<String> = std::fs::read_dir(dir.path())
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         left.sort();
-        assert_eq!(left, vec![".staging-x", "e3", "e4"]);
+        assert_eq!(
+            left,
+            vec![".staging-x", "e0", "e4"],
+            "fresh staging dirs are kept"
+        );
         prune_cache(&dir.path().join("missing"), 1);
     }
 

@@ -256,6 +256,45 @@ pub enum Signature {
     },
 }
 
+/// Range checks for hidden parameters, so a harness never builds an impossible input.
+fn check_special(
+    special: Option<Special>,
+    params: &[Param],
+    items: &[serde_json::Value],
+) -> std::result::Result<(), String> {
+    let hidden = params.iter().position(|p| p.hidden);
+    let value = |i: usize| items[i].as_i64().unwrap_or_default();
+    match (special, hidden) {
+        (Some(Special::ListCycle), Some(h)) => {
+            let len = params
+                .iter()
+                .position(|p| p.ty == ValueType::ListNode)
+                .and_then(|i| items[i].as_array())
+                .map_or(0, Vec::len) as i64;
+            let pos = value(h);
+            if pos < -1 || pos >= len {
+                return Err(format!(
+                    "`{}` must be -1 or a valid index into the list (0..{len})",
+                    params[h].name
+                ));
+            }
+            Ok(())
+        }
+        (Some(Special::BadVersion), Some(h)) => {
+            let n = params
+                .iter()
+                .position(|p| !p.hidden && p.ty == ValueType::Int)
+                .map_or(0, value);
+            let bad = value(h);
+            if !(1..=n).contains(&bad) {
+                return Err(format!("`{}` must be between 1 and {n}", params[h].name));
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 impl Signature {
     /// Number of serialized arguments per test case.
     pub fn arity(&self) -> usize {
@@ -279,13 +318,15 @@ impl Signature {
             ));
         }
         match self {
-            Signature::Function { params, .. } => {
+            Signature::Function {
+                params, special, ..
+            } => {
                 for (p, v) in params.iter().zip(items) {
                     if !p.accepts(v) {
                         return Err(format!("`{}` is not a valid {}", p.name, p.ty));
                     }
                 }
-                Ok(())
+                check_special(*special, params, items)
             }
             Signature::Design {
                 class,
@@ -723,6 +764,33 @@ mod tests {
         assert!(c.check_args(&json!([[1, null, 2]])).is_ok());
         assert!(c.check_args(&json!(["x"])).unwrap_err().contains("`root`"));
         assert!(Param::new("x", ValueType::Int).accepts(&json!(1)));
+    }
+
+    #[test]
+    fn checks_special_parameters() {
+        use serde_json::json;
+        let cycle = sig(
+            json!({"kind": "function", "name": "f", "special": "list_cycle", "returns": "bool",
+            "params": [{"name": "head", "type": "ListNode"}, {"name": "pos", "type": "int", "hidden": true}]}),
+        );
+        assert!(cycle.check_args(&json!([[1, 2, 3], 2])).is_ok());
+        assert!(cycle.check_args(&json!([[1, 2, 3], -1])).is_ok());
+        assert!(cycle.check_args(&json!([[], -1])).is_ok());
+        assert!(cycle
+            .check_args(&json!([[1, 2, 3], 3]))
+            .unwrap_err()
+            .contains("`pos`"));
+        assert!(cycle.check_args(&json!([[1], -2])).is_err());
+        let bad = sig(
+            json!({"kind": "function", "name": "f", "special": "bad_version", "returns": "int",
+            "params": [{"name": "n", "type": "int"}, {"name": "bad", "type": "int", "hidden": true}]}),
+        );
+        assert!(bad.check_args(&json!([5, 5])).is_ok());
+        assert!(bad
+            .check_args(&json!([5, 6]))
+            .unwrap_err()
+            .contains("between 1 and 5"));
+        assert!(bad.check_args(&json!([5, 0])).is_err());
     }
 
     #[test]
