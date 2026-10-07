@@ -39,6 +39,12 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
   reference 0.1 ms) is the only way to reject a linear scan, and Graph Valid Tree (500 ms) and
   Connected Components (300 ms) leave ~40x headroom. Users on slow machines can raise the time
   limit multiplier.
+- **Judge review (2026-10-07).** An independent review found 11 bugs (6 reproduced); all were
+  fixed with regression tests (Run verdicts, bounded output, recorded failing cases, earliest-
+  failure ordering, input validation, NaN handling, cache staging, import hardening). Accepted
+  limitation: solution code runs in the harness process, so a determined user can still forge
+  their own result lines; results are accepted only in index order, which stops accidental
+  duplicates, and forging only cheats oneself in a local practice app.
 - **Known judge limits.** Codec problems use separate instances for encode/decode, but state
   stored on the class itself is not prevented. "Do not use library sort" style rules (Sort
   Colors) and API-call budgets (First Bad Version) are stated, not enforced.
