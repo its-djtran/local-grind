@@ -211,12 +211,19 @@ export interface ToolchainStatus {
   message: string | null;
 }
 
+export interface UserList {
+  id: number;
+  name: string;
+  problem_ids: number[];
+}
+
 export interface Bootstrap {
   problems: ProblemListing[];
   lists: ProblemList[];
   companies: CompanyEntry[];
   topics: string[];
   settings: Settings;
+  user_lists: UserList[];
   languages: LanguageInfo[];
   catalog_built_at: string | null;
 }

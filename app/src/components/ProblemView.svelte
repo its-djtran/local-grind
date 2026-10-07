@@ -13,6 +13,7 @@
   import Timer from "./Timer.svelte";
   import SubmissionDetail from "./SubmissionDetail.svelte";
   import SubmissionList from "./SubmissionList.svelte";
+  import SaveMenu from "./SaveMenu.svelte";
 
   let { id }: { id: number } = $props();
 
@@ -113,6 +114,7 @@
                 <span class="tag {view.difficulty.toLowerCase()}">{view.difficulty}</span>
                 {#if view.status === "solved"}<span class="tag ok">Solved ✓</span>{/if}
                 {#each view.lists as l (l)}<span class="tag">{l}</span>{/each}
+                <SaveMenu problemId={view.id} />
                 <button class="tag linkish" onclick={() => (showTopics = !showTopics)}>Topics</button>
                 {#if view.companies.length}<button class="tag linkish" onclick={() => (showCompanies = !showCompanies)}>Companies</button>{/if}
                 {#if view.hints.length}<button class="tag linkish" onclick={() => (showHints = !showHints)}>Hints</button>{/if}

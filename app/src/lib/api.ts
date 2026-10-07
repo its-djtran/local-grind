@@ -16,6 +16,7 @@ import type {
   Submission,
   SubmitOutcome,
   ToolchainStatus,
+  UserList,
 } from "./types";
 
 export const api = {
@@ -24,6 +25,11 @@ export const api = {
   saveDraft: (id: number, language: LanguageId, code: string) =>
     invoke<void>("save_draft", { id, language, code }),
   saveNote: (id: number, body: string) => invoke<void>("save_note", { id, body }),
+  createUserList: (name: string) => invoke<UserList[]>("create_user_list", { name }),
+  renameUserList: (id: number, name: string) => invoke<UserList[]>("rename_user_list", { id, name }),
+  deleteUserList: (id: number) => invoke<UserList[]>("delete_user_list", { id }),
+  setInUserList: (listId: number, problemId: number, member: boolean) =>
+    invoke<UserList[]>("set_in_user_list", { listId, problemId, member }),
   resetCode: (id: number, language: LanguageId) => invoke<string>("reset_code", { id, language }),
   run: (id: number, language: LanguageId, code: string, input: string) =>
     invoke<RunOutcome>("run_code", { id, language, code, input }),

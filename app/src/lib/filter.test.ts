@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countByStatus, emptyFilters, filterProblems, matchesQuery, nextInLists, pickRandom } from "./filter";
+import { countByStatus, emptyFilters, filterProblems, matchesQuery, nextInLists, pickRandom, userListsAsProblemLists } from "./filter";
 import type { CompanyEntry, ProblemList, ProblemListing } from "./types";
 
 const problems: ProblemListing[] = [
@@ -86,5 +86,14 @@ describe("nextInLists", () => {
     expect(next[0].problem.id).toBe(206);
     const allSolved = problems.map((p) => ({ ...p, status: "solved" as const }));
     expect(nextInLists(allSolved, lists)).toEqual([]);
+  });
+});
+
+describe("user lists", () => {
+  it("filter like bundled lists, in insertion order", () => {
+    const lists = userListsAsProblemLists([{ id: 7, name: "Favorites", problem_ids: [42, 1] }]);
+    expect(lists[0]).toMatchObject({ id: "user:7", name: "Favorites" });
+    const groups = filterProblems(problems, { ...emptyFilters(), listId: "user:7" }, lists, companies);
+    expect(groups.map((g) => g.problems.map((p) => p.id))).toEqual([[42, 1]]);
   });
 });

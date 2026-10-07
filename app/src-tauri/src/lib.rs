@@ -9,7 +9,7 @@ use localgrind_core::service::{
     SubmitOutcome,
 };
 use localgrind_core::settings::Settings;
-use localgrind_core::userdb::{Solve, Submission};
+use localgrind_core::userdb::{Solve, Submission, UserList};
 use localgrind_core::{Error, Result};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -69,6 +69,31 @@ fn get_problem(svc: Svc, id: i64, language: Option<Language>) -> Result<ProblemV
 #[tauri::command]
 fn save_draft(svc: Svc, id: i64, language: Language, code: String) -> Result<()> {
     svc.save_draft(id, language, &code)
+}
+
+#[tauri::command]
+fn create_user_list(svc: Svc, name: String) -> Result<Vec<UserList>> {
+    svc.create_user_list(&name)
+}
+
+#[tauri::command]
+fn rename_user_list(svc: Svc, id: i64, name: String) -> Result<Vec<UserList>> {
+    svc.rename_user_list(id, &name)
+}
+
+#[tauri::command]
+fn delete_user_list(svc: Svc, id: i64) -> Result<Vec<UserList>> {
+    svc.delete_user_list(id)
+}
+
+#[tauri::command]
+fn set_in_user_list(
+    svc: Svc,
+    list_id: i64,
+    problem_id: i64,
+    member: bool,
+) -> Result<Vec<UserList>> {
+    svc.set_in_user_list(list_id, problem_id, member)
 }
 
 #[tauri::command]
@@ -268,6 +293,10 @@ pub fn run() {
             get_problem,
             save_draft,
             save_note,
+            create_user_list,
+            rename_user_list,
+            delete_user_list,
+            set_in_user_list,
             reset_code,
             run_code,
             submit_code,

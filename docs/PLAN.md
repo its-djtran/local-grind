@@ -175,5 +175,11 @@ Remaining:
 - [x] Personal notes per problem: Notes tab with autosave, kept in `user.db`, exported/imported
 - [~] CI workflow (`.github/workflows/ci.yml`, macOS) running `scripts/check.sh` and the smoke
       test; written but not yet exercised on GitHub (the repository has no remote yet)
-- Later: additional problem sets (e.g. NeetCode 150), Java/Go drivers (deferred), custom user
-  lists, UI polish driven by usage
+- [x] Personal lists: create/rename/delete lists, save problems from the workspace (★ Save),
+      filter the problem list by them, see their progress in Stats, export/import (merged by name)
+- Later: Java/Go drivers (deferred), UI polish driven by usage
+
+### M9 — More content: NeetCode 150
+- [ ] The NeetCode 150 problems not already in Blind 75 ∪ Grind 75, with the same pipeline
+      (statement, editorial, hints, generator, references in all four languages, benchmarks)
+- [ ] NeetCode 150 list (grouped by topic) and company tags

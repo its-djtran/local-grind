@@ -60,6 +60,12 @@ pub struct ExportedNote {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExportedList {
+    pub name: String,
+    pub problem_ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Export {
     pub format: String,
     pub version: u32,
@@ -72,6 +78,8 @@ pub struct Export {
     pub drafts: Vec<ExportedDraft>,
     #[serde(default)]
     pub notes: Vec<ExportedNote>,
+    #[serde(default)]
+    pub lists: Vec<ExportedList>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -83,6 +91,8 @@ pub struct ImportSummary {
     pub drafts_added: usize,
     #[serde(default)]
     pub notes_added: usize,
+    #[serde(default)]
+    pub lists_merged: usize,
     pub settings_applied: bool,
     pub source: String,
 }
@@ -143,6 +153,14 @@ pub fn export(db: &UserDb, problems: &[ProblemSummary]) -> Result<Export> {
             .notes()?
             .into_iter()
             .map(|(problem_id, body)| ExportedNote { problem_id, body })
+            .collect(),
+        lists: db
+            .user_lists()?
+            .into_iter()
+            .map(|l| ExportedList {
+                name: l.name,
+                problem_ids: l.problem_ids,
+            })
             .collect(),
     })
 }
@@ -222,6 +240,14 @@ fn import_native(db: &UserDb, data: Export, apply_settings: bool) -> Result<Impo
             summary.notes_added += 1;
         }
     }
+    // Lists merge by name: imported problems are added to an existing list of the same name.
+    for l in data.lists {
+        let id = db.create_user_list(&l.name)?;
+        for p in l.problem_ids {
+            db.set_in_user_list(id, p, true)?;
+        }
+        summary.lists_merged += 1;
+    }
     if apply_settings {
         // Never take executable paths from a file: an import must not change what gets run.
         let mut settings = data.settings;
@@ -285,6 +311,8 @@ mod tests {
         db.record_attempt(&p, &sub, 1_000_000).unwrap();
         db.save_draft(1, "python", "draft").unwrap();
         db.save_note(1, "remember the complement").unwrap();
+        let fav = db.create_user_list("Favorites").unwrap();
+        db.set_in_user_list(fav, 1, true).unwrap();
         let s = Settings {
             font_size: 20,
             ..Default::default()
@@ -313,6 +341,8 @@ mod tests {
         );
         assert!(summary.settings_applied);
         assert_eq!(summary.notes_added, 1);
+        assert_eq!(summary.lists_merged, 1);
+        assert_eq!(dst.user_lists().unwrap()[0].problem_ids, vec![1]);
         assert_eq!(
             dst.note(1).unwrap().as_deref(),
             Some("remember the complement")

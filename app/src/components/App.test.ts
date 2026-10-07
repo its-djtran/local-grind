@@ -60,6 +60,57 @@ describe("App", () => {
     expect(within(practice).queryByText(/Due for review/)).not.toBeInTheDocument();
   });
 
+  it("manages personal lists from the list page and the workspace", async () => {
+    const backend = installBackend();
+    await boot();
+    await (await table()).findByText("1. Two Sum");
+    await fireEvent.click(screen.getByText("+ New list"));
+    await fireEvent.click(screen.getByText("Cancel"));
+    await fireEvent.click(screen.getByText("+ New list"));
+    await fireEvent.input(screen.getByLabelText("List name"), { target: { value: "Onsite" } });
+    await fireEvent.click(screen.getByText("Create"));
+    expect(await screen.findByText("Onsite")).toBeInTheDocument();
+
+    router.go({ name: "problem", id: 42 });
+    await screen.findByRole("heading", { name: "42. Trapping Rain Water" });
+    await fireEvent.click(screen.getByText("☆ Save"));
+    const menu = screen.getByRole("dialog", { name: "Save to lists" });
+    await fireEvent.click(within(menu).getByLabelText("Onsite"));
+    await waitFor(() => expect(backend.state.userLists[0].problem_ids).toEqual([42]));
+    expect(screen.getByText("★ Saved")).toBeInTheDocument();
+    await fireEvent.input(within(menu).getByLabelText("New list name"), { target: { value: "Hard ones" } });
+    await fireEvent.click(within(menu).getByText("Add"));
+    await waitFor(() => expect(backend.state.userLists[1]).toMatchObject({ name: "Hard ones", problem_ids: [42] }));
+    await fireEvent.click(within(menu).getByLabelText("Onsite"));
+    await waitFor(() => expect(backend.state.userLists[0].problem_ids).toEqual([]));
+
+    router.go({ name: "problems" });
+    await table(); // wait for the list page: the workspace's Save menu also says "Hard ones"
+    await fireEvent.click(screen.getByText("Hard ones", { selector: "strong" }));
+    await waitFor(async () => expect((await table()).queryByText("1. Two Sum")).not.toBeInTheDocument());
+    expect((await table()).getByText("42. Trapping Rain Water")).toBeInTheDocument();
+    await fireEvent.click(screen.getByLabelText("Delete list Hard ones"));
+    await waitFor(() => expect(backend.state.userLists.map((l) => l.name)).toEqual(["Onsite"]));
+    await (await table()).findByText("1. Two Sum");
+  });
+
+  it("reports list errors", async () => {
+    installBackend((cmd) => {
+      if (cmd === "create_user_list" || cmd === "set_in_user_list") throw "invalid data: nope";
+    });
+    await boot();
+    await fireEvent.click(await screen.findByText("+ New list"));
+    await fireEvent.input(screen.getByLabelText("List name"), { target: { value: "X" } });
+    await fireEvent.click(screen.getByText("Create"));
+    expect(await screen.findByRole("status")).toHaveTextContent("nope");
+    router.go({ name: "problem", id: 1 });
+    await screen.findByRole("heading", { name: "1. Two Sum" });
+    await fireEvent.click(screen.getByText("☆ Save"));
+    expect(screen.getByText(/No lists yet/)).toBeInTheDocument();
+    await fireEvent.input(screen.getByLabelText("New list name"), { target: { value: "Y" } });
+    await fireEvent.click(screen.getByText("Add"));
+  });
+
   it("restores filters from the session and tolerates corrupt state", async () => {
     installBackend();
     sessionStorage.setItem("lg-filters", JSON.stringify({ query: "valid" }));

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { app } from "../lib/state.svelte";
   import { router } from "../lib/router.svelte";
-  import { countByStatus, emptyFilters, filterProblems, pickRandom, type Filters } from "../lib/filter";
+  import { countByStatus, emptyFilters, filterProblems, pickRandom, userListsAsProblemLists, type Filters } from "../lib/filter";
+  import { api, errorMessage } from "../lib/api";
+  import { ask } from "@tauri-apps/plugin-dialog";
   import PracticeNext from "./PracticeNext.svelte";
   import { onMount } from "svelte";
   import { onShortcut } from "../lib/shortcuts";
@@ -41,10 +43,33 @@
     sessionStorage.setItem("lg-filters", JSON.stringify(filters));
   });
 
-  const groups = $derived(filterProblems(boot.problems, filters, boot.lists, boot.companies));
+  const userLists = $derived(userListsAsProblemLists(boot.user_lists));
+  const allLists = $derived([...boot.lists, ...userLists]);
+  const groups = $derived(filterProblems(boot.problems, filters, allLists, boot.companies));
   const visible = $derived(groups.flatMap((g) => g.problems));
   const counts = $derived(countByStatus(visible));
-  const activeList = $derived(boot.lists.find((l) => l.id === filters.listId));
+  const activeList = $derived(allLists.find((l) => l.id === filters.listId));
+  let creating = $state(false);
+  let newListName = $state("");
+
+  async function createList() {
+    const name = newListName.trim();
+    if (!name) return;
+    try {
+      app.setUserLists(await api.createUserList(name));
+      newListName = "";
+      creating = false;
+    } catch (e) {
+      app.notify(errorMessage(e));
+    }
+  }
+
+  async function deleteList(listId: string, name: string) {
+    const ok = await ask(`Delete the list "${name}"? The problems themselves are not affected.`, { title: "Delete list", kind: "warning" });
+    if (!ok) return;
+    app.setUserLists(await api.deleteUserList(Number(listId.slice(5))));
+    if (filters.listId === listId) filters.listId = "";
+  }
 
   function random() {
     const p = pickRandom(groups);
@@ -62,14 +87,33 @@
       <strong>All problems</strong>
       <span class="muted">{boot.problems.length} problems</span>
     </button>
-    {#each boot.lists as list (list.id)}
+    {#each allLists as list (list.id)}
       {@const solved = list.items.filter((i) => boot.problems.find((p) => p.id === i.problem_id)?.status === "solved").length}
-      <button class="list-card" class:selected={filters.listId === list.id} onclick={() => (filters.listId = list.id)}>
-        <strong>{list.name}</strong>
-        <span class="muted">{solved} / {list.items.length} solved</span>
-        <span class="bar"><span style="width: {(100 * solved) / Math.max(1, list.items.length)}%"></span></span>
-      </button>
+      <div class="list-wrap">
+        <button class="list-card" class:selected={filters.listId === list.id} onclick={() => (filters.listId = list.id)}>
+          <strong>{list.name}</strong>
+          <span class="muted">{solved} / {list.items.length} solved</span>
+          <span class="bar"><span style="width: {(100 * solved) / Math.max(1, list.items.length)}%"></span></span>
+        </button>
+        {#if list.id.startsWith("user:")}
+          <button class="ghost delete" aria-label="Delete list {list.name}" title="Delete list" onclick={() => deleteList(list.id, list.name)}>×</button>
+        {/if}
+      </div>
     {/each}
+    {#if creating}
+      <form class="list-card new-list" onsubmit={(e) => (e.preventDefault(), createList())}>
+        <input type="text" placeholder="List name" bind:value={newListName} aria-label="List name" maxlength="60" />
+        <span class="buttons">
+          <button type="submit" disabled={!newListName.trim()}>Create</button>
+          <button type="button" class="ghost" onclick={() => (creating = false)}>Cancel</button>
+        </span>
+      </form>
+    {:else}
+      <button class="list-card add" onclick={() => (creating = true)}>
+        <strong>+ New list</strong>
+        <span class="muted">Save problems to review later</span>
+      </button>
+    {/if}
   </section>
 
   <PracticeNext problems={boot.problems} lists={boot.lists} />
@@ -150,6 +194,30 @@
     padding: 0.8rem 1rem;
     background: var(--panel);
     text-align: left;
+  }
+  .list-wrap {
+    position: relative;
+    display: flex;
+  }
+  .list-wrap .list-card {
+    flex: 1;
+  }
+  .delete {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    padding: 0 0.45em;
+    color: var(--muted);
+  }
+  .add {
+    border-style: dashed;
+  }
+  .new-list .buttons {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .new-list input {
+    width: 100%;
   }
   .list-card.selected {
     border-color: var(--accent);

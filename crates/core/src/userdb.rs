@@ -70,6 +70,19 @@ CREATE TABLE notes (
     updated_at INTEGER NOT NULL
 );
 ",
+    "
+CREATE TABLE user_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE user_list_items (
+    list_id INTEGER NOT NULL REFERENCES user_lists (id) ON DELETE CASCADE,
+    problem_id INTEGER NOT NULL,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (list_id, problem_id)
+);
+",
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -86,6 +99,15 @@ pub struct Submission {
     pub error: Option<String>,
     pub failure: Option<CaseResult>,
     pub created_at: i64,
+}
+
+/// A list of problems the user curates (e.g. "Favorites", "Review before onsite").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UserList {
+    pub id: i64,
+    pub name: String,
+    /// Problem ids in the order they were added.
+    pub problem_ids: Vec<i64>,
 }
 
 /// The parts of a submission the statistics use.
@@ -304,6 +326,110 @@ impl UserDb {
 
     pub fn clear_local_benchmarks(&self) -> Result<()> {
         self.conn.execute("DELETE FROM local_benchmarks", [])?;
+        Ok(())
+    }
+
+    // ---- user lists ----
+
+    pub fn user_lists(&self) -> Result<Vec<UserList>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name FROM user_lists ORDER BY created_at, id")?;
+        let mut lists: Vec<UserList> = stmt
+            .query_map([], |r| {
+                Ok(UserList {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    problem_ids: Vec::new(),
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut items = self.conn.prepare(
+            "SELECT problem_id FROM user_list_items WHERE list_id = ?1 ORDER BY added_at, rowid",
+        )?;
+        for list in &mut lists {
+            list.problem_ids = items
+                .query_map([list.id], |r| r.get(0))?
+                .collect::<rusqlite::Result<_>>()?;
+        }
+        Ok(lists)
+    }
+
+    /// Creates a list, or returns the existing one with the same (trimmed) name.
+    pub fn create_user_list(&self, name: &str) -> Result<i64> {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 60 {
+            return Err(Error::Invalid(
+                "list names must be 1 to 60 characters".into(),
+            ));
+        }
+        self.conn.execute(
+            "INSERT INTO user_lists (name, created_at) VALUES (?1, ?2) ON CONFLICT (name) DO NOTHING",
+            params![name, now_ms()],
+        )?;
+        Ok(self
+            .conn
+            .query_row("SELECT id FROM user_lists WHERE name = ?1", [name], |r| {
+                r.get(0)
+            })?)
+    }
+
+    pub fn rename_user_list(&self, id: i64, name: &str) -> Result<()> {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 60 {
+            return Err(Error::Invalid(
+                "list names must be 1 to 60 characters".into(),
+            ));
+        }
+        let changed = self
+            .conn
+            .execute(
+                "UPDATE user_lists SET name = ?2 WHERE id = ?1",
+                params![id, name],
+            )
+            .map_err(|e| match e {
+                rusqlite::Error::SqliteFailure(f, _)
+                    if f.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    Error::Invalid(format!("a list named `{name}` already exists"))
+                }
+                other => other.into(),
+            })?;
+        if changed == 0 {
+            return Err(Error::NotFound(format!("list {id}")));
+        }
+        Ok(())
+    }
+
+    pub fn delete_user_list(&self, id: i64) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM user_list_items WHERE list_id = ?1", [id])?;
+        self.conn
+            .execute("DELETE FROM user_lists WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    /// Adds or removes a problem; adding twice keeps the original position.
+    pub fn set_in_user_list(&self, list_id: i64, problem_id: i64, member: bool) -> Result<()> {
+        let exists: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM user_lists WHERE id = ?1)",
+            [list_id],
+            |r| r.get(0),
+        )?;
+        if !exists {
+            return Err(Error::NotFound(format!("list {list_id}")));
+        }
+        if member {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO user_list_items (list_id, problem_id, added_at) VALUES (?1, ?2, ?3)",
+                params![list_id, problem_id, now_ms()],
+            )?;
+        } else {
+            self.conn.execute(
+                "DELETE FROM user_list_items WHERE list_id = ?1 AND problem_id = ?2",
+                params![list_id, problem_id],
+            )?;
+        }
         Ok(())
     }
 
@@ -726,6 +852,41 @@ mod tests {
         assert!(at.is_some());
         db.clear_local_benchmarks().unwrap();
         assert!(db.local_benchmarks(1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn user_lists_crud() {
+        let db = UserDb::in_memory().unwrap();
+        let fav = db.create_user_list("  Favorites ").unwrap();
+        assert_eq!(
+            db.create_user_list("Favorites").unwrap(),
+            fav,
+            "same name returns the list"
+        );
+        let onsite = db.create_user_list("Onsite").unwrap();
+        db.set_in_user_list(fav, 20, true).unwrap();
+        db.set_in_user_list(fav, 1, true).unwrap();
+        db.set_in_user_list(fav, 20, true).unwrap();
+        let lists = db.user_lists().unwrap();
+        assert_eq!(lists[0].name, "Favorites");
+        assert_eq!(lists[0].problem_ids, vec![20, 1]);
+        db.set_in_user_list(fav, 20, false).unwrap();
+        assert_eq!(db.user_lists().unwrap()[0].problem_ids, vec![1]);
+        assert!(db
+            .rename_user_list(onsite, "Favorites")
+            .unwrap_err()
+            .to_string()
+            .contains("already exists"));
+        db.rename_user_list(onsite, "Final round").unwrap();
+        assert!(db.rename_user_list(999, "x").is_err());
+        assert!(db.rename_user_list(onsite, " ").is_err());
+        assert!(db.create_user_list("").is_err());
+        assert!(db.create_user_list(&"x".repeat(61)).is_err());
+        assert!(db.set_in_user_list(999, 1, true).is_err());
+        db.delete_user_list(fav).unwrap();
+        let lists = db.user_lists().unwrap();
+        assert_eq!(lists.len(), 1);
+        assert_eq!(lists[0].name, "Final round");
     }
 
     #[test]

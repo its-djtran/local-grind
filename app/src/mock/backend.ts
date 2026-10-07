@@ -6,6 +6,7 @@ import catalog from "./catalog.json";
 import type {
   Bootstrap,
   LanguageId,
+  UserList,
   ProblemListing,
   ProblemView,
   RunOutcome,
@@ -55,6 +56,7 @@ export interface Backend {
     localBenchmarks: number;
     calibratedAt: number | null;
     notes: Map<number, string>;
+    userLists: UserList[];
   };
 }
 
@@ -104,6 +106,7 @@ export function createBackend(): Backend {
     localBenchmarks: 0,
     calibratedAt: null,
     notes: new Map(),
+    userLists: [],
   };
   let calibrationCancelled = false;
   let nextId = 1;
@@ -252,6 +255,7 @@ export function createBackend(): Backend {
           companies: [{ name: "Google", problem_ids: [1, 42] }, { name: "Amazon", problem_ids: [1] }],
           topics: [...new Set(listings().flatMap((p) => p.topics))].sort(),
           settings: state.settings,
+          user_lists: structuredClone(state.userLists),
           languages: [
             { id: "python", name: "Python3", available: true, executable: "/opt/homebrew/bin/python3" },
             { id: "javascript", name: "JavaScript", available: true, executable: "/opt/homebrew/bin/node" },
@@ -265,6 +269,29 @@ export function createBackend(): Backend {
       case "save_draft":
         state.drafts.set(`${id}:${a.language}`, a.code as string);
         return null;
+      case "create_user_list": {
+        const name = (a.name as string).trim();
+        if (!name) throw "invalid data: list names must be 1 to 60 characters";
+        if (!state.userLists.some((l) => l.name === name)) state.userLists.push({ id: nextId++, name, problem_ids: [] });
+        return structuredClone(state.userLists);
+      }
+      case "rename_user_list": {
+        const list = state.userLists.find((l) => l.id === a.id);
+        if (!list) throw "not found: list";
+        list.name = a.name as string;
+        return structuredClone(state.userLists);
+      }
+      case "delete_user_list":
+        state.userLists = state.userLists.filter((l) => l.id !== a.id);
+        return structuredClone(state.userLists);
+      case "set_in_user_list": {
+        const list = state.userLists.find((l) => l.id === a.listId);
+        if (!list) throw "not found: list";
+        const pid = a.problemId as number;
+        list.problem_ids = list.problem_ids.filter((p) => p !== pid);
+        if (a.member) list.problem_ids.push(pid);
+        return structuredClone(state.userLists);
+      }
       case "save_note":
         if ((a.body as string).trim()) state.notes.set(id, a.body as string);
         else state.notes.delete(id);

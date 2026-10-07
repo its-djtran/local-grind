@@ -19,7 +19,7 @@ use crate::runner::{self, Limits, RunOptions, RunReport, TestCase};
 use crate::settings::Settings;
 use crate::timeutil::now_ms;
 use crate::types::{Comparator, Signature};
-use crate::userdb::{ProblemRef, Solve, Submission, UserDb};
+use crate::userdb::{ProblemRef, Solve, Submission, UserDb, UserList};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -58,6 +58,7 @@ pub struct Bootstrap {
     pub companies: Vec<CompanyEntry>,
     pub topics: Vec<String>,
     pub settings: Settings,
+    pub user_lists: Vec<UserList>,
     pub languages: Vec<LanguageInfo>,
     pub catalog_built_at: Option<String>,
 }
@@ -345,6 +346,7 @@ impl Service {
             companies: self.companies.clone(),
             topics: topics.into_iter().collect(),
             settings: self.settings()?,
+            user_lists: self.user_lists()?,
             languages: self.languages(),
             catalog_built_at: self.catalog.lock().unwrap().meta("built_at")?,
         })
@@ -415,6 +417,40 @@ impl Service {
     }
 
     /// Discards the draft and returns the starter code.
+    pub fn user_lists(&self) -> Result<Vec<UserList>> {
+        self.user.lock().unwrap().user_lists()
+    }
+
+    pub fn create_user_list(&self, name: &str) -> Result<Vec<UserList>> {
+        let user = self.user.lock().unwrap();
+        user.create_user_list(name)?;
+        user.user_lists()
+    }
+
+    pub fn rename_user_list(&self, id: i64, name: &str) -> Result<Vec<UserList>> {
+        let user = self.user.lock().unwrap();
+        user.rename_user_list(id, name)?;
+        user.user_lists()
+    }
+
+    pub fn delete_user_list(&self, id: i64) -> Result<Vec<UserList>> {
+        let user = self.user.lock().unwrap();
+        user.delete_user_list(id)?;
+        user.user_lists()
+    }
+
+    pub fn set_in_user_list(
+        &self,
+        list_id: i64,
+        problem_id: i64,
+        member: bool,
+    ) -> Result<Vec<UserList>> {
+        self.summary(problem_id)?;
+        let user = self.user.lock().unwrap();
+        user.set_in_user_list(list_id, problem_id, member)?;
+        user.user_lists()
+    }
+
     pub fn save_note(&self, id: i64, body: &str) -> Result<()> {
         self.summary(id)?;
         self.user.lock().unwrap().save_note(id, body)
@@ -761,13 +797,34 @@ impl Service {
         review_min_days: f64,
         utc_offset_minutes: i32,
     ) -> Result<Stats> {
-        let (submissions, solves) = {
+        let (submissions, solves, user_lists) = {
             let u = self.user.lock().unwrap();
-            (u.activity()?, u.completed_solves()?)
+            (u.activity()?, u.completed_solves()?, u.user_lists()?)
         };
+        // Progress covers the user's own lists after the bundled ones.
+        let lists: Vec<ProblemList> = self
+            .lists
+            .iter()
+            .cloned()
+            .chain(user_lists.into_iter().map(|l| {
+                ProblemList {
+                    id: format!("user:{}", l.id),
+                    name: l.name,
+                    description: String::new(),
+                    items: l
+                        .problem_ids
+                        .into_iter()
+                        .map(|problem_id| crate::catalog::ListItem {
+                            problem_id,
+                            group: String::new(),
+                        })
+                        .collect(),
+                }
+            }))
+            .collect();
         Ok(metrics::compute(&StatsInput {
             problems: &self.summaries,
-            lists: &self.lists,
+            lists: &lists,
             submissions: &submissions,
             solves: &solves,
             now_ms: now_ms(),
@@ -1184,6 +1241,26 @@ mod tests {
         s.eval.toolchain_paths.clear();
         svc.save_settings(&s).unwrap();
         assert_eq!(svc.languages()[0].executable, fake.to_string_lossy());
+    }
+
+    #[test]
+    fn user_lists_through_the_service() {
+        let svc = service();
+        let lists = svc.create_user_list("Favorites").unwrap();
+        let id = lists[0].id;
+        assert_eq!(
+            svc.set_in_user_list(id, 1, true).unwrap()[0].problem_ids,
+            vec![1]
+        );
+        assert!(svc.set_in_user_list(id, 404, true).is_err());
+        assert_eq!(svc.bootstrap().unwrap().user_lists.len(), 1);
+        svc.submit(1, Language::Python, GOOD, 0, &mut |_, _| {})
+            .unwrap();
+        let stats = svc.stats(5, 0.0, 0).unwrap();
+        let fav = stats.lists.iter().find(|l| l.name == "Favorites").unwrap();
+        assert_eq!((fav.solved, fav.total), (1, 1));
+        assert_eq!(svc.rename_user_list(id, "Saved").unwrap()[0].name, "Saved");
+        assert!(svc.delete_user_list(id).unwrap().is_empty());
     }
 
     #[test]

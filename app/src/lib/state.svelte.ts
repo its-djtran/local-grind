@@ -1,5 +1,5 @@
 import { api, errorMessage } from "./api";
-import type { Bootstrap, Settings, Status } from "./types";
+import type { Bootstrap, Settings, Status, UserList } from "./types";
 
 /** Resolves the effective theme, following the OS when set to "system". */
 export function resolveTheme(theme: Settings["theme"], prefersDark: boolean): "dark" | "light" {
@@ -60,6 +60,10 @@ class AppState {
     // Solved is sticky: a later failed attempt does not unsolve a problem.
     if (p.status === "solved" && status !== "solved") return;
     p.status = status;
+  }
+
+  setUserLists(lists: UserList[]): void {
+    if (this.boot) this.boot.user_lists = lists;
   }
 
   notify(message: string, ms = 4000): void {

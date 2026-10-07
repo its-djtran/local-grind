@@ -1,4 +1,4 @@
-import type { CompanyEntry, Difficulty, ProblemList, ProblemListing, Status } from "./types";
+import type { CompanyEntry, Difficulty, ProblemList, ProblemListing, Status, UserList } from "./types";
 
 export type SortKey = "id" | "title" | "difficulty" | "frequency";
 
@@ -131,4 +131,14 @@ export function nextInLists(problems: ProblemListing[], lists: ProblemList[]): N
     });
   }
   return out;
+}
+
+/** User lists in the same shape as bundled lists (ids prefixed `user:`), so filters treat them alike. */
+export function userListsAsProblemLists(lists: UserList[]): ProblemList[] {
+  return lists.map((l) => ({
+    id: `user:${l.id}`,
+    name: l.name,
+    description: "",
+    items: l.problem_ids.map((problem_id) => ({ problem_id, group: "" })),
+  }));
 }
