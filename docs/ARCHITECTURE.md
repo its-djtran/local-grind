@@ -116,7 +116,9 @@ custom testcases, and benchmarks are recorded per language.
   outputs, so custom inputs work.
 - **Submit** judges against the full stored suite, records a `Submission`, and applies it to the
   problem's active `Solve`: failures increment its error count; Accepted completes it with the
-  elapsed time from the UI timer.
+  elapsed time from the UI timer. With no active solve, one is started only if the timer ran; an
+  untimed submission (such as re-submitting after Accepted) records no solve, so it cannot add
+  zero-time or duplicate solves to the statistics.
 
 ## Data
 

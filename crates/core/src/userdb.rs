@@ -697,14 +697,20 @@ impl UserDb {
     }
 
     /// Applies a judged submission to the active solve: errors accumulate until an Accepted
-    /// verdict completes it.
+    /// verdict completes it. Without an active solve, one is started only if the timer ran
+    /// (`elapsed_ms > 0`); an untimed submission (e.g. re-submitting after Accepted) records no
+    /// solve, so it cannot add a fake zero-time or duplicate solve to the statistics.
     pub fn record_attempt(
         &self,
         p: &ProblemRef,
         submission: &Submission,
         elapsed_ms: i64,
-    ) -> Result<Solve> {
-        let solve = self.start_solve(p, submission.created_at)?;
+    ) -> Result<Option<Solve>> {
+        let solve = match self.active_solve(&p.slug)? {
+            Some(s) => s,
+            None if elapsed_ms > 0 => self.start_solve(p, submission.created_at)?,
+            None => return Ok(None),
+        };
         if submission.verdict == Verdict::Accepted {
             self.conn.execute(
                 "UPDATE solves SET completed_at = ?2, elapsed_ms = ?3, submission_id = ?4 WHERE id = ?1",
@@ -716,7 +722,7 @@ impl UserDb {
                 params![solve.id, elapsed_ms.max(0)],
             )?;
         }
-        self.solve(solve.id)
+        self.solve(solve.id).map(Some)
     }
 
     /// Inserts a completed solve (used by import); returns false for an exact duplicate.
@@ -959,18 +965,27 @@ mod tests {
         let wa = db
             .insert_submission(1, "python", "x", &report(Verdict::WrongAnswer), 3000)
             .unwrap();
-        let s1 = db.record_attempt(&pref(), &wa, 6000).unwrap();
+        let s1 = db.record_attempt(&pref(), &wa, 6000).unwrap().unwrap();
         assert_eq!((s1.errors, s1.completed_at), (1, None));
 
         let ac = db
             .insert_submission(1, "python", "y", &report(Verdict::Accepted), 4000)
             .unwrap();
-        let s2 = db.record_attempt(&pref(), &ac, 7000).unwrap();
+        let s2 = db.record_attempt(&pref(), &ac, 7000).unwrap().unwrap();
         assert_eq!(s2.completed_at, Some(4000));
         assert_eq!(s2.submission_id, Some(ac.id));
         assert_eq!(s2.elapsed_ms, 7000);
         assert!(db.active_solve("two-sum").unwrap().is_none());
         assert_eq!(db.completed_solves().unwrap().len(), 1);
+
+        // Re-submitting with no active solve and no timed work records nothing.
+        assert!(db.record_attempt(&pref(), &ac, 0).unwrap().is_none());
+        assert_eq!(db.completed_solves().unwrap().len(), 1);
+        assert!(db.active_solve("two-sum").unwrap().is_none());
+        // A timed submission without an explicit start still counts.
+        let timed = db.record_attempt(&pref(), &ac, 2500).unwrap().unwrap();
+        assert_eq!((timed.elapsed_ms, timed.started_at), (2500, 4000));
+        assert_eq!(db.completed_solves().unwrap().len(), 2);
 
         // Elapsed updates no longer apply once completed.
         db.set_solve_elapsed(s2.id, 1).unwrap();

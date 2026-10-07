@@ -346,12 +346,16 @@ export function createBackend(): Backend {
         };
         state.submissions.push(sub);
         let solve = activeSolve(id);
+        const elapsedMs = a.elapsedMs as number;
+        if (!solve && elapsedMs <= 0) {
+          return { submission: sub, solve: null, benchmark: views.get(id)!.benchmarks.python ?? null } satisfies SubmitOutcome;
+        }
         if (!solve) {
           const v = views.get(id)!;
           solve = { id: nextId++, problem_id: id, slug: v.slug, title: v.title, difficulty: v.difficulty, started_at: Date.now(), completed_at: null, elapsed_ms: 0, errors: 0, submission_id: null };
           state.solves.push(solve);
         }
-        solve.elapsed_ms = a.elapsedMs as number;
+        solve.elapsed_ms = elapsedMs;
         if (verdict === "Accepted") {
           solve.completed_at = sub.created_at;
           solve.submission_id = sub.id;

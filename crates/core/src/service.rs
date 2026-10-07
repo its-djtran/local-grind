@@ -94,7 +94,8 @@ pub struct RunOutcome {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SubmitOutcome {
     pub submission: Submission,
-    pub solve: Solve,
+    /// The solve this submission counted towards; `None` for an untimed submission.
+    pub solve: Option<Solve>,
     pub benchmark: Option<Benchmark>,
 }
 
@@ -969,7 +970,7 @@ mod tests {
             })
             .unwrap();
         assert_eq!(wa.submission.verdict, Verdict::WrongAnswer);
-        assert_eq!(wa.solve.errors, 1);
+        assert_eq!(wa.solve.unwrap().errors, 1);
         assert!(!progress.is_empty());
         let ac = svc
             .submit(1, Language::Python, GOOD, 3000, &mut |_, _| {})
@@ -980,8 +981,9 @@ mod tests {
             "{:?}",
             ac.submission
         );
-        assert_eq!(ac.solve.completed_at, Some(ac.submission.created_at));
-        assert_eq!(ac.solve.elapsed_ms, 3000);
+        let solve = ac.solve.unwrap();
+        assert_eq!(solve.completed_at, Some(ac.submission.created_at));
+        assert_eq!(solve.elapsed_ms, 3000);
         assert_eq!(ac.benchmark.unwrap().runs, 10);
         assert_eq!(svc.submissions(1).unwrap().len(), 2);
         assert_eq!(svc.bootstrap().unwrap().problems[0].status, Status::Solved);

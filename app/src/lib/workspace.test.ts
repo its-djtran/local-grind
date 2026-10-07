@@ -196,7 +196,7 @@ describe("Workspace", () => {
   });
 
   it("submits, tracking errors until accepted", async () => {
-    installBackend();
+    const backend = installBackend();
     const { ws, statuses } = make();
     await ws.load();
     ws.code = "pass";
@@ -210,11 +210,19 @@ describe("Workspace", () => {
     ws.code = "return 1";
     await ws.submit();
     expect(ws.lastSubmit?.submission.verdict).toBe("Accepted");
-    expect(ws.lastSubmit?.solve.errors).toBe(1);
+    expect(ws.lastSubmit?.solve?.errors).toBe(1);
     expect(ws.solveCompleted).toBe(true);
     expect(ws.timerRunning).toBe(false);
     expect(ws.submissions).toHaveLength(2);
     expect(statuses[1]).toEqual([1, "solved"]);
+
+    // Re-submitting a finished solve records the submission but no new solve.
+    ws.code = "pass";
+    await ws.submit();
+    expect(ws.lastSubmit?.solve).toBeNull();
+    expect(backend.state.solves).toHaveLength(1);
+    expect(ws.solveCompleted).toBe(true);
+    expect(statuses[2]).toEqual([1, "attempted"]);
 
     // Editing after a completed solve starts a fresh attempt.
     ws.edit("again");

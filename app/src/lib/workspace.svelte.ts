@@ -269,18 +269,20 @@ export class Workspace {
     this.progress = { done: 0, total: this.view.test_count };
     try {
       void this.flushDraft();
-      const outcome = await this.api.submit(this.id, this.language, this.code, Math.round(this.timer.elapsed()));
+      // A finished solve's time is still on the clock; it must not count towards a new one.
+      const elapsed = this.solveCompleted ? 0 : Math.round(this.timer.elapsed());
+      const outcome = await this.api.submit(this.id, this.language, this.code, elapsed);
       this.lastSubmit = outcome;
       this.selected = outcome.submission;
       this.leftTab = "result";
       this.submissions = [outcome.submission, ...this.submissions];
       const accepted = outcome.submission.verdict === "Accepted";
-      if (accepted) {
+      if (outcome.solve && accepted) {
         this.timer.pause();
         this.timer.reset(outcome.solve.elapsed_ms);
         this.solveCompleted = true;
         this.solveId = null;
-      } else {
+      } else if (outcome.solve) {
         this.solveId = outcome.solve.id;
       }
       this.syncTimer();

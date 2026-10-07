@@ -154,7 +154,8 @@ export interface Submission {
 
 export interface SubmitOutcome {
   submission: Submission;
-  solve: Solve;
+  /** The solve this submission counted towards; null for an untimed submission. */
+  solve: Solve | null;
   benchmark: Benchmark | null;
 }
 
