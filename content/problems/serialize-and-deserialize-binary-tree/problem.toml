@@ -1,0 +1,26 @@
+id = 297
+title = "Serialize and Deserialize Binary Tree"
+difficulty = "Hard"
+topics = ["String", "Tree", "Depth-First Search", "Breadth-First Search", "Design", "Binary Tree"]
+time_limit_ms = 1500
+hints = [
+  "Listing just the values is ambiguous: [1,2] and [1,null,2] contain the same numbers. What extra information pins down the shape?",
+  "Write a marker for every missing child. With markers, a pre-order listing (or a level-order listing) describes exactly one tree.",
+  "Separate tokens with a delimiter so multi-digit and negative values such as -1000 can be read back unambiguously.",
+  "To decode, consume tokens in the same order you produced them: recursively for pre-order, or with a queue of parents waiting for children for level order.",
+]
+
+[signature]
+kind = "codec"
+class = "Codec"
+encode = { name = "serialize", params = [{ name = "root", type = "TreeNode" }], returns = "string" }
+decode = { name = "deserialize", params = [{ name = "data", type = "string" }], returns = "TreeNode" }
+
+[[examples]]
+input = "[1,2,3,null,null,4,5]"
+output = "[1,2,3,null,null,4,5]"
+explanation = "Whatever string serialize produces, deserialize must rebuild a tree with exactly this shape and these values."
+
+[[examples]]
+input = "[]"
+output = "[]"

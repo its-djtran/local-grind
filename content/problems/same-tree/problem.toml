@@ -1,0 +1,35 @@
+id = 100
+title = "Same Tree"
+difficulty = "Easy"
+topics = ["Tree", "Depth-First Search", "Breadth-First Search", "Binary Tree"]
+time_limit_ms = 1000
+hints = [
+  "Two trees match only if their roots match and their left subtrees match and their right subtrees match.",
+  "Handle the empty cases first: two empty trees are equal, while an empty tree never equals a non-empty one.",
+  "You can also walk both trees in lockstep with a stack or queue of node pairs and stop at the first difference.",
+]
+
+[signature]
+kind = "function"
+name = "isSameTree"
+params = [{ name = "p", type = "TreeNode" }, { name = "q", type = "TreeNode" }]
+returns = "bool"
+
+[[examples]]
+input = """
+[1,2,3]
+[1,2,3]"""
+output = "true"
+
+[[examples]]
+input = """
+[1,2]
+[1,null,2]"""
+output = "false"
+explanation = "Both trees hold the values 1 and 2, but 2 is a left child in the first tree and a right child in the second."
+
+[[examples]]
+input = """
+[1,2,1]
+[1,1,2]"""
+output = "false"

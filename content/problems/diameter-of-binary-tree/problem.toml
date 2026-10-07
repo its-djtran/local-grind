@@ -1,0 +1,25 @@
+id = 543
+title = "Diameter of Binary Tree"
+difficulty = "Easy"
+topics = ["Tree", "Depth-First Search", "Binary Tree"]
+time_limit_ms = 1500
+hints = [
+  "Any path has a single highest node. If the path bends at node v, how long can it be in terms of the heights of v's two subtrees?",
+  "The longest path does not have to pass through the root, so every node must be considered as the bending point.",
+  "Compute subtree heights bottom-up in one traversal, and update a running maximum of left height + right height at every node.",
+]
+
+[signature]
+kind = "function"
+name = "diameterOfBinaryTree"
+params = [{ name = "root", type = "TreeNode" }]
+returns = "int"
+
+[[examples]]
+input = "[1,2,3,4,5]"
+output = "3"
+explanation = "The path 4 -> 2 -> 1 -> 3 (or 5 -> 2 -> 1 -> 3) uses 3 edges."
+
+[[examples]]
+input = "[1,2]"
+output = "1"

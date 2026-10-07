@@ -1,0 +1,28 @@
+id = 105
+title = "Construct Binary Tree from Preorder and Inorder Traversal"
+difficulty = "Medium"
+topics = ["Array", "Hash Table", "Divide and Conquer", "Tree", "Binary Tree"]
+time_limit_ms = 400
+hints = [
+  "The first value of a pre-order listing is always the root of the tree.",
+  "Find that root in the in-order listing: everything to its left forms the left subtree and everything to its right forms the right subtree. The sizes tell you how to split the pre-order listing too.",
+  "Searching the in-order list for every root costs O(n) each time. Precompute a map from value to in-order index, and pass index bounds instead of slicing lists.",
+]
+
+[signature]
+kind = "function"
+name = "buildTree"
+params = [{ name = "preorder", type = "int[]" }, { name = "inorder", type = "int[]" }]
+returns = "TreeNode"
+
+[[examples]]
+input = """
+[3,9,20,15,7]
+[9,3,15,20,7]"""
+output = "[3,9,20,null,null,15,7]"
+
+[[examples]]
+input = """
+[-1]
+[-1]"""
+output = "[-1]"

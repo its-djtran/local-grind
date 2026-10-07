@@ -1,0 +1,29 @@
+id = 110
+title = "Balanced Binary Tree"
+difficulty = "Easy"
+topics = ["Tree", "Depth-First Search", "Binary Tree"]
+time_limit_ms = 1000
+hints = [
+  "The condition must hold at every node, not just at the root: a root with two subtrees of equal height can still hide an unbalanced node further down.",
+  "A direct approach computes both subtree heights at every node. Which heights end up being recomputed over and over?",
+  "Compute heights bottom-up in one pass. Let the helper return the height of a balanced subtree, or a special value such as -1 as soon as any imbalance is found, and propagate it upward.",
+]
+
+[signature]
+kind = "function"
+name = "isBalanced"
+params = [{ name = "root", type = "TreeNode" }]
+returns = "bool"
+
+[[examples]]
+input = "[3,9,20,null,null,15,7]"
+output = "true"
+
+[[examples]]
+input = "[1,2,2,3,3,null,null,4,4]"
+output = "false"
+explanation = "At the root, the left subtree has height 3 while the right subtree has height 1."
+
+[[examples]]
+input = "[]"
+output = "true"

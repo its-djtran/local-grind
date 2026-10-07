@@ -1,0 +1,29 @@
+id = 572
+title = "Subtree of Another Tree"
+difficulty = "Easy"
+topics = ["Tree", "Depth-First Search", "String Matching", "Binary Tree", "Hash Function"]
+time_limit_ms = 1000
+hints = [
+  "First write a helper that decides whether two trees are exactly the same.",
+  "subRoot is a subtree of root if it is the same tree as root itself, or a subtree of root.left, or a subtree of root.right.",
+  "For a linear-time solution, give every distinct subtree shape-and-values combination an integer id built from (left id, value, right id), then check whether some node of root gets subRoot's id.",
+]
+
+[signature]
+kind = "function"
+name = "isSubtree"
+params = [{ name = "root", type = "TreeNode" }, { name = "subRoot", type = "TreeNode" }]
+returns = "bool"
+
+[[examples]]
+input = """
+[3,4,5,1,2]
+[4,1,2]"""
+output = "true"
+
+[[examples]]
+input = """
+[3,4,5,1,2,null,null,null,null,0]
+[4,1,2]"""
+output = "false"
+explanation = "The node with value 4 has the right values on top, but its subtree also contains the extra node 0, so it is not identical to subRoot."

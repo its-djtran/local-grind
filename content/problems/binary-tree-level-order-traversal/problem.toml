@@ -1,0 +1,28 @@
+id = 102
+title = "Binary Tree Level Order Traversal"
+difficulty = "Medium"
+topics = ["Tree", "Breadth-First Search", "Binary Tree"]
+time_limit_ms = 500
+hints = [
+  "Nodes should come out in the order of their distance from the root. Which data structure hands items back in the order they were added?",
+  "Process the queue one level at a time: before starting a level, note how many nodes it holds, then pop exactly that many.",
+  "A depth-first traversal also works if you pass the current depth along and append each value to the list for that depth.",
+]
+
+[signature]
+kind = "function"
+name = "levelOrder"
+params = [{ name = "root", type = "TreeNode" }]
+returns = "int[][]"
+
+[[examples]]
+input = "[3,9,20,null,null,15,7]"
+output = "[[3],[9,20],[15,7]]"
+
+[[examples]]
+input = "[1]"
+output = "[[1]]"
+
+[[examples]]
+input = "[]"
+output = "[]"
