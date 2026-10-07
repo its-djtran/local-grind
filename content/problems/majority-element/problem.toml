@@ -1,0 +1,25 @@
+id = 169
+title = "Majority Element"
+difficulty = "Easy"
+topics = ["Array", "Hash Table", "Divide and Conquer", "Sorting", "Counting"]
+time_limit_ms = 500
+hints = [
+  "A hash map from value to count finds the answer in linear time. Can you do it without the extra memory?",
+  "If you sort the array, which index is guaranteed to hold the majority element?",
+  "Pair each occurrence of the majority element with a different element and cancel both out. Since the majority appears more than half the time, something of it always survives.",
+  "Keep a candidate and a counter: increment on a match, decrement on a mismatch, and adopt the current element as the new candidate when the counter is 0.",
+]
+
+[signature]
+kind = "function"
+name = "majorityElement"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[3,2,3]"
+output = "3"
+
+[[examples]]
+input = "[2,2,1,1,1,2,2]"
+output = "2"

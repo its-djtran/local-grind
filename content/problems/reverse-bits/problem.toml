@@ -1,0 +1,26 @@
+id = 190
+title = "Reverse Bits"
+difficulty = "Easy"
+topics = ["Divide and Conquer", "Bit Manipulation"]
+time_limit_ms = 1000
+hints = [
+  "Treat n as exactly 32 bits, including its leading zeros. Bit i of the input must end up at position 31 - i.",
+  "Peel bits off the low end of n with n & 1 and n >>= 1, and push each one onto the low end of the result with result = (result << 1) | bit.",
+  "Make sure the loop runs exactly 32 times, even after n becomes 0, so that the leading zeros are moved too.",
+]
+
+[signature]
+kind = "function"
+name = "reverseBits"
+params = [{ name = "n", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = "43261596"
+output = "964176192"
+explanation = "As 32 bits, 43261596 is 00000010100101000001111010011100. Read backwards that is 00111001011110000010100101000000, which is 964176192."
+
+[[examples]]
+input = "2147483644"
+output = "1073741822"
+explanation = "As 32 bits, 2147483644 is 01111111111111111111111111111100. Read backwards that is 00111111111111111111111111111110, which is 1073741822."

@@ -1,0 +1,30 @@
+id = 278
+title = "First Bad Version"
+difficulty = "Easy"
+topics = ["Binary Search", "Interactive"]
+time_limit_ms = 200
+hints = [
+  "Checking versions 1, 2, 3, ... in order works but can take billions of calls. The answers to isBadVersion form a pattern: some goods followed only by bads.",
+  "If isBadVersion(mid) is true, the first bad version is mid or earlier; if it is false, it is strictly after mid.",
+  "Binary search on the range [1, n] with lo < hi: set hi = mid on a bad version and lo = mid + 1 on a good one. When the range shrinks to one version, that is the answer.",
+]
+
+[signature]
+kind = "function"
+name = "firstBadVersion"
+special = "bad_version"
+params = [{ name = "n", type = "int" }, { name = "bad", type = "int", hidden = true }]
+returns = "int"
+
+[[examples]]
+input = """
+5
+4"""
+output = "4"
+explanation = "isBadVersion(3) is false, isBadVersion(4) is true and isBadVersion(5) is true, so version 4 is the first bad one."
+
+[[examples]]
+input = """
+1
+1"""
+output = "1"

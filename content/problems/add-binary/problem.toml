@@ -1,0 +1,28 @@
+id = 67
+title = "Add Binary"
+difficulty = "Easy"
+topics = ["Math", "String", "Bit Manipulation", "Simulation"]
+time_limit_ms = 1000
+hints = [
+  "Do it the way you add numbers on paper: start from the rightmost digits and move left, keeping a carry.",
+  "At each column, add the two digits (treating a missing digit as 0) plus the carry. The new digit is the total mod 2 and the new carry is the total divided by 2.",
+  "Don't forget a final carry after the last column, and collect digits in a list and reverse once instead of prepending to a string.",
+]
+
+[signature]
+kind = "function"
+name = "addBinary"
+params = [{ name = "a", type = "string" }, { name = "b", type = "string" }]
+returns = "string"
+
+[[examples]]
+input = '''
+"11"
+"1"'''
+output = '"100"'
+
+[[examples]]
+input = '''
+"1010"
+"1011"'''
+output = '"10101"'

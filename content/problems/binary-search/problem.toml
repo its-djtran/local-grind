@@ -1,0 +1,30 @@
+id = 704
+title = "Binary Search"
+difficulty = "Easy"
+topics = ["Array", "Binary Search"]
+time_limit_ms = 4
+hints = [
+  "Scanning every element is O(n). The array is sorted: what does comparing target with a single element tell you about all the others?",
+  "Compare target with the middle element. Depending on the result, the answer can only be in one half, so discard the other.",
+  "Keep a search range [lo, hi]. Stop when lo > hi, and be careful to move lo to mid + 1 or hi to mid - 1 so the range always shrinks.",
+]
+
+[signature]
+kind = "function"
+name = "search"
+params = [{ name = "nums", type = "int[]" }, { name = "target", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+[-1,0,3,5,9,12]
+9"""
+output = "4"
+explanation = "9 is in nums at index 4."
+
+[[examples]]
+input = """
+[-1,0,3,5,9,12]
+2"""
+output = "-1"
+explanation = "2 is not in nums, so the answer is -1."

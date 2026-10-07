@@ -1,0 +1,26 @@
+id = 338
+title = "Counting Bits"
+difficulty = "Easy"
+topics = ["Dynamic Programming", "Bit Manipulation"]
+time_limit_ms = 200
+hints = [
+  "Counting the bits of each number from scratch works, but it repeats a lot of work. How does the binary form of i relate to that of a smaller number?",
+  "Shifting i right by one drops its lowest bit. The result is a smaller number whose answer you already know.",
+  "ans[i] = ans[i >> 1] + (i & 1). Alternatively, i & (i - 1) removes the lowest set bit, so ans[i] = ans[i & (i - 1)] + 1.",
+]
+
+[signature]
+kind = "function"
+name = "countBits"
+params = [{ name = "n", type = "int" }]
+returns = "int[]"
+
+[[examples]]
+input = "2"
+output = "[0,1,1]"
+explanation = "0 is 0, 1 is 1 and 2 is 10 in binary."
+
+[[examples]]
+input = "5"
+output = "[0,1,1,2,1,2]"
+explanation = "In binary: 0, 1, 10, 11, 100, 101."

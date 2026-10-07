@@ -1,0 +1,31 @@
+id = 268
+title = "Missing Number"
+difficulty = "Easy"
+topics = ["Array", "Hash Table", "Math", "Binary Search", "Bit Manipulation", "Sorting"]
+time_limit_ms = 500
+hints = [
+  "Sorting the array makes the gap easy to spot, and a hash set lets you test each candidate quickly. Can you avoid the extra time or memory?",
+  "You know exactly which numbers should be present: 0, 1, ..., n. What is their total?",
+  "The missing value is the expected total minus the actual total. XOR offers the same trick without large sums: x ^ x == 0.",
+]
+
+[signature]
+kind = "function"
+name = "missingNumber"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[3,0,1]"
+output = "2"
+explanation = "There are 3 numbers, so the full range is 0 to 3. Of those, only 2 does not appear."
+
+[[examples]]
+input = "[0,1]"
+output = "2"
+explanation = "With 2 numbers the range is 0 to 2, and 2 is absent."
+
+[[examples]]
+input = "[9,6,4,2,3,5,7,0,1]"
+output = "8"
+explanation = "With 9 numbers the range is 0 to 9, and 8 is the one value that never appears."

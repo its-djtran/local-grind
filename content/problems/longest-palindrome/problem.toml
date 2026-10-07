@@ -1,0 +1,26 @@
+id = 409
+title = "Longest Palindrome"
+difficulty = "Easy"
+topics = ["Hash Table", "String", "Greedy"]
+time_limit_ms = 1000
+hints = [
+  "You may rearrange the letters freely, so only the count of each letter matters.",
+  "A palindrome reads the same in both directions, so its letters come in mirrored pairs. How many pairs can each letter contribute?",
+  "Every letter contributes count // 2 pairs. At most one letter can sit alone in the middle: add 1 if any letter has an odd count.",
+]
+
+[signature]
+kind = "function"
+name = "longestPalindrome"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"abccccdd"'
+output = "7"
+explanation = "One longest palindrome is \"dccaccd\", which has length 7."
+
+[[examples]]
+input = '"a"'
+output = "1"
+explanation = "The only palindrome that can be built is \"a\" itself."

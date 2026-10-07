@@ -1,0 +1,29 @@
+id = 371
+title = "Sum of Two Integers"
+difficulty = "Medium"
+topics = ["Math", "Bit Manipulation"]
+time_limit_ms = 1000
+hints = [
+  "Think about adding two binary numbers by hand, one column at a time. Which bitwise operator gives the column digit when you ignore carries?",
+  "XOR adds bits without carrying; AND finds the columns that produce a carry, and a left shift moves each carry into the next column.",
+  "Repeat \"sum = a XOR b, carry = (a AND b) << 1\" until the carry is zero.",
+  "Python integers never overflow, so negative numbers make the carry grow forever. Mask every step to 32 bits and convert the final pattern back to a signed value.",
+]
+
+[signature]
+kind = "function"
+name = "getSum"
+params = [{ name = "a", type = "int" }, { name = "b", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+1
+2"""
+output = "3"
+
+[[examples]]
+input = """
+2
+3"""
+output = "5"

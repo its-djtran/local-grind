@@ -1,0 +1,34 @@
+id = 383
+title = "Ransom Note"
+difficulty = "Easy"
+topics = ["Hash Table", "String", "Counting"]
+time_limit_ms = 500
+hints = [
+  "Order does not matter here, only how many copies of each letter are available and how many are needed.",
+  "Count the letters of magazine first. Then walk through ransomNote and use up one copy for each letter.",
+  "With only 26 possible letters, a fixed-size array of counts is enough. If any count would go negative, the note cannot be built.",
+]
+
+[signature]
+kind = "function"
+name = "canConstruct"
+params = [{ name = "ransomNote", type = "string" }, { name = "magazine", type = "string" }]
+returns = "bool"
+
+[[examples]]
+input = '''
+"a"
+"b"'''
+output = "false"
+
+[[examples]]
+input = '''
+"aa"
+"ab"'''
+output = "false"
+
+[[examples]]
+input = '''
+"aa"
+"aab"'''
+output = "true"
