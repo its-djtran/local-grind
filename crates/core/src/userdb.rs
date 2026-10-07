@@ -66,6 +66,24 @@ pub struct Submission {
     pub created_at: i64,
 }
 
+/// The parts of a submission the statistics use.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Activity {
+    pub problem_id: i64,
+    pub verdict: Verdict,
+    pub created_at: i64,
+}
+
+impl From<&Submission> for Activity {
+    fn from(s: &Submission) -> Activity {
+        Activity {
+            problem_id: s.problem_id,
+            verdict: s.verdict,
+            created_at: s.created_at,
+        }
+    }
+}
+
 /// One timed attempt at a problem, from first keystroke until an Accepted submission, with the
 /// number of failed submissions along the way.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -354,6 +372,25 @@ impl UserDb {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    /// Lightweight view of every submission (no code or failure details), oldest first. This is
+    /// all the statistics need, and it stays cheap with tens of thousands of submissions.
+    pub fn activity(&self) -> Result<Vec<Activity>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT problem_id, verdict, created_at FROM submissions ORDER BY created_at, id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            let verdict: String = r.get(1)?;
+            Ok(Activity {
+                problem_id: r.get(0)?,
+                verdict: Verdict::parse(&verdict).ok_or_else(|| {
+                    conversion_err(1, Error::Invalid(format!("verdict {verdict}")))
+                })?,
+                created_at: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     /// `(problem_id, ever_accepted)` for every attempted problem.
     pub fn problem_statuses(&self) -> Result<Vec<(i64, bool)>> {
         let mut stmt = self.conn.prepare(
@@ -580,6 +617,12 @@ mod tests {
         assert_eq!(subs.len(), 2);
         assert_eq!(subs[0].verdict, Verdict::Accepted);
         assert_eq!(db.all_submissions().unwrap()[0].code, "x");
+        let activity = db.activity().unwrap();
+        assert_eq!(activity.len(), 3);
+        assert_eq!(
+            activity[0],
+            Activity::from(&db.all_submissions().unwrap()[0])
+        );
         let mut statuses = db.problem_statuses().unwrap();
         statuses.sort();
         assert_eq!(statuses, vec![(1, true), (2, false)]);
@@ -686,6 +729,7 @@ mod tests {
             .execute("UPDATE submissions SET verdict = 'Bogus'", [])
             .unwrap();
         assert!(db.all_submissions().is_err());
+        assert!(db.activity().is_err());
         db.conn
             .execute(
                 "UPDATE submissions SET verdict = 'Accepted', failure = '{'",

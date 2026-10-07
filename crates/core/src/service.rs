@@ -556,7 +556,7 @@ impl Service {
     ) -> Result<Stats> {
         let (submissions, solves) = {
             let u = self.user.lock().unwrap();
-            (u.all_submissions()?, u.completed_solves()?)
+            (u.activity()?, u.completed_solves()?)
         };
         Ok(metrics::compute(&StatsInput {
             problems: &self.summaries,

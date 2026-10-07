@@ -10,7 +10,7 @@ use crate::catalog::{ProblemList, ProblemSummary};
 use crate::runner::Verdict;
 use crate::timeutil::{civil_from_days, days_from_civil};
 use crate::types::Difficulty;
-use crate::userdb::{Solve, Submission};
+use crate::userdb::{Activity, Solve};
 
 const MS_PER_DAY: i64 = 86_400_000;
 /// Beyond this many days since the last solve, staleness stops adding to the review score.
@@ -87,6 +87,19 @@ pub struct DayCount {
     pub accepted: usize,
 }
 
+/// One week of solves (weeks start on Monday, in the user's timezone). `avg_ms` and
+/// `error_rate` are `None` for weeks without solves so charts show gaps, not zeros.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WeekPoint {
+    pub week_start: String,
+    pub solves: usize,
+    pub avg_ms: Option<f64>,
+    pub error_rate: Option<f64>,
+}
+
+/// Number of weeks of history in [`Stats::weekly`].
+pub const TREND_WEEKS: i64 = 26;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reason {
     pub text: String,
@@ -132,13 +145,14 @@ pub struct Stats {
     pub topics: Vec<TopicStats>,
     pub lists: Vec<ListProgress>,
     pub heatmap: Vec<DayCount>,
+    pub weekly: Vec<WeekPoint>,
     pub review: Vec<ReviewItem>,
 }
 
 pub struct StatsInput<'a> {
     pub problems: &'a [ProblemSummary],
     pub lists: &'a [ProblemList],
-    pub submissions: &'a [Submission],
+    pub submissions: &'a [Activity],
     /// Completed solves, any order.
     pub solves: &'a [Solve],
     pub now_ms: i64,
@@ -191,6 +205,39 @@ fn streaks(days: &HashSet<i64>, today: i64) -> (usize, usize) {
         day -= 1;
     }
     (current, longest)
+}
+
+/// Monday on or before `day` (day 0, 1970-01-01, was a Thursday).
+fn week_start(day: i64) -> i64 {
+    day - (day + 3).rem_euclid(7)
+}
+
+fn weekly_trend(solves: &[&Solve], today: i64, offset_min: i32) -> Vec<WeekPoint> {
+    let current = week_start(today);
+    let first = current - (TREND_WEEKS - 1) * 7;
+    let mut buckets: BTreeMap<i64, Vec<&Solve>> = (0..TREND_WEEKS)
+        .map(|w| (first + w * 7, Vec::new()))
+        .collect();
+    for s in solves {
+        if let Some(c) = s.completed_at {
+            let w = week_start(day_key(c, offset_min));
+            if let Some(b) = buckets.get_mut(&w) {
+                b.push(s);
+            }
+        }
+    }
+    buckets
+        .into_iter()
+        .map(|(w, items)| {
+            let agg = Aggregate::of(items.iter().copied());
+            WeekPoint {
+                week_start: day_string(w),
+                solves: agg.solves,
+                avg_ms: (agg.solves > 0).then_some(agg.avg_ms),
+                error_rate: (agg.solves > 0).then_some(agg.error_rate),
+            }
+        })
+        .collect()
 }
 
 fn clamp01(v: f64) -> f64 {
@@ -454,6 +501,7 @@ pub fn compute(input: &StatsInput) -> Stats {
         topics,
         lists,
         heatmap,
+        weekly: weekly_trend(&ordered, today, offset),
         review: review_queue(input.solves, input.now_ms, input.review_min_days),
     }
 }
@@ -487,19 +535,10 @@ mod tests {
         }
     }
 
-    fn sub(id: i64, problem_id: i64, day: i64, verdict: Verdict) -> Submission {
-        Submission {
-            id,
+    fn sub(_id: i64, problem_id: i64, day: i64, verdict: Verdict) -> Activity {
+        Activity {
             problem_id,
-            language: "python".into(),
-            code: String::new(),
             verdict,
-            passed: 0,
-            total: 0,
-            runtime_ms: 0.0,
-            memory_kb: 0,
-            error: None,
-            failure: None,
             created_at: day * MS_PER_DAY + 5000,
         }
     }
@@ -632,6 +671,35 @@ mod tests {
         let c = q.iter().find(|i| i.slug == "c").unwrap();
         assert_eq!(c.reasons[0].text, "clean solve, just due for a refresh");
         assert!(q.windows(2).all(|w| w[0].score >= w[1].score));
+    }
+
+    #[test]
+    fn weekly_trend_buckets() {
+        // Day 0 (1970-01-01) was a Thursday, so the Monday before it is day -3.
+        assert_eq!(week_start(0), -3);
+        assert_eq!(week_start(4), 4);
+        assert_eq!(week_start(10), 4);
+        let today = 100; // a Saturday; its week starts on day 95
+        let solves = [
+            solve(1, "a", Difficulty::Easy, 96, 10, 1),
+            solve(2, "b", Difficulty::Easy, 99, 30, 0),
+            solve(3, "c", Difficulty::Easy, 88, 20, 0),
+            solve(4, "d", Difficulty::Easy, -500, 20, 0),
+        ];
+        let refs: Vec<&Solve> = solves.iter().collect();
+        let w = weekly_trend(&refs, today, 0);
+        assert_eq!(w.len(), TREND_WEEKS as usize);
+        let last = w.last().unwrap();
+        assert_eq!(last.week_start, day_string(95));
+        assert_eq!((last.solves, last.avg_ms), (2, Some(1_200_000.0)));
+        assert!((last.error_rate.unwrap() - 100.0 / 3.0).abs() < 1e-9);
+        assert_eq!(w[w.len() - 2].solves, 1);
+        assert_eq!(w[0].avg_ms, None);
+        assert_eq!(
+            w.iter().map(|p| p.solves).sum::<usize>(),
+            3,
+            "old solve excluded"
+        );
     }
 
     #[test]
