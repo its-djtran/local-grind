@@ -278,10 +278,20 @@
     background: var(--panel-2);
     flex-shrink: 0;
   }
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
   .tabs button[role="tab"] {
     background: transparent;
     border: none;
     color: var(--muted);
+    padding: 0.3em 0.55em;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .tabs button.active {
     color: var(--text);
@@ -290,6 +300,7 @@
   .nav {
     font-size: 1.2em;
     padding: 0 0.5em;
+    flex-shrink: 0;
   }
   .spacer {
     flex: 1;
