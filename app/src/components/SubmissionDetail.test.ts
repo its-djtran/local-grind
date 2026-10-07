@@ -25,12 +25,13 @@ describe("SubmissionDetail", () => {
     render(SubmissionDetail, {
       submission: base,
       signature: sig,
-      benchmark: { runtime_ms: 10, memory_kb: 20_000, runs: 10 },
+      benchmark: { runtime_ms: 10, memory_kb: 20_000, runs: 10, local: false },
       solve: { id: 1, problem_id: 1, slug: "a", title: "A", difficulty: "Easy", started_at: 0, completed_at: 5, elapsed_ms: 125_000, errors: 1, submission_id: 1 },
       onBack,
     });
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     expect(screen.getByText(/2.0x the reference/)).toBeInTheDocument();
+    expect(screen.queryByText(/on this machine/)).not.toBeInTheDocument();
     expect(screen.getByText(/on par with or better/)).toBeInTheDocument();
     expect(screen.getByText("02:05")).toBeInTheDocument();
     expect(screen.getByText("1 wrong submission before accepting")).toBeInTheDocument();
@@ -53,6 +54,11 @@ describe("SubmissionDetail", () => {
     expect(screen.getByText("Failing testcase #1")).toBeInTheDocument();
     expect(screen.queryByText("Output")).not.toBeInTheDocument();
     expect(screen.queryByText("← All submissions")).not.toBeInTheDocument();
+  });
+
+  it("labels benchmarks measured locally", () => {
+    render(SubmissionDetail, { submission: base, signature: sig, benchmark: { runtime_ms: 10, memory_kb: 1, runs: 3, local: true } });
+    expect(screen.getByText(/avg of 3 runs on this machine/)).toBeInTheDocument();
   });
 
   it("pluralizes and handles accepted runs without a benchmark", () => {

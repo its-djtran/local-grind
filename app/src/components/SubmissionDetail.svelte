@@ -46,7 +46,7 @@
             <div class="barrow"><span>You</span><span class="track"><span class="fill you" style="width: {bar(s.runtime_ms, benchmark.runtime_ms)}%"></span></span></div>
             <div class="barrow"><span>Ref</span><span class="track"><span class="fill ref" style="width: {bar(benchmark.runtime_ms, s.runtime_ms)}%"></span></span></div>
           </div>
-          <span class="muted small">Reference {formatRuntime(benchmark.runtime_ms)} (avg of {benchmark.runs} runs) — {compareToReference(s.runtime_ms, benchmark.runtime_ms)}</span>
+          <span class="muted small">Reference {formatRuntime(benchmark.runtime_ms)} (avg of {benchmark.runs} runs{benchmark.local ? " on this machine" : ""}) — {compareToReference(s.runtime_ms, benchmark.runtime_ms)}</span>
         {/if}
       </div>
       <div class="card metric">

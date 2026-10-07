@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use crate::catalog::{Benchmark, Catalog, CompanyTag, Problem, ProblemList, ProblemSummary};
@@ -98,6 +99,21 @@ pub struct Service {
     companies: Vec<CompanyEntry>,
     toolchains: Mutex<Toolchains>,
     cache_dir: Option<PathBuf>,
+    calibration_cancel: AtomicBool,
+}
+
+/// Outcome of a local benchmark recalibration.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CalibrationSummary {
+    pub measured: usize,
+    pub failed: usize,
+    pub cancelled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalibrationStatus {
+    pub local_benchmarks: usize,
+    pub measured_at: Option<i64>,
 }
 
 /// Parses LeetCode-style testcase text (one JSON value per line, one group of lines per case).
@@ -194,6 +210,7 @@ impl Service {
             companies,
             toolchains: Mutex::new(toolchains),
             cache_dir: None,
+            calibration_cancel: AtomicBool::new(false),
         })
     }
 
@@ -299,6 +316,7 @@ impl Service {
             let c = self.catalog.lock().unwrap();
             (c.problem(id)?, c.companies_for(id)?, c.benchmarks(id)?)
         };
+        let benchmarks = self.merge_local_benchmarks(id, benchmarks)?;
         let user = self.user.lock().unwrap();
         let languages = supported_languages(&problem.signature);
         let language = Some(language.unwrap_or(user.settings()?.language))
@@ -496,9 +514,12 @@ impl Service {
             let c = self.catalog.lock().unwrap();
             let p = c.problem(id)?;
             let t = c.tests(id)?;
-            let b = c.benchmarks(id)?.remove(language.id());
+            let b = c.benchmarks(id)?;
             (p, t, b)
         };
+        let benchmark = self
+            .merge_local_benchmarks(id, benchmark)?
+            .remove(language.id());
         ensure_supported(language, &problem.signature)?;
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
@@ -516,6 +537,127 @@ impl Service {
             solve,
             benchmark,
         })
+    }
+
+    /// Bundled benchmarks with any measured on this machine taking precedence.
+    fn merge_local_benchmarks(
+        &self,
+        id: i64,
+        mut bundled: BTreeMap<String, Benchmark>,
+    ) -> Result<BTreeMap<String, Benchmark>> {
+        bundled.extend(self.user.lock().unwrap().local_benchmarks(id)?);
+        Ok(bundled)
+    }
+
+    /// Re-runs every reference solution (each language with a working toolchain) `runs` times
+    /// on this machine and stores the averages, so comparisons reflect local hardware. Up to
+    /// `eval.max_parallel_jobs` references run concurrently. `progress(done, total)` reports
+    /// after each reference; [`Service::cancel_recalibration`] stops after the current ones.
+    pub fn recalibrate(
+        &self,
+        runs: u32,
+        progress: &(dyn Fn(usize, usize) + Sync),
+    ) -> Result<CalibrationSummary> {
+        self.calibration_cancel.store(false, Ordering::SeqCst);
+        let available: Vec<Language> = self
+            .check_toolchains()
+            .into_iter()
+            .filter(|t| t.ok)
+            .map(|t| t.language)
+            .collect();
+        let mut jobs = Vec::new();
+        for p in &self.summaries {
+            for &lang in &available {
+                if let Some(code) = self.reference_solution(p.id, lang)? {
+                    jobs.push((p.id, lang, code));
+                }
+            }
+        }
+        let total = jobs.len();
+        let workers = self
+            .settings()?
+            .eval
+            .max_parallel_jobs
+            .clamp(1, total.max(1));
+        let queue = Mutex::new(jobs.into_iter());
+        let done = AtomicUsize::new(0);
+        let summary = Mutex::new(CalibrationSummary::default());
+        std::thread::scope(|s| {
+            for _ in 0..workers {
+                s.spawn(|| loop {
+                    if self.calibration_cancel.load(Ordering::SeqCst) {
+                        summary.lock().unwrap().cancelled = true;
+                        break;
+                    }
+                    let Some((id, lang, code)) = queue.lock().unwrap().next() else {
+                        break;
+                    };
+                    let ok = self.calibrate_one(id, lang, &code, runs).is_ok();
+                    let mut sum = summary.lock().unwrap();
+                    if ok {
+                        sum.measured += 1;
+                    } else {
+                        sum.failed += 1;
+                    }
+                    drop(sum);
+                    progress(done.fetch_add(1, Ordering::SeqCst) + 1, total);
+                });
+            }
+        });
+        Ok(summary.into_inner().unwrap())
+    }
+
+    fn calibrate_one(&self, id: i64, language: Language, code: &str, runs: u32) -> Result<()> {
+        let (problem, tests) = {
+            let c = self.catalog.lock().unwrap();
+            (c.problem(id)?, c.tests(id)?)
+        };
+        let tools = self.toolchains.lock().unwrap().clone();
+        let program = language.driver().program(&problem.signature, code, &tools);
+        let opts = RunOptions {
+            keep_all_cases: false,
+            ..self.run_options(&problem, false)?
+        };
+        let (mut runtime, mut memory) = (0.0, 0u64);
+        let runs = runs.max(1);
+        for _ in 0..runs {
+            let r = runner::execute(&program, &tests, &problem.comparator, &opts, &mut |_, _| {})?;
+            if r.verdict != runner::Verdict::Accepted {
+                return Err(Error::Invalid(format!(
+                    "reference for problem {id} ({language}) was {:?}",
+                    r.verdict
+                )));
+            }
+            runtime += r.runtime_ms;
+            memory += r.memory_kb;
+        }
+        let b = Benchmark {
+            runtime_ms: (runtime / runs as f64 * 100.0).round() / 100.0,
+            memory_kb: memory / runs as u64,
+            runs,
+            local: true,
+        };
+        self.user
+            .lock()
+            .unwrap()
+            .save_local_benchmark(id, language.id(), &b)
+    }
+
+    pub fn cancel_recalibration(&self) {
+        self.calibration_cancel.store(true, Ordering::SeqCst);
+    }
+
+    pub fn calibration_status(&self) -> Result<CalibrationStatus> {
+        let (local_benchmarks, measured_at) =
+            self.user.lock().unwrap().local_benchmark_summary()?;
+        Ok(CalibrationStatus {
+            local_benchmarks,
+            measured_at,
+        })
+    }
+
+    pub fn clear_local_benchmarks(&self) -> Result<()> {
+        self.user.lock().unwrap().clear_local_benchmarks()
     }
 
     pub fn submissions(&self, id: i64) -> Result<Vec<Submission>> {
@@ -842,6 +984,72 @@ mod tests {
         assert_eq!(v.language, Language::Rust);
         assert!(v.languages.contains(&Language::Cpp));
         assert!(v.starter.contains("pub fn two_sum"));
+    }
+
+    #[test]
+    fn local_recalibration() {
+        let svc = service();
+        assert_eq!(svc.calibration_status().unwrap().local_benchmarks, 0);
+        let seen = Mutex::new(Vec::new());
+        let summary = svc
+            .recalibrate(1, &|d, t| seen.lock().unwrap().push((d, t)))
+            .unwrap();
+        // Problem 1 has Python and JavaScript references; the others have none.
+        assert_eq!(
+            summary,
+            CalibrationSummary {
+                measured: 2,
+                failed: 0,
+                cancelled: false
+            }
+        );
+        assert_eq!(seen.lock().unwrap().last(), Some(&(2, 2)));
+        let status = svc.calibration_status().unwrap();
+        assert_eq!(status.local_benchmarks, 2);
+        assert!(status.measured_at.is_some());
+        let view = svc.problem(1, None).unwrap();
+        assert!(
+            view.benchmarks["python"].local,
+            "local numbers replace bundled ones"
+        );
+        assert_eq!(view.benchmarks["python"].runs, 1);
+        let ac = svc
+            .submit(1, Language::Python, GOOD, 0, &mut |_, _| {})
+            .unwrap();
+        assert!(ac.benchmark.unwrap().local);
+
+        svc.cancel_recalibration();
+        // A new run resets the flag; cancelling from inside the progress callback stops early.
+        let s = svc
+            .recalibrate(1, &|_, _| svc.cancel_recalibration())
+            .unwrap();
+        assert!(s.cancelled || s.measured <= 2);
+
+        svc.clear_local_benchmarks().unwrap();
+        assert!(!svc.problem(1, None).unwrap().benchmarks["python"].local);
+    }
+
+    #[test]
+    fn calibration_counts_failures() {
+        let w = crate::catalog::CatalogWriter::in_memory().unwrap();
+        let p = crate::catalog::tests::sample_problem(1, "two-sum", crate::types::Difficulty::Easy);
+        w.add_problem(
+            &p,
+            &[TestCase {
+                args: json!([[2, 7], 9]),
+                expected: json!([0, 1]),
+            }],
+        )
+        .unwrap();
+        w.add_solution(
+            1,
+            Language::Python,
+            "class Solution:\n    def twoSum(self, nums, target):\n        return [9, 9]\n",
+        )
+        .unwrap();
+        let svc = Service::new(w.finish().unwrap(), UserDb::in_memory().unwrap()).unwrap();
+        let s = svc.recalibrate(1, &|_, _| {}).unwrap();
+        assert_eq!((s.measured, s.failed), (0, 1));
     }
 
     #[test]

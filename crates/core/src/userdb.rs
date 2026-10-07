@@ -2,15 +2,18 @@
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
+use crate::catalog::Benchmark;
 use crate::error::{Error, Result};
 use crate::runner::{CaseResult, RunReport, Verdict};
 use crate::settings::Settings;
 use crate::timeutil::now_ms;
 use crate::types::Difficulty;
 
-const MIGRATIONS: &[&str] = &["
+const MIGRATIONS: &[&str] = &[
+    "
 CREATE TABLE submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     problem_id INTEGER NOT NULL,
@@ -48,7 +51,19 @@ CREATE TABLE solves (
 CREATE UNIQUE INDEX solves_active ON solves (slug) WHERE completed_at IS NULL;
 CREATE INDEX solves_completed ON solves (completed_at);
 CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL);
-"];
+",
+    "
+CREATE TABLE local_benchmarks (
+    problem_id INTEGER NOT NULL,
+    language TEXT NOT NULL,
+    runtime_ms REAL NOT NULL,
+    memory_kb INTEGER NOT NULL,
+    runs INTEGER NOT NULL,
+    measured_at INTEGER NOT NULL,
+    PRIMARY KEY (problem_id, language)
+);
+",
+];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Submission {
@@ -227,6 +242,62 @@ impl UserDb {
             [serde_json::to_string(&s)?],
         )?;
         Ok(s)
+    }
+
+    // ---- local benchmarks ----
+
+    pub fn save_local_benchmark(
+        &self,
+        problem_id: i64,
+        language: &str,
+        b: &Benchmark,
+    ) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO local_benchmarks
+                 (problem_id, language, runtime_ms, memory_kb, runs, measured_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                problem_id,
+                language,
+                b.runtime_ms,
+                b.memory_kb as i64,
+                b.runs as i64,
+                now_ms()
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn local_benchmarks(&self, problem_id: i64) -> Result<BTreeMap<String, Benchmark>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT language, runtime_ms, memory_kb, runs FROM local_benchmarks WHERE problem_id = ?1",
+        )?;
+        let rows = stmt.query_map([problem_id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                Benchmark {
+                    runtime_ms: r.get(1)?,
+                    memory_kb: r.get::<_, i64>(2)? as u64,
+                    runs: r.get::<_, i64>(3)? as u32,
+                    local: true,
+                },
+            ))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// `(benchmark count, newest measurement time)` of the local recalibration, if any.
+    pub fn local_benchmark_summary(&self) -> Result<(usize, Option<i64>)> {
+        Ok(self.conn.query_row(
+            "SELECT COUNT(*), MAX(measured_at) FROM local_benchmarks",
+            [],
+            |r| Ok((r.get::<_, i64>(0)? as usize, r.get(1)?)),
+        )?)
+    }
+
+    pub fn clear_local_benchmarks(&self) -> Result<()> {
+        self.conn.execute("DELETE FROM local_benchmarks", [])?;
+        Ok(())
     }
 
     // ---- drafts ----
@@ -588,6 +659,28 @@ mod tests {
             .execute("UPDATE settings SET json = 'garbage'", [])
             .unwrap();
         assert_eq!(db.settings().unwrap(), Settings::default());
+    }
+
+    #[test]
+    fn local_benchmarks_crud() {
+        let db = UserDb::in_memory().unwrap();
+        assert_eq!(db.local_benchmark_summary().unwrap(), (0, None));
+        let b = Benchmark {
+            runtime_ms: 1.5,
+            memory_kb: 100,
+            runs: 3,
+            local: false,
+        };
+        db.save_local_benchmark(1, "python", &b).unwrap();
+        db.save_local_benchmark(1, "cpp", &b).unwrap();
+        let got = db.local_benchmarks(1).unwrap();
+        assert_eq!(got.len(), 2);
+        assert!(got["python"].local);
+        let (count, at) = db.local_benchmark_summary().unwrap();
+        assert_eq!(count, 2);
+        assert!(at.is_some());
+        db.clear_local_benchmarks().unwrap();
+        assert!(db.local_benchmarks(1).unwrap().is_empty());
     }
 
     #[test]

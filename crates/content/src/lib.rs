@@ -791,6 +791,7 @@ fn benchmark_one(
         runtime_ms: (runtime / runs as f64 * 100.0).round() / 100.0,
         memory_kb: memory / runs as u64,
         runs,
+        local: false,
     })
 }
 

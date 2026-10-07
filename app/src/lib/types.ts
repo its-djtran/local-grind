@@ -51,6 +51,19 @@ export interface Benchmark {
   runtime_ms: number;
   memory_kb: number;
   runs: number;
+  /** Measured on this machine by a local recalibration. */
+  local?: boolean;
+}
+
+export interface CalibrationSummary {
+  measured: number;
+  failed: number;
+  cancelled: boolean;
+}
+
+export interface CalibrationStatus {
+  local_benchmarks: number;
+  measured_at: number | null;
 }
 
 export interface CompanyTag {

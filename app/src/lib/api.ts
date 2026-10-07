@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Bootstrap,
+  CalibrationStatus,
+  CalibrationSummary,
   ImportSummary,
   LanguageId,
   ProblemView,
@@ -40,6 +42,12 @@ export const api = {
     invoke<ImportSummary>("import_history", { path, applySettings }),
   clearHistory: () => invoke<void>("clear_history"),
   checkToolchains: () => invoke<ToolchainStatus[]>("check_toolchains"),
+  recalibrate: (runs: number) => invoke<CalibrationSummary>("recalibrate_benchmarks", { runs }),
+  cancelRecalibration: () => invoke<void>("cancel_recalibration"),
+  calibrationStatus: () => invoke<CalibrationStatus>("calibration_status"),
+  clearLocalBenchmarks: () => invoke<void>("clear_local_benchmarks"),
+  onCalibrationProgress: (cb: (p: Progress) => void): Promise<UnlistenFn> =>
+    listen<Progress>("calibration-progress", (e) => cb(e.payload)),
   referenceSolution: (id: number, language: LanguageId) =>
     invoke<string | null>("reference_solution", { id, language }),
   onSubmitProgress: (cb: (p: Progress) => void): Promise<UnlistenFn> =>

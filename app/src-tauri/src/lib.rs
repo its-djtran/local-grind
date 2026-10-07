@@ -4,7 +4,9 @@
 use localgrind_core::lang::Language;
 use localgrind_core::metrics::Stats;
 use localgrind_core::portable::ImportSummary;
-use localgrind_core::service::{Bootstrap, ProblemView, RunOutcome, Service, SubmitOutcome};
+use localgrind_core::service::{
+    Bootstrap, CalibrationStatus, CalibrationSummary, ProblemView, RunOutcome, Service, SubmitOutcome,
+};
 use localgrind_core::settings::Settings;
 use localgrind_core::userdb::{Solve, Submission};
 use localgrind_core::{Error, Result};
@@ -172,6 +174,32 @@ async fn check_toolchains(svc: Svc<'_>) -> Result<Vec<localgrind_core::lang::Too
 }
 
 #[tauri::command]
+async fn recalibrate_benchmarks(app: AppHandle, svc: Svc<'_>, runs: u32) -> Result<CalibrationSummary> {
+    let svc = svc.inner().clone();
+    blocking(move || {
+        svc.recalibrate(runs, &|done, total| {
+            let _ = app.emit("calibration-progress", Progress { problem_id: 0, done, total });
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+fn cancel_recalibration(svc: Svc) {
+    svc.cancel_recalibration()
+}
+
+#[tauri::command]
+fn calibration_status(svc: Svc) -> Result<CalibrationStatus> {
+    svc.calibration_status()
+}
+
+#[tauri::command]
+fn clear_local_benchmarks(svc: Svc) -> Result<()> {
+    svc.clear_local_benchmarks()
+}
+
+#[tauri::command]
 fn reference_solution(svc: Svc, id: i64, language: Language) -> Result<Option<String>> {
     svc.reference_solution(id, language)
 }
@@ -228,6 +256,10 @@ pub fn run() {
             clear_history,
             reference_solution,
             check_toolchains,
+            recalibrate_benchmarks,
+            cancel_recalibration,
+            calibration_status,
+            clear_local_benchmarks,
             smoke_mode,
             smoke_finish,
         ])

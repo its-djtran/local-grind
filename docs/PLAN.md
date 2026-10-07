@@ -140,8 +140,9 @@ Remaining:
 - [x] Search (title / number / topic) and filters (list, difficulty, status, topic, company)
 - [~] Keyboard shortcuts: run (⌘') and submit (⌘⏎) done; navigation shortcuts and a `?`
       help overlay pending
-- [ ] Local benchmark recalibration: re-run reference solutions on this machine (respecting
-      `max_parallel_jobs`), store results locally, prefer them over bundled numbers
+- [x] Local benchmark recalibration: Settings re-runs every reference solution on this machine
+      (3 runs each, up to `max_parallel_jobs` at once, with progress and Stop), stores results in
+      `user.db`, and prefers them over bundled numbers (labelled "on this machine")
 - [ ] Reference solution viewer per language (Editorial tab)
 - [ ] Editorial code blocks syntax-highlighted at build time (static HTML)
 - [ ] Lazy-load vim keymap and language packs to shrink the initial bundle

@@ -201,6 +201,41 @@ describe("App", () => {
     expect(screen.getByText(/Problem catalog built/)).toBeInTheDocument();
   });
 
+  it("recalibrates benchmarks on this machine", async () => {
+    const backend = installBackend();
+    await boot("#/settings");
+    expect(await screen.findByText("Using the bundled benchmarks.")).toBeInTheDocument();
+    await fireEvent.click(screen.getByText("Recalibrate on this machine"));
+    expect(await screen.findByText("Measured 4 reference solutions.")).toBeInTheDocument();
+    expect(await screen.findByText(/Using 4 benchmarks measured on this machine/)).toBeInTheDocument();
+    expect(backend.state.localBenchmarks).toBe(4);
+    await fireEvent.click(screen.getByText("Use bundled benchmarks"));
+    expect(await screen.findByText("Using the bundled benchmarks again.")).toBeInTheDocument();
+  });
+
+  it("can stop a recalibration and reports failures", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const backend = installBackend((cmd) => {
+      if (cmd === "recalibrate_benchmarks") return gate.then(() => backend.handle(cmd, { runs: 3 }));
+    });
+    await boot("#/settings");
+    await fireEvent.click(await screen.findByText("Recalibrate on this machine"));
+    await fireEvent.click(await screen.findByText("Stop"));
+    release();
+    expect(await screen.findByText("Stopped after 1 reference solutions.")).toBeInTheDocument();
+  });
+
+  it("shows recalibration errors", async () => {
+    installBackend((cmd) => {
+      if (cmd === "recalibrate_benchmarks") throw "no toolchains";
+      if (cmd === "calibration_status") throw "db error";
+    });
+    await boot("#/settings");
+    await fireEvent.click(await screen.findByText("Recalibrate on this machine"));
+    expect(await screen.findByText("Recalibration failed: no toolchains")).toBeInTheDocument();
+  });
+
   it("reports export failures", async () => {
     installBackend((cmd) => {
       if (cmd === "export_history") throw "permission denied";

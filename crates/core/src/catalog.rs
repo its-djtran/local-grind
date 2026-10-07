@@ -82,6 +82,9 @@ pub struct Benchmark {
     pub runtime_ms: f64,
     pub memory_kb: u64,
     pub runs: u32,
+    /// Measured on this machine by a local recalibration rather than bundled with the app.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub local: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -248,6 +251,7 @@ impl Catalog {
                     runtime_ms: r.get(1)?,
                     memory_kb: r.get::<_, i64>(2)? as u64,
                     runs: r.get::<_, i64>(3)? as u32,
+                    local: false,
                 },
             ))
         })?;
@@ -510,6 +514,7 @@ pub(crate) mod tests {
                 runtime_ms: 1.5,
                 memory_kb: 9000,
                 runs: 10,
+                local: false,
             },
         )
         .unwrap();

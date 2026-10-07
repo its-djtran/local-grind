@@ -52,6 +52,8 @@ export interface Backend {
     dialogPath: string | null;
     confirm: boolean;
     files: Map<string, string>;
+    localBenchmarks: number;
+    calibratedAt: number | null;
   };
 }
 
@@ -96,7 +98,10 @@ export function createBackend(): Backend {
     dialogPath: "/tmp/localgrind-history.json",
     confirm: true,
     files: new Map(),
+    localBenchmarks: 0,
+    calibratedAt: null,
   };
+  let calibrationCancelled = false;
   let nextId = 1;
 
   const starter = (id: number) => {
@@ -360,6 +365,29 @@ export function createBackend(): Backend {
         return id === 1 ? "class Solution: ..." : null;
       case "check_toolchains":
         return [{ language: "python", executable: "/opt/homebrew/bin/python3", version: "Python 3.14.6", ok: true, message: null }];
+      case "recalibrate_benchmarks": {
+        const total = 4;
+        for (let done = 1; done <= total; done++) {
+          if (calibrationCancelled) break;
+          await emit("calibration-progress", { problem_id: 0, done, total });
+        }
+        const cancelled = calibrationCancelled;
+        calibrationCancelled = false;
+        if (!cancelled) {
+          state.localBenchmarks = total;
+          state.calibratedAt = Date.now();
+        }
+        return { measured: cancelled ? 1 : total, failed: 0, cancelled };
+      }
+      case "cancel_recalibration":
+        calibrationCancelled = true;
+        return null;
+      case "calibration_status":
+        return { local_benchmarks: state.localBenchmarks, measured_at: state.calibratedAt };
+      case "clear_local_benchmarks":
+        state.localBenchmarks = 0;
+        state.calibratedAt = null;
+        return null;
       case "smoke_mode":
         return false;
       case "smoke_finish":

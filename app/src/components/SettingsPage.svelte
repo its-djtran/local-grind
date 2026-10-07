@@ -2,7 +2,8 @@
   import { open, save, ask } from "@tauri-apps/plugin-dialog";
   import { api, errorMessage } from "../lib/api";
   import { app } from "../lib/state.svelte";
-  import type { Settings, ToolchainStatus } from "../lib/types";
+  import type { CalibrationStatus, Settings, ToolchainStatus } from "../lib/types";
+  import { formatDateTime } from "../lib/format";
   import { onMount } from "svelte";
 
   let draft = $state<Settings>(structuredClone($state.snapshot(app.settings!)));
@@ -17,7 +18,45 @@
     ]);
   }
 
-  onMount(probe);
+  let calibration = $state<CalibrationStatus | null>(null);
+  let calibrating = $state(false);
+  let calibrationProgress = $state<{ done: number; total: number } | null>(null);
+  let calibrationMessage = $state<string | null>(null);
+
+  async function loadCalibration() {
+    calibration = await api.calibrationStatus().catch(() => null);
+  }
+
+  async function recalibrate() {
+    calibrating = true;
+    calibrationMessage = null;
+    calibrationProgress = null;
+    const unlisten = await api.onCalibrationProgress((p) => (calibrationProgress = { done: p.done, total: p.total })).catch(() => null);
+    try {
+      const s = await api.recalibrate(3);
+      calibrationMessage = s.cancelled
+        ? `Stopped after ${s.measured} reference solutions.`
+        : `Measured ${s.measured} reference solutions${s.failed ? ` (${s.failed} failed)` : ""}.`;
+    } catch (e) {
+      calibrationMessage = `Recalibration failed: ${errorMessage(e)}`;
+    } finally {
+      unlisten?.();
+      calibrating = false;
+      calibrationProgress = null;
+      await loadCalibration();
+    }
+  }
+
+  async function revertBenchmarks() {
+    await api.clearLocalBenchmarks();
+    calibrationMessage = "Using the bundled benchmarks again.";
+    await loadCalibration();
+  }
+
+  onMount(() => {
+    probe();
+    loadCalibration();
+  });
 
   async function commit() {
     await app.saveSettings($state.snapshot(draft));
@@ -157,6 +196,39 @@
   </section>
 
   <section class="card">
+    <h2>Benchmarks</h2>
+    <p class="muted small">
+      Submissions are compared with the optimal reference solution in the same language. The bundled numbers were measured
+      on the machine that built the app; recalibrate to measure them on yours (each reference runs 3 times, using up to
+      {draft.eval.max_parallel_jobs} judge processes at once).
+    </p>
+    {#if calibration}
+      <p>
+        {#if calibration.local_benchmarks > 0}
+          Using {calibration.local_benchmarks} benchmarks measured on this machine{calibration.measured_at ? ` (${formatDateTime(calibration.measured_at)})` : ""}.
+        {:else}
+          Using the bundled benchmarks.
+        {/if}
+      </p>
+    {/if}
+    <div class="buttons">
+      {#if calibrating}
+        <span class="progress" aria-label="Recalibration progress">
+          <span class="track"><span class="fill" style="width: {calibrationProgress ? (100 * calibrationProgress.done) / Math.max(1, calibrationProgress.total) : 0}%"></span></span>
+          {calibrationProgress ? `${calibrationProgress.done}/${calibrationProgress.total}` : "Starting…"}
+        </span>
+        <button onclick={() => api.cancelRecalibration()}>Stop</button>
+      {:else}
+        <button onclick={recalibrate}>Recalibrate on this machine</button>
+        {#if calibration && calibration.local_benchmarks > 0}
+          <button onclick={revertBenchmarks}>Use bundled benchmarks</button>
+        {/if}
+      {/if}
+    </div>
+    {#if calibrationMessage}<p role="status">{calibrationMessage}</p>{/if}
+  </section>
+
+  <section class="card">
     <h2>Data</h2>
     <p class="muted small">Export everything (submissions, solve times, drafts, settings) to one JSON file, or import a previous export.</p>
     <div class="buttons">
@@ -222,6 +294,23 @@
     flex-wrap: wrap;
     gap: 0.6rem;
     align-items: center;
+  }
+  .progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .track {
+    width: 200px;
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
   }
   .danger {
     margin-left: auto;
