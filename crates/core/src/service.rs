@@ -104,6 +104,8 @@ pub struct Service {
     toolchains: Mutex<Toolchains>,
     cache_dir: Option<PathBuf>,
     calibration_cancel: AtomicBool,
+    /// Toolchains shipped inside the app bundle (the relocatable Python).
+    bundled: BTreeMap<Language, PathBuf>,
 }
 
 /// Outcome of a local benchmark recalibration.
@@ -157,6 +159,18 @@ pub fn supported_languages(sig: &Signature) -> Vec<Language> {
         .collect()
 }
 
+/// Adds install guidance to "toolchain not found" errors from judging.
+fn with_install_hint<T>(language: Language, r: Result<T>) -> Result<T> {
+    r.map_err(|e| match e {
+        Error::Toolchain(msg) => Error::Toolchain(format!(
+            "{msg}. {} isn't available: {}, or set its path in Settings → Evaluation.",
+            language.display_name(),
+            language.install_hint()
+        )),
+        other => other,
+    })
+}
+
 fn ensure_supported(language: Language, sig: &Signature) -> Result<()> {
     if language.driver().supports(sig) {
         Ok(())
@@ -178,8 +192,13 @@ fn limits_for(problem: &Problem, settings: &Settings) -> Limits {
     }
 }
 
-fn toolchains_for(settings: &Settings) -> Toolchains {
+/// Resolves toolchains: explicit paths from settings win, then toolchains bundled with the app,
+/// then whatever detection finds.
+fn toolchains_for(settings: &Settings, bundled: &BTreeMap<Language, PathBuf>) -> Toolchains {
     let mut t = Toolchains::detect();
+    for (&l, path) in bundled {
+        t.set(l, path.clone());
+    }
     for &l in Language::ALL {
         if let Some(p) = settings.eval.toolchain_paths.get(l.id()) {
             if !p.trim().is_empty() {
@@ -205,7 +224,7 @@ impl Service {
                 .cmp(&a.problem_ids.len())
                 .then(a.name.cmp(&b.name))
         });
-        let toolchains = toolchains_for(&user.settings()?);
+        let toolchains = toolchains_for(&user.settings()?, &BTreeMap::new());
         Ok(Service {
             catalog: Mutex::new(catalog),
             user: Mutex::new(user),
@@ -215,7 +234,15 @@ impl Service {
             toolchains: Mutex::new(toolchains),
             cache_dir: None,
             calibration_cancel: AtomicBool::new(false),
+            bundled: BTreeMap::new(),
         })
+    }
+
+    /// Registers a toolchain shipped with the app; it is used unless settings name another path.
+    pub fn with_bundled_toolchain(mut self, language: Language, path: PathBuf) -> Result<Service> {
+        self.bundled.insert(language, path);
+        *self.toolchains.lock().unwrap() = toolchains_for(&self.settings()?, &self.bundled);
+        Ok(self)
     }
 
     /// Caches compiled programs under `dir` so Run followed by Submit compiles once.
@@ -482,7 +509,7 @@ impl Service {
                 run_user(),
             )
         };
-        let mut report = user_report?;
+        let mut report = with_install_hint(language, user_report)?;
         let expected = expected.ok().flatten();
         let expected_available = expected.is_some();
         if let Some(expected) = expected {
@@ -534,7 +561,10 @@ impl Service {
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
         let opts = self.run_options(&problem, true)?;
-        let report = runner::execute(&program, &tests, &problem.comparator, &opts, progress)?;
+        let report = with_install_hint(
+            language,
+            runner::execute(&program, &tests, &problem.comparator, &opts, progress),
+        )?;
         let pref = self.problem_ref(id)?;
         let user = self.user.lock().unwrap();
         let (submission, solve) = user.transaction(|db| {
@@ -696,7 +726,7 @@ impl Service {
 
     pub fn save_settings(&self, settings: &Settings) -> Result<Settings> {
         let saved = self.user.lock().unwrap().save_settings(settings)?;
-        *self.toolchains.lock().unwrap() = toolchains_for(&saved);
+        *self.toolchains.lock().unwrap() = toolchains_for(&saved, &self.bundled);
         Ok(saved)
     }
 
@@ -734,7 +764,7 @@ impl Service {
     pub fn import_json(&self, json: &str, apply_settings: bool) -> Result<ImportSummary> {
         let summary = portable::import(&self.user.lock().unwrap(), json, apply_settings)?;
         if summary.settings_applied {
-            *self.toolchains.lock().unwrap() = toolchains_for(&self.settings()?);
+            *self.toolchains.lock().unwrap() = toolchains_for(&self.settings()?, &self.bundled);
         }
         Ok(summary)
     }
@@ -908,10 +938,13 @@ mod tests {
         let langs = svc.languages();
         assert!(!langs[0].available);
         assert_eq!(langs[0].executable, "/nonexistent/python3");
-        assert!(matches!(
-            svc.submit(1, Language::Python, GOOD, 0, &mut |_, _| {}),
-            Err(Error::Toolchain(_))
-        ));
+        let err = svc
+            .submit(1, Language::Python, GOOD, 0, &mut |_, _| {})
+            .unwrap_err();
+        assert!(matches!(err, Error::Toolchain(_)));
+        assert!(err.to_string().contains("Install Python 3"), "{err}");
+        let err = svc.run(1, Language::Python, GOOD, "[1,2]\n3").unwrap_err();
+        assert!(err.to_string().contains("Settings → Evaluation"), "{err}");
         let problem = sample_catalog().problem(1).unwrap();
         let limits = limits_for(&problem, &saved);
         assert_eq!(limits.time_limit_ms, 4000);
@@ -1062,6 +1095,26 @@ mod tests {
         let svc = Service::new(w.finish().unwrap(), UserDb::in_memory().unwrap()).unwrap();
         let s = svc.recalibrate(1, &|_, _| {}).unwrap();
         assert_eq!((s.measured, s.failed), (0, 1));
+    }
+
+    #[test]
+    fn bundled_toolchains_sit_between_settings_and_detection() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = dir.path().join("python3");
+        std::fs::write(&fake, "").unwrap();
+        let svc = service()
+            .with_bundled_toolchain(Language::Python, fake.clone())
+            .unwrap();
+        assert_eq!(svc.languages()[0].executable, fake.to_string_lossy());
+        let mut s = svc.settings().unwrap();
+        s.eval
+            .toolchain_paths
+            .insert("python".into(), "/custom/python3".into());
+        svc.save_settings(&s).unwrap();
+        assert_eq!(svc.languages()[0].executable, "/custom/python3");
+        s.eval.toolchain_paths.clear();
+        svc.save_settings(&s).unwrap();
+        assert_eq!(svc.languages()[0].executable, fake.to_string_lossy());
     }
 
     #[test]

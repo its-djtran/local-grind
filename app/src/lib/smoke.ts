@@ -8,13 +8,24 @@ export interface SmokeDeps {
   root: ParentNode;
   sleep: (ms: number) => Promise<void>;
   timeoutMs: number;
+  /** Milliseconds since the page started loading. */
+  now: () => number;
 }
+
+/** Interaction budgets (REQS: the app must never hang on startup or navigation). */
+export const BUDGET_MS = { startup: 2000, problem: 1000, stats: 1000 };
 
 const defaultDeps = (): SmokeDeps => ({
   root: document,
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   timeoutMs: 30_000,
+  now: () => performance.now(),
 });
+
+function withinBudget(label: string, ms: number, budget: number): string {
+  if (ms > budget) throw new Error(`${label} took ${Math.round(ms)} ms (budget ${budget} ms)`);
+  return `${Math.round(ms)} ms (budget ${budget} ms)`;
+}
 
 /** Polls until `find` returns a truthy value. */
 export async function waitFor<T>(find: () => T | null | undefined | false, deps: SmokeDeps, what: string): Promise<T> {
@@ -43,15 +54,22 @@ export async function runSmoke(deps: SmokeDeps = defaultDeps()): Promise<{ ok: b
       if (boot.problems.length < 3) throw new Error(`only ${boot.problems.length} problems`);
       return `${boot.problems.length} problems, ${boot.lists.length} lists, ${boot.companies.length} companies`;
     });
+    await step("toolchains", async () => {
+      const tools = await api.checkToolchains();
+      return tools.map((t) => `${t.language}: ${t.ok ? `${t.version} (${t.executable})` : "missing"}`).join("; ");
+    });
     await step("problem list renders", async () => {
       router.go({ name: "problems" });
       await waitFor(() => text(deps.root, ".row", boot.problems[0].title), deps, "problem rows");
+      return `startup ${withinBudget("startup", deps.now(), BUDGET_MS.startup)}`;
     });
     const first = boot.problems[0];
     await step("workspace renders", async () => {
+      const t0 = deps.now();
       router.go({ name: "problem", id: first.id });
       await waitFor(() => text(deps.root, "h1", first.title), deps, "problem heading");
       await waitFor(() => deps.root.querySelector(".cm-content"), deps, "editor");
+      return withinBudget("opening a problem", deps.now() - t0, BUDGET_MS.problem);
     });
     await step("run examples from the console", async () => {
       const run = await waitFor(() => text(deps.root, "button", "Run"), deps, "Run button");
@@ -82,10 +100,13 @@ export async function runSmoke(deps: SmokeDeps = defaultDeps()): Promise<{ ok: b
       });
     }
     await step("stats page renders", async () => {
+      const t0 = deps.now();
       router.go({ name: "stats" });
       await waitFor(() => text(deps.root, "h2", "By difficulty"), deps, "stats");
+      const timing = withinBudget("the stats page", deps.now() - t0, BUDGET_MS.stats);
       const stats = await api.stats(10, 0, 0);
       if (stats.totals.solved < 1) throw new Error("solve not counted");
+      return timing;
     });
     await step("settings page renders", async () => {
       router.go({ name: "settings" });

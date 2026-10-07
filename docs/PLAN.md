@@ -150,15 +150,19 @@ Remaining:
 
 ### M7 — Distribution
 - [x] App icon
-- [ ] Bundle a relocatable CPython (python-build-standalone) in the app so Python solutions and
-      the Python fallback reference work without any installation
+- [x] Bundle a relocatable CPython 3.13 (python-build-standalone, checksum-pinned, trimmed to
+      44 MB, no symlinks) so Python solutions and the fallback reference work with no install
 - [x] Zero-install JavaScript: when Node.js is missing, solutions run on macOS's built-in
       JavaScriptCore shell (`jsc`); all 111 JavaScript references pass under both runtimes and
       the JavaScript e2e suite requires identical verdicts on both
-- [ ] First-run toolchain guidance: per-language status with one-line install instructions
-      (C++ via `xcode-select --install`, Rust via rustup, Node via installer/Homebrew)
-- [ ] `.dmg` packaging and a release script
-- [ ] Startup and navigation performance budget checks
+- [x] Toolchain guidance: per-language status in Settings, "(not found)" in the language picker,
+      and Run/Submit errors that say how to install the missing toolchain
+- [~] `scripts/release.sh`: fetch Python → build catalog → gate → `tauri build` (.app + .dmg)
+      → smoke-test the built app. The .app is built and passes the smoke test with bundled
+      Python (101 MB); `.dmg` creation could not run in the agent's sandbox (`hdiutil create`
+      is not permitted), so the script's dmg step still needs a run on a normal machine
+- [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
+      opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
 ### M8+ — Refinement
 - Additional problem sets, UI polish driven by usage.

@@ -4,7 +4,12 @@ import App from "../App.svelte";
 import { installBackend } from "../test/backend";
 import { maybeRunSmoke, runSmoke, waitFor } from "./smoke";
 
-const deps = (timeoutMs = 3000) => ({ root: document, sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)), timeoutMs });
+const deps = (timeoutMs = 3000, now = () => 0) => ({
+  root: document,
+  sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
+  timeoutMs,
+  now,
+});
 
 describe("smoke self-test", () => {
   it("passes against a healthy backend", async () => {
@@ -28,6 +33,14 @@ describe("smoke self-test", () => {
     installBackend((cmd) => (cmd === "reference_solution" ? null : undefined));
     render(App);
     expect((await runSmoke(deps())).report).toContain("no reference solution");
+  });
+
+  it("fails when an interaction exceeds its budget", async () => {
+    installBackend((cmd) => (cmd === "reference_solution" ? "class Solution:\n    return 1" : undefined));
+    render(App);
+    const { ok, report } = await runSmoke(deps(3000, () => 10_000));
+    expect(ok).toBe(false);
+    expect(report).toContain("startup took 10000 ms (budget 2000 ms)");
   });
 
   it("times out waiting for elements", async () => {

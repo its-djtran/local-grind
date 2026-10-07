@@ -13,6 +13,17 @@ An offline, open-source LeetCode-style practice app with a built-in review tool.
 - Everything is local: problem content ships as a pre-built SQLite catalog, and your history can
   be exported to and imported from a single JSON file.
 
+## Installing
+
+Build the app with `scripts/release.sh` (see below); it produces
+`target/release/bundle/dmg/Local Grind_<version>_<arch>.dmg`. The app is not notarized, so on
+first launch macOS asks for confirmation: right-click the app and choose **Open**.
+
+Languages: Python works out of the box (a relocatable CPython is bundled). JavaScript uses
+Node.js when installed and otherwise macOS's built-in JavaScriptCore. C++ needs the Xcode
+Command Line Tools (`xcode-select --install`) and Rust needs rustup. Settings → Evaluation shows
+what was found and lets you point at a specific toolchain.
+
 ## Development
 
 Requirements: Rust (stable), Node 20+, Python 3 (used to run Python solutions and to generate
@@ -22,6 +33,9 @@ tests).
 cargo run -q -p lg-content -- build   # compile content/ into assets/problems.db
 cd app && npm install && npx tauri dev
 ```
+
+`scripts/release.sh` builds the distributable app (it downloads the bundled Python, builds the
+catalog, runs every check, builds the .app and .dmg, and smoke-tests the built app).
 
 See `CLAUDE.md` for all commands, `docs/ARCHITECTURE.md` for how the pieces fit together,
 `docs/CONTENT.md` to add problems, and `docs/PLAN.md` for the roadmap.

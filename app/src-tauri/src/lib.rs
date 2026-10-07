@@ -38,6 +38,13 @@ pub fn resolve_catalog(
         .find(|p| p.is_file())
 }
 
+/// The relocatable CPython shipped in the app bundle (see scripts/fetch_python.sh), if present.
+pub fn bundled_python(resource_dir: Option<PathBuf>) -> Option<PathBuf> {
+    resource_dir
+        .map(|d| d.join("python/bin/python3"))
+        .filter(|p| p.is_file())
+}
+
 /// User database location: `LOCALGRIND_DATA_DIR` (used by the smoke test) or the app data dir.
 pub fn resolve_user_db(env_override: Option<PathBuf>, app_data_dir: PathBuf) -> PathBuf {
     env_override.unwrap_or(app_data_dir).join("user.db")
@@ -243,8 +250,11 @@ pub fn run() {
                 std::env::var_os("LOCALGRIND_DATA_DIR").map(PathBuf::from),
                 app.path().app_data_dir()?,
             );
-            let service = Service::open(&catalog, &user)?
+            let mut service = Service::open(&catalog, &user)?
                 .with_cache_dir(app.path().app_cache_dir()?.join("compiled"));
+            if let Some(python) = bundled_python(app.path().resource_dir().ok()) {
+                service = service.with_bundled_toolchain(Language::Python, python)?;
+            }
             app.manage(Arc::new(service));
             Ok(())
         })
@@ -282,6 +292,20 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_python_lookup() {
+        assert_eq!(bundled_python(None), None);
+        let dir = std::env::temp_dir().join(format!("lg-bundled-{}", std::process::id()));
+        assert_eq!(bundled_python(Some(dir.clone())), None);
+        std::fs::create_dir_all(dir.join("python/bin")).unwrap();
+        std::fs::write(dir.join("python/bin/python3"), "").unwrap();
+        assert_eq!(
+            bundled_python(Some(dir.clone())),
+            Some(dir.join("python/bin/python3"))
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn user_db_location() {
