@@ -106,7 +106,9 @@ describe("App", () => {
     await fireEvent.click(screen.getByLabelText("Pause timer"));
     await fireEvent.click(screen.getByLabelText("Reset timer"));
     await waitFor(() => expect(backend.state.solves).toHaveLength(0));
-    await fireEvent.change(screen.getByLabelText("Language"), { target: { value: "javascript" } });
+    const languageSelect = screen.getByLabelText("Language");
+    expect(languageSelect).toHaveTextContent("Rust (not found)");
+    await fireEvent.change(languageSelect, { target: { value: "javascript" } });
     await waitFor(() => expect(backend.state.drafts.size).toBe(0));
     await fireEvent.click(screen.getByLabelText("Reset code"));
     await fireEvent.click(screen.getByText("Test Result"));

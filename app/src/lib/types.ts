@@ -2,7 +2,7 @@
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type Status = "solved" | "attempted" | "todo";
-export type LanguageId = "python" | "javascript" | "cpp";
+export type LanguageId = "python" | "javascript" | "cpp" | "rust";
 export type Verdict =
   | "Accepted"
   | "WrongAnswer"
@@ -84,6 +84,7 @@ export interface ProblemView extends ProblemSummary {
   benchmarks: Record<string, Benchmark>;
   lists: string[];
   language: LanguageId;
+  languages: LanguageId[];
   code: string;
   starter: string;
   active_solve: Solve | null;

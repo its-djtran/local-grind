@@ -67,6 +67,8 @@ pub struct ProblemView {
     pub benchmarks: BTreeMap<String, Benchmark>,
     pub lists: Vec<String>,
     pub language: Language,
+    /// Languages that can express this problem, in display order.
+    pub languages: Vec<Language>,
     pub code: String,
     pub starter: String,
     pub active_solve: Option<Solve>,
@@ -124,6 +126,26 @@ pub fn parse_testcases(sig: &Signature, text: &str) -> Result<Vec<Value>> {
         .chunks(per_case)
         .map(|c| Value::Array(c.to_vec()))
         .collect())
+}
+
+/// Languages whose driver can express `sig`.
+pub fn supported_languages(sig: &Signature) -> Vec<Language> {
+    Language::ALL
+        .iter()
+        .copied()
+        .filter(|l| l.driver().supports(sig))
+        .collect()
+}
+
+fn ensure_supported(language: Language, sig: &Signature) -> Result<()> {
+    if language.driver().supports(sig) {
+        Ok(())
+    } else {
+        Err(Error::Invalid(format!(
+            "{} is not available for this problem",
+            language.display_name()
+        )))
+    }
 }
 
 fn limits_for(problem: &Problem, settings: &Settings) -> Limits {
@@ -278,7 +300,10 @@ impl Service {
             (c.problem(id)?, c.companies_for(id)?, c.benchmarks(id)?)
         };
         let user = self.user.lock().unwrap();
-        let language = language.unwrap_or(user.settings()?.language);
+        let languages = supported_languages(&problem.signature);
+        let language = Some(language.unwrap_or(user.settings()?.language))
+            .filter(|l| languages.contains(l))
+            .unwrap_or(Language::Python);
         let starter = language.driver().starter_code(&problem.signature);
         let code = user
             .draft(id, language.id())?
@@ -309,6 +334,7 @@ impl Service {
             benchmarks,
             lists,
             language,
+            languages,
             code,
             starter,
             active_solve,
@@ -381,6 +407,7 @@ impl Service {
     /// "Run": executes the user's code on custom testcases, comparing with the reference solution.
     pub fn run(&self, id: i64, language: Language, code: &str, input: &str) -> Result<RunOutcome> {
         let problem = self.catalog.lock().unwrap().problem(id)?;
+        ensure_supported(language, &problem.signature)?;
         let args = parse_testcases(&problem.signature, input)?;
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
@@ -448,6 +475,7 @@ impl Service {
             let b = c.benchmarks(id)?.remove(language.id());
             (p, t, b)
         };
+        ensure_supported(language, &problem.signature)?;
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
         let opts = self.run_options(&problem, true)?;
@@ -720,6 +748,28 @@ mod tests {
         let ok = svc.run(1, Language::Python, GOOD, "[3,2,4]\n6").unwrap();
         assert_eq!(ok.report.verdict, Verdict::Accepted);
         assert!(svc.check_toolchains().iter().all(|t| t.ok));
+    }
+
+    #[test]
+    fn language_support_per_problem() {
+        let graph: Signature = serde_json::from_value(json!({"kind": "function", "name": "cloneGraph",
+            "special": "deep_copy", "params": [{"name": "node", "type": "Node"}], "returns": "Node"}))
+        .unwrap();
+        let langs = supported_languages(&graph);
+        assert!(langs.contains(&Language::Python) && !langs.contains(&Language::Rust));
+        assert!(ensure_supported(Language::Rust, &graph)
+            .unwrap_err()
+            .to_string()
+            .contains("Rust is not available"));
+
+        let svc = service();
+        let mut s = svc.settings().unwrap();
+        s.language = Language::Rust;
+        svc.save_settings(&s).unwrap();
+        let v = svc.problem(1, None).unwrap();
+        assert_eq!(v.language, Language::Rust);
+        assert!(v.languages.contains(&Language::Cpp));
+        assert!(v.starter.contains("pub fn two_sum"));
     }
 
     #[test]

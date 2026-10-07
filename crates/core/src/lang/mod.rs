@@ -23,6 +23,7 @@ use crate::types::Signature;
 pub mod cpp;
 pub mod javascript;
 pub mod python;
+pub mod rust;
 
 pub const RESULT_SENTINEL: &str = "\x1eLG ";
 
@@ -32,16 +33,23 @@ pub enum Language {
     Python,
     JavaScript,
     Cpp,
+    Rust,
 }
 
 impl Language {
-    pub const ALL: &'static [Language] = &[Language::Python, Language::JavaScript, Language::Cpp];
+    pub const ALL: &'static [Language] = &[
+        Language::Python,
+        Language::JavaScript,
+        Language::Cpp,
+        Language::Rust,
+    ];
 
     pub fn id(self) -> &'static str {
         match self {
             Language::Python => "python",
             Language::JavaScript => "javascript",
             Language::Cpp => "cpp",
+            Language::Rust => "rust",
         }
     }
 
@@ -50,6 +58,7 @@ impl Language {
             Language::Python => "Python3",
             Language::JavaScript => "JavaScript",
             Language::Cpp => "C++",
+            Language::Rust => "Rust",
         }
     }
 
@@ -58,6 +67,7 @@ impl Language {
             Language::Python => &python::PythonDriver,
             Language::JavaScript => &javascript::JavaScriptDriver,
             Language::Cpp => &cpp::CppDriver,
+            Language::Rust => &rust::RustDriver,
         }
     }
 
@@ -67,6 +77,7 @@ impl Language {
             Language::Python => "python3",
             Language::JavaScript => "node",
             Language::Cpp => "clang++",
+            Language::Rust => "rustc",
         }
     }
 
@@ -76,6 +87,7 @@ impl Language {
             Language::Python => (3, 8),
             Language::JavaScript => (16, 0),
             Language::Cpp => (10, 0),
+            Language::Rust => (1, 70),
         }
     }
 
@@ -84,6 +96,7 @@ impl Language {
             Language::Python => "Install Python 3 (for example `brew install python`)",
             Language::JavaScript => "Install Node.js (for example `brew install node`)",
             Language::Cpp => "Install the Xcode Command Line Tools (`xcode-select --install`)",
+            Language::Rust => "Install Rust with rustup (https://rustup.rs)",
         }
     }
 }
@@ -311,6 +324,11 @@ pub fn probe(language: Language, tools: &Toolchains) -> ToolchainStatus {
 
 pub trait Driver: Sync {
     fn language(&self) -> Language;
+    /// Whether this language can express the problem (LeetCode omits some languages for some
+    /// problems, e.g. Rust for graph-node problems).
+    fn supports(&self, _sig: &Signature) -> bool {
+        true
+    }
     fn starter_code(&self, sig: &Signature) -> String;
     fn program(&self, sig: &Signature, user_code: &str, tools: &Toolchains) -> Program;
 }
@@ -326,6 +344,10 @@ mod tests {
             assert_eq!(l.to_string(), l.id());
             assert!(!l.display_name().is_empty());
             assert_eq!(l.driver().language(), *l);
+            let any: Signature = serde_json::from_value(serde_json::json!({"kind": "function",
+                "name": "f", "params": [], "returns": "int"}))
+            .unwrap();
+            assert!(l.driver().supports(&any));
         }
         assert!("cobol".parse::<Language>().is_err());
     }

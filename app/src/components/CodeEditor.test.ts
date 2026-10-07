@@ -31,6 +31,8 @@ describe("CodeEditor", () => {
     expect(view().state.tabSize).toBe(2);
     await r.rerender({ value: "int x;", language: "cpp", keymap: "standard", tabSize: 2, onChange, onRun, onSubmit });
     expect(view().state.doc.toString()).toBe("int x;");
+    await r.rerender({ value: "fn main() {}", language: "rust", keymap: "standard", tabSize: 4, onChange, onRun, onSubmit });
+    expect(view().state.doc.toString()).toBe("fn main() {}");
   });
 
   it("supports read-only mode with default handlers", () => {

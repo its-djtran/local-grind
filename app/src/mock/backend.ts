@@ -56,7 +56,7 @@ export interface Backend {
 }
 
 export function createBackend(): Backend {
-  const views = new Map<number, Omit<ProblemView, "code" | "starter" | "active_solve" | "status" | "language">>();
+  const views = new Map<number, Omit<ProblemView, "code" | "starter" | "active_solve" | "status" | "language" | "languages">>();
   for (const p of catalog as unknown as ProblemView[]) {
     views.set(p.id, {
       ...p,
@@ -117,6 +117,7 @@ export function createBackend(): Backend {
     return {
       ...v,
       language,
+      languages: id === 1 ? ["python", "javascript", "cpp", "rust"] : ["python", "javascript", "cpp"],
       starter: starterFor(id, language),
       code: state.drafts.get(`${id}:${language}`) ?? starterFor(id, language),
       active_solve: activeSolve(id),
@@ -239,6 +240,7 @@ export function createBackend(): Backend {
             { id: "python", name: "Python3", available: true, executable: "/opt/homebrew/bin/python3" },
             { id: "javascript", name: "JavaScript", available: true, executable: "/opt/homebrew/bin/node" },
             { id: "cpp", name: "C++", available: true, executable: "/usr/bin/clang++" },
+            { id: "rust", name: "Rust", available: false, executable: "rustc" },
           ],
           catalog_built_at: "2026-10-07T12:00:00.000Z",
         } satisfies Bootstrap;

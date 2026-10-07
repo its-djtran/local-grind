@@ -4,6 +4,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { cpp } from "@codemirror/lang-cpp";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
+import { rust } from "@codemirror/lang-rust";
 import {
   bracketMatching,
   foldGutter,
@@ -40,6 +41,8 @@ export function languageExtension(lang: LanguageId): Extension {
       return javascript();
     case "cpp":
       return cpp();
+    case "rust":
+      return rust();
   }
 }
 

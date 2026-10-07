@@ -145,7 +145,7 @@
                   value={ws.language}
                   onchange={(e) => ws.changeLanguage(e.currentTarget.value as LanguageId)}
                 >
-                  {#each app.boot?.languages ?? [] as l (l.id)}
+                  {#each (app.boot?.languages ?? []).filter((l) => view.languages.includes(l.id)) as l (l.id)}
                     <option value={l.id}>{l.name}{l.available ? "" : " (not found)"}</option>
                   {/each}
                 </select>
