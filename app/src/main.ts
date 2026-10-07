@@ -11,6 +11,8 @@ async function start() {
     mockIPC((cmd, args) => backend.handle(cmd, (args ?? {}) as Record<string, unknown>), { shouldMockEvents: true });
   }
   mount(App, { target: document.getElementById("app")! });
+  const { maybeRunSmoke } = await import("./lib/smoke");
+  await maybeRunSmoke();
 }
 
 start();

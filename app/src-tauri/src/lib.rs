@@ -35,6 +35,11 @@ pub fn resolve_catalog(
         .find(|p| p.is_file())
 }
 
+/// User database location: `LOCALGRIND_DATA_DIR` (used by the smoke test) or the app data dir.
+pub fn resolve_user_db(env_override: Option<PathBuf>, app_data_dir: PathBuf) -> PathBuf {
+    env_override.unwrap_or(app_data_dir).join("user.db")
+}
+
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
     tauri::async_runtime::spawn_blocking(f)
         .await
@@ -165,6 +170,19 @@ fn reference_solution(svc: Svc, id: i64, language: Language) -> Result<Option<St
     svc.reference_solution(id, language)
 }
 
+/// True when launched by `scripts/smoke.sh`; the UI then runs its self-test and reports back.
+#[tauri::command]
+fn smoke_mode() -> bool {
+    std::env::var_os("LOCALGRIND_SMOKE").is_some()
+}
+
+#[tauri::command]
+fn smoke_finish(app: AppHandle, ok: bool, report: String) {
+    println!("{report}");
+    println!("{}", if ok { "SMOKE PASS" } else { "SMOKE FAIL" });
+    app.exit(if ok { 0 } else { 1 });
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -175,7 +193,10 @@ pub fn run() {
                 Path::new(env!("CARGO_MANIFEST_DIR")),
             )
             .ok_or("problems.db not found; run `cargo run -p lg-content -- build`")?;
-            let user = app.path().app_data_dir()?.join("user.db");
+            let user = resolve_user_db(
+                std::env::var_os("LOCALGRIND_DATA_DIR").map(PathBuf::from),
+                app.path().app_data_dir()?,
+            );
             let service = Service::open(&catalog, &user)?;
             app.manage(Arc::new(service));
             Ok(())
@@ -199,6 +220,8 @@ pub fn run() {
             import_history,
             clear_history,
             reference_solution,
+            smoke_mode,
+            smoke_finish,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Local Grind");
@@ -207,6 +230,19 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_db_location() {
+        let default = PathBuf::from("/data");
+        assert_eq!(
+            resolve_user_db(None, default.clone()),
+            PathBuf::from("/data/user.db")
+        );
+        assert_eq!(
+            resolve_user_db(Some(PathBuf::from("/tmp/x")), default),
+            PathBuf::from("/tmp/x/user.db")
+        );
+    }
 
     #[test]
     fn catalog_resolution_order() {

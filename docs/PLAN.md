@@ -44,7 +44,7 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
 - [x] `scripts/check.sh`: rustfmt, clippy `-D warnings`, svelte-check, all tests, 90% coverage
       floor for Rust (tarpaulin) and frontend (vitest)
 - [x] `docs/CONTENT.md` authoring guide
-- [ ] `docs/ARCHITECTURE.md`, `CLAUDE.md` with dev commands
+- [x] `docs/ARCHITECTURE.md`, `CLAUDE.md` with dev commands, `README.md`
 
 ### M1 — Tracer bullet (most of the interface, little content)
 - [x] Problem model and signature type system
@@ -55,9 +55,10 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
 - [x] Tauri shell + commands
 - [x] UI: problem list, split problem view (description / editorial / submissions / result),
       editor, testcase console, run + submit, theme toggle, font sizes, settings page
-- [ ] Three sample problems (only Two Sum exists; add one linked-list and one tree problem so
-      the tracer exercises node types end to end)
-- [ ] End-to-end smoke test of the real app (real backend + real UI), not just the mock
+- [x] Three sample problems (Two Sum, Reverse Linked List, Maximum Depth of Binary Tree)
+- [x] End-to-end smoke test of the real app: `scripts/smoke.sh` launches the built app in smoke
+      mode; the UI drives list → workspace → run → submit → stats → settings against the real
+      backend and Python judge, then exits with pass/fail
 
 ### M2 — Judge systems
 Pulled forward while building M1 (done):

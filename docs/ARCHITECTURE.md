@@ -119,5 +119,8 @@ driven by settings. Inconsolata is bundled via `@fontsource` (no network access 
   Tauri's `mockIPC`, so the UI is exercised through the same command interface as production.
 - `scripts/check.sh` is the gate: formatting, clippy, svelte-check, all tests, and a 90%
   coverage floor for both halves.
+- `scripts/smoke.sh` is the end-to-end test of the real app: it builds the desktop binary and
+  launches it with `LOCALGRIND_SMOKE=1` and a throwaway `LOCALGRIND_DATA_DIR`; `lib/smoke.ts`
+  drives the real UI through the core flows and the app exits with the result.
 - Visual checks: `npm run dev:mock` serves the UI against the mock backend; `scripts/webshot.swift`
   renders a URL with WebKit (the same engine Tauri uses on macOS) to a PNG.

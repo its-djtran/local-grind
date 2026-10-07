@@ -342,6 +342,10 @@ export function createBackend(): Backend {
         return null;
       case "reference_solution":
         return id === 1 ? "class Solution: ..." : null;
+      case "smoke_mode":
+        return false;
+      case "smoke_finish":
+        return null;
       case "plugin:dialog|save":
       case "plugin:dialog|open":
         return state.dialogPath;

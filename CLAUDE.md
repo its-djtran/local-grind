@@ -15,6 +15,7 @@ cargo run -q -p lg-content -- build               # content/ -> assets/problems.
 cargo run -q -p lg-content -- check <slug>...     # validate problems without writing the DB
 cargo run -q -p lg-content -- judge <slug> f.py   # judge any solution against a problem's suite
 cd app && npx vitest run                          # frontend tests (add --coverage for the gate)
+scripts/smoke.sh                                  # end-to-end test of the real desktop app
 cd app && npx tauri dev                           # run the desktop app (needs assets/problems.db)
 cd app && npm run dev:mock                        # UI in a browser against the mock backend (:1421)
 swiftc -O scripts/webshot.swift -o /tmp/webshot && /tmp/webshot http://localhost:1421/#/stats out.png
