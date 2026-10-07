@@ -7,6 +7,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
+# macOS has no coreutils `timeout`; perl ships with the OS.
+with_timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 step() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 
 step "bundled Python"
@@ -31,7 +33,7 @@ DMG=$(ls "$BUNDLE"/dmg/*.dmg | head -1)
 step "smoke test of the built app"
 data=$(mktemp -d)
 trap 'rm -rf "$data"' EXIT
-out=$(LOCALGRIND_SMOKE=1 LOCALGRIND_DATA_DIR="$data" timeout 180 "$APP/Contents/MacOS/localgrind" 2>/dev/null) || true
+out=$(LOCALGRIND_SMOKE=1 LOCALGRIND_DATA_DIR="$data" with_timeout 180 "$APP/Contents/MacOS/localgrind" 2>/dev/null) || true
 echo "$out" | grep -E '^(ok|FAIL|SMOKE)'
 [[ "$out" == *"SMOKE PASS"* ]]
 
