@@ -167,10 +167,10 @@ Remaining:
       the JavaScript e2e suite requires identical verdicts on both
 - [x] Toolchain guidance: per-language status in Settings, "(not found)" in the language picker,
       and Run/Submit errors that say how to install the missing toolchain
-- [~] `scripts/release.sh`: fetch Python → build catalog → gate → `tauri build` (.app + .dmg)
-      → smoke-test the built app. The .app is built and passes the smoke test with bundled
-      Python (101 MB); `.dmg` creation could not run in the agent's sandbox (`hdiutil create`
-      is not permitted), so the script's dmg step still needs a run on a normal machine
+- [x] `scripts/release.sh`: fetch Python → build catalog → gate → `tauri build` (.app + .dmg)
+      → smoke-test the built app. The .app (101 MB with bundled Python) passes the smoke test;
+      the .dmg was built on a normal machine (the agent sandbox cannot run `hdiutil create`),
+      installed, and confirmed working by the owner (2026-10-07)
 - [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
       opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
