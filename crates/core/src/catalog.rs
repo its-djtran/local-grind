@@ -496,6 +496,13 @@ pub(crate) mod tests {
             "class Solution:\n    def twoSum(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            if target - n in seen:\n                return [seen[target - n], i]\n            seen[n] = i\n",
         )
         .unwrap();
+        // Returns the pair reversed so tests can tell which reference produced an answer.
+        w.add_solution(
+            1,
+            Language::JavaScript,
+            "var twoSum = function(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(target - nums[i])) return [i, seen.get(target - nums[i])];\n    seen.set(nums[i], i);\n  }\n};\n",
+        )
+        .unwrap();
         w.add_benchmark(
             1,
             "python",

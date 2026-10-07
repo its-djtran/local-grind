@@ -371,15 +371,19 @@ impl Service {
         })
     }
 
-    /// Expected outputs for arbitrary inputs, produced by the bundled reference solution.
-    fn reference_outputs(&self, problem: &Problem, args: &[Value]) -> Result<Option<Vec<Value>>> {
-        let Some(code) = self.reference_solution(problem.summary.id, Language::Python)? else {
-            return Ok(None);
-        };
-        let tools = self.toolchains.lock().unwrap().clone();
-        let program = Language::Python
-            .driver()
-            .program(&problem.signature, &code, &tools);
+    /// Expected outputs for arbitrary inputs, produced by a bundled reference solution. The
+    /// reference in `preferred` (the user's language, whose toolchain is therefore installed)
+    /// is tried first, then Python.
+    fn reference_outputs(
+        &self,
+        problem: &Problem,
+        args: &[Value],
+        preferred: Language,
+    ) -> Result<Option<Vec<Value>>> {
+        let mut candidates = vec![preferred];
+        if preferred != Language::Python {
+            candidates.push(Language::Python);
+        }
         let cases: Vec<TestCase> = args
             .iter()
             .map(|a| TestCase {
@@ -391,17 +395,34 @@ impl Service {
             keep_all_cases: true,
             ..self.run_options(problem, false)?
         };
-        let report = runner::execute(&program, &cases, &Comparator::Exact, &opts, &mut |_, _| {})?;
-        if report.cases.len() != cases.len() {
-            return Ok(None);
+        let tools = self.toolchains.lock().unwrap().clone();
+        for language in candidates {
+            let Some(code) = self.reference_solution(problem.summary.id, language)? else {
+                continue;
+            };
+            let program = language.driver().program(&problem.signature, &code, &tools);
+            let report = match runner::execute(
+                &program,
+                &cases,
+                &Comparator::Exact,
+                &opts,
+                &mut |_, _| {},
+            ) {
+                Ok(r) => r,
+                Err(Error::Toolchain(_)) => continue,
+                Err(e) => return Err(e),
+            };
+            if report.cases.len() == cases.len() {
+                return Ok(Some(
+                    report
+                        .cases
+                        .into_iter()
+                        .map(|c| c.output.unwrap_or(Value::Null))
+                        .collect(),
+                ));
+            }
         }
-        Ok(Some(
-            report
-                .cases
-                .into_iter()
-                .map(|c| c.output.unwrap_or(Value::Null))
-                .collect(),
-        ))
+        Ok(None)
     }
 
     /// "Run": executes the user's code on custom testcases, comparing with the reference solution.
@@ -423,12 +444,15 @@ impl Service {
             || runner::execute(&program, &cases, &Comparator::Exact, &opts, &mut |_, _| {});
         let (expected, user_report) = if self.settings()?.eval.max_parallel_jobs > 1 {
             std::thread::scope(|s| {
-                let reference = s.spawn(|| self.reference_outputs(&problem, &args));
+                let reference = s.spawn(|| self.reference_outputs(&problem, &args, language));
                 let user = run_user();
                 (reference.join().expect("reference thread"), user)
             })
         } else {
-            (self.reference_outputs(&problem, &args), run_user())
+            (
+                self.reference_outputs(&problem, &args, language),
+                run_user(),
+            )
         };
         let mut report = user_report?;
         let expected = expected.ok().flatten();
@@ -748,6 +772,54 @@ mod tests {
         let ok = svc.run(1, Language::Python, GOOD, "[3,2,4]\n6").unwrap();
         assert_eq!(ok.report.verdict, Verdict::Accepted);
         assert!(svc.check_toolchains().iter().all(|t| t.ok));
+    }
+
+    #[test]
+    fn run_prefers_a_same_language_reference() {
+        let svc = service();
+        let js = "var twoSum = function(nums, target) { for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) if (nums[i] + nums[j] === target) return [i, j]; };";
+        let r = svc
+            .run(1, Language::JavaScript, js, "[2,7,11,15]\n9")
+            .unwrap();
+        assert_eq!(
+            r.report.cases[0].expected,
+            json!([1, 0]),
+            "JavaScript reference used"
+        );
+        assert_eq!(
+            r.report.verdict,
+            Verdict::Accepted,
+            "unordered comparator accepts either order"
+        );
+        let py = svc
+            .run(1, Language::Python, GOOD, "[2,7,11,15]\n9")
+            .unwrap();
+        assert_eq!(
+            py.report.cases[0].expected,
+            json!([0, 1]),
+            "Python reference used"
+        );
+
+        // No C++ reference: falls back to Python.
+        let problem = sample_catalog().problem(1).unwrap();
+        let args = vec![json!([[3, 2, 4], 6])];
+        let out = svc
+            .reference_outputs(&problem, &args, Language::Cpp)
+            .unwrap()
+            .unwrap();
+        assert_eq!(out, vec![json!([1, 2])]);
+
+        // A missing toolchain for the preferred reference also falls back.
+        let mut s = svc.settings().unwrap();
+        s.eval
+            .toolchain_paths
+            .insert("javascript".into(), "/nonexistent/node".into());
+        svc.save_settings(&s).unwrap();
+        let out = svc
+            .reference_outputs(&problem, &args, Language::JavaScript)
+            .unwrap()
+            .unwrap();
+        assert_eq!(out, vec![json!([1, 2])]);
     }
 
     #[test]

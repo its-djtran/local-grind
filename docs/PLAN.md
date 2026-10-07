@@ -42,6 +42,10 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
 - **Known judge limits.** Codec problems use separate instances for encode/decode, but state
   stored on the class itself is not prevented. "Do not use library sort" style rules (Sort
   Colors) and API-call budgets (First Bad Version) are stated, not enforced.
+- **Toolchains at distribution** (2026-10-07). Python is bundled with the app (it is also the
+  fallback reference for custom testcases). Compilers are not bundled: C++ and Rust are detected
+  (Homebrew, rustup and system paths, since Finder-launched apps get a minimal `PATH`) with
+  install guidance and per-language path overrides; JavaScript may use the OS's JavaScriptCore.
 - **Reorder: content before additional languages** (2026-10-07). Expected outputs are
   language-neutral, so problem content does not depend on which languages exist, and REQS sets
   Blind 75 ∪ Grind 75 as the minimum bar. Additional languages therefore moved from M2 to M4.
@@ -104,9 +108,15 @@ Remaining:
       compile cache for compiled languages
 - [x] JavaScript driver (LeetCode-style `var f = function` / prototype design / codec
       functions / `solution(isBadVersion)`), Worker with a 256 MB stack, e2e tests, smoke step
-- [ ] C++ driver (validates the abstraction with a compiled, typed language)
-- [ ] Rust driver
-- [ ] Java and Go drivers (toolchains are not installed on the dev machine; needs a decision)
+- [x] C++ driver (clang++, generated typed harness, 512 MB stack, readable crashes)
+- [x] Rust driver (LeetCode conventions; graph-node and cyclic-list problems not offered)
+- [x] Per-problem language support (`Driver::supports`), shown in the language picker
+- [x] JavaScript, C++ and Rust reference solutions for every problem they can express,
+      verified on the full suites; `catalog_e2e` judges all of them
+- [x] Run computes expected outputs with the reference in the user's language (falls back to
+      Python), so non-Python users do not need Python for custom testcases
+- [ ] Per-language benchmarks for every reference
+- Deferred (per user, 2026-10-07): Java and Go drivers
 - [ ] Per-language reference solutions and benchmarks where available
 
 ### M5 — Review tool
@@ -131,6 +141,11 @@ Remaining:
 
 ### M7 — Distribution
 - [x] App icon
+- [ ] Bundle a relocatable CPython (python-build-standalone) in the app so Python solutions and
+      the Python fallback reference work without any installation
+- [ ] Evaluate a zero-install JavaScript path via macOS's built-in JavaScriptCore (`jsc`)
+- [ ] First-run toolchain guidance: per-language status with one-line install instructions
+      (C++ via `xcode-select --install`, Rust via rustup, Node via installer/Homebrew)
 - [ ] `.dmg` packaging and a release script
 - [ ] Startup and navigation performance budget checks
 
