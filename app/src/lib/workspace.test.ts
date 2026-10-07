@@ -135,6 +135,20 @@ describe("Workspace", () => {
     expect(ws.running).toBe(false);
   });
 
+  it("adds a failed test's input to the console", async () => {
+    installBackend();
+    const { ws } = make();
+    await ws.load();
+    ws.consoleTab = "result";
+    ws.useTestcase([[3, 3], 6]);
+    expect(ws.cases.at(-1)).toEqual(["[3,3]", "6"]);
+    expect(ws.cases).toHaveLength(4);
+    expect(ws.consoleTab).toBe("testcase");
+    expect(JSON.parse(sessionStorage.getItem("lg-cases-1")!)).toHaveLength(4);
+    ws.useTestcase([[1]]);
+    expect(ws.cases.at(-1)).toEqual(["[1]", "null"]);
+  });
+
   it("restores edited cases from the session", async () => {
     installBackend();
     sessionStorage.setItem("lg-cases-1", JSON.stringify([["[9]", "9"]]));

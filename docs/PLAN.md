@@ -164,5 +164,9 @@ Remaining:
 - [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
       opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
-### M8+ — Refinement
-- Additional problem sets, UI polish driven by usage.
+### M8 — Refinement
+- [x] "Use testcase": add a failed submission's input to the console (LeetCode parity)
+- [ ] Personal notes per problem (review aid; included in export/import)
+- [ ] CI workflow (macOS) running `scripts/check.sh` and the smoke test for contributors
+- Later: additional problem sets (e.g. NeetCode 150), Java/Go drivers (deferred), custom user
+  lists, UI polish driven by usage

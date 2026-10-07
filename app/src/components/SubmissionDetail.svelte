@@ -17,9 +17,11 @@
     benchmark?: Benchmark | null;
     solve?: Solve | null;
     onBack?: () => void;
+    /** Copies the failing test's input into the testcase console. */
+    onUseTestcase?: (args: unknown[]) => void;
   }
 
-  let { submission: s, signature, benchmark = null, solve = null, onBack }: Props = $props();
+  let { submission: s, signature, benchmark = null, solve = null, onBack, onUseTestcase }: Props = $props();
   const accepted = $derived(s.verdict === "Accepted");
   const names = $derived(paramNames(signature));
 
@@ -76,7 +78,12 @@
 
   {#if s.failure}
     <section class="failure">
-      <h3>Failing testcase #{s.failure.index + 1}</h3>
+      <div class="failure-head">
+        <h3>Failing testcase #{s.failure.index + 1}</h3>
+        {#if onUseTestcase}
+          <button onclick={() => onUseTestcase(s.failure!.args)} title="Add this input to the testcase console">Use testcase</button>
+        {/if}
+      </div>
       <div class="kv"><span class="muted">Input</span>
         {#each names as name, j (name)}<div class="value"><span class="muted">{name} =</span> {formatValue(s.failure.args[j])}</div>{/each}
       </div>
@@ -180,6 +187,11 @@
     padding: 0.7em;
     white-space: pre-wrap;
     margin: 0;
+  }
+  .failure-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   h3 {
     margin: 0.4rem 0;

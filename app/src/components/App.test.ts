@@ -105,6 +105,10 @@ describe("App", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     await screen.findByText("Wrong Answer", { selector: "h2" });
     expect(screen.getByText("Failing testcase #4")).toBeInTheDocument();
+    await fireEvent.click(screen.getByText("Use testcase"));
+    expect(await screen.findByText("Case 4")).toBeInTheDocument();
+    await fireEvent.click(screen.getByText("Case 4"));
+    expect(screen.getByLabelText("nums =")).toHaveValue("[3,3]");
     await fireEvent.click(screen.getByText("← All submissions"));
     const row = await screen.findByText("(3/57)", { exact: false });
     await fireEvent.click(row);

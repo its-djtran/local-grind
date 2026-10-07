@@ -159,6 +159,7 @@
                 benchmark={view.benchmarks[ws.selected.language] ?? null}
                 solve={ws.lastSubmit?.submission.id === ws.selected.id ? ws.lastSubmit.solve : null}
                 onBack={() => setTab("submissions")}
+                onUseTestcase={(args) => ws.useTestcase(args)}
               />
             {/if}
           </div>

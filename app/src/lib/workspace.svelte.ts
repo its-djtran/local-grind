@@ -106,6 +106,13 @@ export class Workspace {
     sessionStorage.setItem(this.casesKey(), JSON.stringify(cases));
   }
 
+  /** Appends a judged test's arguments (e.g. a failed submission's input) to the console. */
+  useTestcase(args: unknown[]): void {
+    const fields = this.names.map((_, j) => JSON.stringify(args[j] ?? null));
+    this.setCases([...this.cases, fields]);
+    this.consoleTab = "testcase";
+  }
+
   resetCases(): void {
     if (!this.view) return;
     sessionStorage.removeItem(this.casesKey());
