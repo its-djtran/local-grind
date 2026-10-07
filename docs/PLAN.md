@@ -115,7 +115,7 @@ Remaining:
       verified on the full suites; `catalog_e2e` judges all of them
 - [x] Run computes expected outputs with the reference in the user's language (falls back to
       Python), so non-Python users do not need Python for custom testcases
-- [ ] Per-language benchmarks for every reference
+- [x] Per-language benchmarks for every reference (442 benchmarks, 10 runs each)
 - Deferred (per user, 2026-10-07): Java and Go drivers
 - [ ] Per-language reference solutions and benchmarks where available
 

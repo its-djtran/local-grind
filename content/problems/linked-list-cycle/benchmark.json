@@ -1,6 +1,16 @@
 {
+  "cpp": {
+    "memory_kb": 4780,
+    "runs": 10,
+    "runtime_ms": 0.09
+  },
+  "javascript": {
+    "memory_kb": 57968,
+    "runs": 10,
+    "runtime_ms": 0.3
+  },
   "python": {
-    "memory_kb": 35427,
+    "memory_kb": 35227,
     "runs": 10,
     "runtime_ms": 0.83
   }

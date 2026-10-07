@@ -1,7 +1,22 @@
 {
-  "python": {
-    "memory_kb": 30696,
+  "cpp": {
+    "memory_kb": 1705,
     "runs": 10,
-    "runtime_ms": 5.51
+    "runtime_ms": 0.45
+  },
+  "javascript": {
+    "memory_kb": 54419,
+    "runs": 10,
+    "runtime_ms": 2.18
+  },
+  "python": {
+    "memory_kb": 31052,
+    "runs": 10,
+    "runtime_ms": 5.62
+  },
+  "rust": {
+    "memory_kb": 1968,
+    "runs": 10,
+    "runtime_ms": 0.16
   }
 }
