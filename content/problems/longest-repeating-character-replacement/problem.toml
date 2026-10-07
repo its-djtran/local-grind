@@ -1,0 +1,30 @@
+id = 424
+title = "Longest Repeating Character Replacement"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Sliding Window"]
+time_limit_ms = 1500
+hints = [
+  "For a fixed substring, the cheapest way to make it uniform is to keep its most frequent letter and overwrite everything else. How many changes does that cost?",
+  "A window is usable when (window length) - (count of its most common letter) <= k. Slide a window over s and keep it usable.",
+  "When the window becomes unusable, move the left edge one step. You never need to shrink it below the best length found so far, so the maximum letter count does not have to decrease when the window slides.",
+]
+
+[signature]
+kind = "function"
+name = "characterReplacement"
+params = [{ name = "s", type = "string" }, { name = "k", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+"ABAB"
+2"""
+output = "4"
+explanation = "Change both A's to B (or both B's to A) and the whole string is one repeated letter."
+
+[[examples]]
+input = """
+"AABABBA"
+1"""
+output = "4"
+explanation = "Turning the A at index 3 into a B gives \"AABBBBA\", which contains \"BBBB\". Other single changes also reach length 4, but none reach 5."

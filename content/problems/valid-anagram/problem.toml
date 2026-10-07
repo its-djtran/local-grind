@@ -1,0 +1,29 @@
+id = 242
+title = "Valid Anagram"
+difficulty = "Easy"
+topics = ["Hash Table", "String", "Sorting"]
+time_limit_ms = 1000
+hints = [
+  "Two strings are anagrams exactly when every letter appears the same number of times in both. If the lengths differ, they cannot be anagrams.",
+  "Sorting both strings and comparing them works, in O(n log n) time.",
+  "For linear time, count letters: add 1 for each letter of s and subtract 1 for each letter of t. Every count must end at zero.",
+]
+
+[signature]
+kind = "function"
+name = "isAnagram"
+params = [{ name = "s", type = "string" }, { name = "t", type = "string" }]
+returns = "bool"
+
+[[examples]]
+input = """
+"anagram"
+"nagaram\""""
+output = "true"
+
+[[examples]]
+input = """
+"rat"
+"car\""""
+output = "false"
+explanation = "s has a t where t has a c, so the letters cannot be rearranged to match."

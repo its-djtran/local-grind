@@ -1,0 +1,32 @@
+id = 49
+title = "Group Anagrams"
+difficulty = "Medium"
+topics = ["Array", "Hash Table", "String", "Sorting"]
+time_limit_ms = 1000
+hints = [
+  "Comparing every new word against every existing group is slow when there are many groups. Can each word be turned into a label that is identical for all of its anagrams?",
+  "Sorting a word's letters produces such a label: all anagrams sort to the same string.",
+  "Use a hash map from label to list of words. A tuple of 26 letter counts also works as a label and avoids sorting.",
+]
+
+[signature]
+kind = "function"
+name = "groupAnagrams"
+params = [{ name = "strs", type = "string[]" }]
+returns = "string[][]"
+
+[judge]
+mode = "unordered_nested"
+
+[[examples]]
+input = '["eat","tea","tan","ate","nat","bat"]'
+output = '[["bat"],["nat","tan"],["ate","eat","tea"]]'
+explanation = "\"ate\", \"eat\" and \"tea\" share the same letters; so do \"nat\" and \"tan\"; \"bat\" has no partner."
+
+[[examples]]
+input = '[""]'
+output = '[[""]]'
+
+[[examples]]
+input = '["a"]'
+output = '[["a"]]'

@@ -1,0 +1,33 @@
+id = 438
+title = "Find All Anagrams in a String"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Sliding Window"]
+time_limit_ms = 1000
+hints = [
+  "Every candidate is a substring of s with exactly len(p) characters. Two strings are anagrams when their letter counts match.",
+  "Recounting each window from scratch repeats almost all of the work. When the window slides one step, only one letter enters and one letter leaves.",
+  "Keep 26 counts for the current window and update them in O(1) per step. To avoid comparing all 26 counts each time, also track how many letters currently have the right count.",
+]
+
+[signature]
+kind = "function"
+name = "findAnagrams"
+params = [{ name = "s", type = "string" }, { name = "p", type = "string" }]
+returns = "int[]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = """
+"cbaebabacd"
+"abc\""""
+output = "[0,6]"
+explanation = "The substring starting at index 0 is \"cba\" and the one starting at index 6 is \"bac\"; both are rearrangements of \"abc\"."
+
+[[examples]]
+input = """
+"abab"
+"ab\""""
+output = "[0,1,2]"
+explanation = "\"ab\", \"ba\" and \"ab\" start at indices 0, 1 and 2."

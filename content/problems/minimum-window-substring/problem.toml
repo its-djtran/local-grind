@@ -1,0 +1,37 @@
+id = 76
+title = "Minimum Window Substring"
+difficulty = "Hard"
+topics = ["Hash Table", "String", "Sliding Window"]
+time_limit_ms = 1500
+hints = [
+  "A window of s is good when, for every character, it contains at least as many copies as t does (duplicates in t count).",
+  "Use two pointers. Move the right end until the window is good, then move the left end as far as possible while it stays good, recording the shortest good window.",
+  "Avoid re-comparing all character counts on every step: keep a counter of how many characters of t are still missing, and update it only when a count crosses the needed threshold.",
+]
+
+[signature]
+kind = "function"
+name = "minWindow"
+params = [{ name = "s", type = "string" }, { name = "t", type = "string" }]
+returns = "string"
+
+[[examples]]
+input = """
+"ADOBECODEBANC"
+"ABC\""""
+output = '"BANC"'
+explanation = "\"BANC\" contains an A, a B and a C, and no shorter substring of s does."
+
+[[examples]]
+input = """
+"a"
+"a\""""
+output = '"a"'
+explanation = "The whole string s is the shortest window."
+
+[[examples]]
+input = """
+"a"
+"aa\""""
+output = '""'
+explanation = "t needs two a's but s has only one, so no window works."

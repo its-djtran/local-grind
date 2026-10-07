@@ -1,0 +1,35 @@
+id = 79
+title = "Word Search"
+difficulty = "Medium"
+topics = ["Array", "String", "Backtracking", "Depth-First Search", "Matrix"]
+time_limit_ms = 1000
+hints = [
+  "Any cell holding word[0] could be the start. From there, the word must continue into an up/down/left/right neighbour, one letter at a time.",
+  "Use depth-first search with backtracking: mark a cell as in use while it is on the current path, and unmark it when you return so other paths can use it.",
+  "Prune before searching. If the board has fewer copies of some letter than the word needs, the answer is false immediately. Searching from whichever end of the word has the rarer letter also cuts the number of starting points.",
+]
+
+[signature]
+kind = "function"
+name = "exist"
+params = [{ name = "board", type = "char[][]" }, { name = "word", type = "string" }]
+returns = "bool"
+
+[[examples]]
+input = """
+[["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]]
+"ABCCED\""""
+output = "true"
+
+[[examples]]
+input = """
+[["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]]
+"SEE\""""
+output = "true"
+
+[[examples]]
+input = """
+[["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]]
+"ABCB\""""
+output = "false"
+explanation = "After A, B, C the only way to reach another B would be to reuse the B cell, which is not allowed."

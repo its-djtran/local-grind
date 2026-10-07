@@ -1,0 +1,25 @@
+id = 54
+title = "Spiral Matrix"
+difficulty = "Medium"
+topics = ["Array", "Matrix", "Simulation"]
+time_limit_ms = 1000
+hints = [
+  "Picture peeling the matrix like an onion: walk the outer ring clockwise, then repeat on the smaller matrix inside it.",
+  "Track four boundaries (top, bottom, left, right). After walking one side, move the matching boundary inward.",
+  "Be careful with a single remaining row or column: check that the boundaries have not crossed before walking the bottom row and the left column, or those cells will be visited twice.",
+]
+
+[signature]
+kind = "function"
+name = "spiralOrder"
+params = [{ name = "matrix", type = "int[][]" }]
+returns = "int[]"
+
+[[examples]]
+input = "[[1,2,3],[4,5,6],[7,8,9]]"
+output = "[1,2,3,6,9,8,7,4,5]"
+
+[[examples]]
+input = "[[1,2,3,4],[5,6,7,8],[9,10,11,12]]"
+output = "[1,2,3,4,8,12,11,10,9,5,6,7]"
+explanation = "Right along the top row, down the last column, left along the bottom row, up the first column, then right through the remaining middle cells."

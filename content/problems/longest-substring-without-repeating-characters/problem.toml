@@ -1,0 +1,31 @@
+id = 3
+title = "Longest Substring Without Repeating Characters"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Sliding Window"]
+time_limit_ms = 600
+hints = [
+  "Checking every substring for duplicates is far too slow. Think about a window [left, right] that always contains distinct characters.",
+  "When s[right] is already inside the window, the window cannot be extended until left moves past the earlier copy of that character.",
+  "Store the last index at which each character appeared. Then left can jump directly to one past that index instead of moving one step at a time.",
+]
+
+[signature]
+kind = "function"
+name = "lengthOfLongestSubstring"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"abcabcbb"'
+output = "3"
+explanation = "\"abc\" is one longest run of distinct characters; it has length 3."
+
+[[examples]]
+input = '"bbbbb"'
+output = "1"
+explanation = "Every character is the same, so the best substring is a single \"b\"."
+
+[[examples]]
+input = '"pwwkew"'
+output = "3"
+explanation = "\"wke\" has length 3. Note that \"pwke\" does not count: it is a subsequence, not a contiguous substring."

@@ -1,0 +1,26 @@
+id = 48
+title = "Rotate Image"
+difficulty = "Medium"
+topics = ["Array", "Math", "Matrix"]
+time_limit_ms = 1000
+hints = [
+  "Work out where a cell (i, j) ends up after a clockwise quarter turn of an n x n grid. Writing it there directly would overwrite a value you still need.",
+  "Cells move in cycles of four: each one takes the place of the next around a ring. Rotating one cycle needs only a single temporary variable.",
+  "Alternatively, a clockwise rotation equals two simple in-place operations: transpose the matrix (swap across the main diagonal), then reverse every row.",
+]
+
+[signature]
+kind = "function"
+name = "rotate"
+params = [{ name = "matrix", type = "int[][]" }]
+returns = "void"
+output_param = "matrix"
+
+[[examples]]
+input = "[[1,2,3],[4,5,6],[7,8,9]]"
+output = "[[7,4,1],[8,5,2],[9,6,3]]"
+
+[[examples]]
+input = "[[5,1,9,11],[2,4,8,10],[13,3,6,7],[15,14,12,16]]"
+output = "[[15,13,2,5],[14,3,4,1],[12,6,8,9],[16,7,10,11]]"
+explanation = "The first column read from bottom to top (15, 13, 2, 5) becomes the new first row."
