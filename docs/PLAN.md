@@ -33,6 +33,15 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
   the machine, M6 adds an optional local recalibration.
 - **YALT is inspiration only** (per user, 2026-10-07): its metrics shaped the review tool, but
   there is no data-model or import compatibility requirement. The YALT importer was removed.
+- **Complexity is enforced only where constraints allow it** (2026-10-07). Some problems have
+  limits so small (e.g. Same Tree, n ≤ 100) that slower approaches cannot be told apart; LeetCode
+  behaves the same. A few limits are tight by necessity: Binary Search (4 ms of solution time,
+  reference 0.1 ms) is the only way to reject a linear scan, and Graph Valid Tree (500 ms) and
+  Connected Components (300 ms) leave ~40x headroom. Users on slow machines can raise the time
+  limit multiplier.
+- **Known judge limits.** Codec problems use separate instances for encode/decode, but state
+  stored on the class itself is not prevented. "Do not use library sort" style rules (Sort
+  Colors) and API-call budgets (First Bad Version) are stated, not enforced.
 - **Reorder: content before additional languages** (2026-10-07). Expected outputs are
   language-neutral, so problem content does not depend on which languages exist, and REQS sets
   Blind 75 ∪ Grind 75 as the minimum bar. Additional languages therefore moved from M2 to M4.
@@ -81,8 +90,11 @@ Remaining:
 ### M3 — Content: Blind 75 ∪ Grind 75 (111 problems)
 - [x] Lists: Blind 75 (by topic), Grind 75 (by week)
 - [x] Company tags (recency + frequency) from liquidslr/leetcode-company-wise-problems
-- [ ] All 111 problems with statement, editorial, hints, reference solution, generator
-      (≥ 30 tests, aim 50–100, large cases that reject wrong complexity) — 1 / 111 done
+- [x] All 111 problems with statement, editorial, hints, reference solution, generator
+      (8,025 tests total). Each was verified with `lg-content check`; brute-force variants were
+      judged to hit the time limit where the constraints make that possible, and plausible
+      buggy variants were judged to be rejected
+- [x] Reproducible builds (generators run with `PYTHONHASHSEED=0`; two set-order bugs fixed)
 - [ ] Reference benchmarks (avg of 10 runs) for every problem
 
 ### M4 — Additional languages
