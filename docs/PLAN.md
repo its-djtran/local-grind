@@ -138,8 +138,8 @@ Remaining:
 ### M6 — Portability & polish
 - [x] Export / import complete user history (JSON)
 - [x] Search (title / number / topic) and filters (list, difficulty, status, topic, company)
-- [~] Keyboard shortcuts: run (⌘') and submit (⌘⏎) done; navigation shortcuts and a `?`
-      help overlay pending
+- [x] Keyboard shortcuts with a `?` overlay: ⌘1/⌘2/⌘, navigation, `/` search, j/k rows, `r`
+      random, ⌘' run, ⌘⏎ submit, `[`/`]` and ⌘⇧[/] previous/next problem
 - [x] Local benchmark recalibration: Settings re-runs every reference solution on this machine
       (3 runs each, up to `max_parallel_jobs` at once, with progress and Stop), stores results in
       `user.db`, and prefers them over bundled numbers (labelled "on this machine")

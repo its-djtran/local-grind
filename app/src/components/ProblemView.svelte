@@ -5,6 +5,7 @@
   import { app } from "../lib/state.svelte";
   import { router } from "../lib/router.svelte";
   import { Workspace, type LeftTab } from "../lib/workspace.svelte";
+  import { onShortcut } from "../lib/shortcuts";
   import type { LanguageId } from "../lib/types";
   import SplitPane from "./SplitPane.svelte";
   import CodeEditor from "./CodeEditor.svelte";
@@ -28,6 +29,7 @@
   let showCompanies = $state(false);
   let ticker: ReturnType<typeof setInterval>;
   let unlisten: (() => void) | undefined;
+  let offShortcuts: (() => void) | undefined;
 
   const settings = $derived(app.settings);
   const view = $derived(ws.view);
@@ -43,6 +45,12 @@
       .then((u) => (unlisten = u))
       .catch(() => {});
     window.addEventListener("beforeunload", persist);
+    offShortcuts = onShortcut((action) => {
+      if (action === "run") ws.run();
+      else if (action === "submit") ws.submit();
+      else if (action === "nextProblem") go(1);
+      else if (action === "prevProblem") go(-1);
+    });
   });
 
   function persist() {
@@ -52,6 +60,7 @@
   onDestroy(() => {
     clearInterval(ticker);
     unlisten?.();
+    offShortcuts?.();
     window.removeEventListener("beforeunload", persist);
     persist();
   });

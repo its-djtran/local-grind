@@ -3,6 +3,28 @@
   import { router } from "../lib/router.svelte";
   import { countByStatus, emptyFilters, filterProblems, pickRandom, type Filters } from "../lib/filter";
   import PracticeNext from "./PracticeNext.svelte";
+  import { onMount } from "svelte";
+  import { onShortcut } from "../lib/shortcuts";
+
+  let search: HTMLInputElement | undefined = $state();
+  let rowsEl: HTMLElement | undefined = $state();
+
+  function moveRow(delta: number) {
+    const rows = [...(rowsEl?.querySelectorAll<HTMLAnchorElement>("a.row") ?? [])];
+    if (!rows.length) return;
+    const current = rows.indexOf(document.activeElement as HTMLAnchorElement);
+    const next = current < 0 ? (delta > 0 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, current + delta));
+    rows[next].focus();
+  }
+
+  onMount(() =>
+    onShortcut((action) => {
+      if (action === "focusSearch") search?.focus();
+      else if (action === "rowDown") moveRow(1);
+      else if (action === "rowUp") moveRow(-1);
+      else if (action === "random") random();
+    }),
+  );
 
   const boot = $derived(app.boot!);
   let filters = $state<Filters>(loadFilters());
@@ -53,7 +75,7 @@
   <PracticeNext problems={boot.problems} lists={boot.lists} />
 
   <section class="filters">
-    <input class="search" type="search" placeholder="Search by title, number or topic" bind:value={filters.query} aria-label="Search problems" />
+    <input class="search" type="search" placeholder="Search by title, number or topic  ( / )" bind:value={filters.query} aria-label="Search problems" bind:this={search} />
     <select bind:value={filters.difficulty} aria-label="Difficulty">
       <option value="">Difficulty</option>
       <option>Easy</option>
@@ -87,7 +109,7 @@
     </span>
   </section>
 
-  <section class="table" role="table" aria-label="Problems">
+  <section class="table" role="table" aria-label="Problems" bind:this={rowsEl}>
     {#each groups as group (group.name)}
       {#if group.name}<h3 class="group">{group.name}</h3>{/if}
       {#each group.problems as p (p.id)}
@@ -181,6 +203,10 @@
   }
   .row:nth-child(even) {
     background: var(--panel-2);
+  }
+  .row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
   .row:hover {
     background: var(--hover);

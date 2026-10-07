@@ -275,6 +275,61 @@ describe("App", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("supports keyboard navigation and a shortcuts overlay", async () => {
+    installBackend();
+    await boot();
+    await (await table()).findByText("1. Two Sum");
+    await fireEvent.keyDown(window, { key: "?" });
+    const dialog = await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
+    expect(within(dialog).getByText("Search problems")).toBeInTheDocument();
+    await fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await fireEvent.click(screen.getByLabelText("Keyboard shortcuts"));
+    await fireEvent.click(within(screen.getByRole("dialog")).getByLabelText("Close"));
+
+    await fireEvent.keyDown(window, { key: "/" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Search problems"));
+    await fireEvent.keyDown(document.activeElement!, { key: "j" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Search problems"), "typing keys are ignored in inputs");
+    (document.activeElement as HTMLElement).blur();
+    await fireEvent.keyDown(window, { key: "j" });
+    expect(document.activeElement?.textContent).toContain("1. Two Sum");
+    await fireEvent.keyDown(window, { key: "j" });
+    await fireEvent.keyDown(window, { key: "k" });
+    expect(document.activeElement?.textContent).toContain("1. Two Sum");
+    (document.activeElement as HTMLElement).blur();
+    await fireEvent.keyDown(window, { key: "k" });
+    expect(document.activeElement?.textContent).toContain("206.");
+
+    await fireEvent.keyDown(window, { key: "2", metaKey: true });
+    await waitFor(() => expect(router.route).toEqual({ name: "stats" }));
+    await fireEvent.keyDown(window, { key: ",", ctrlKey: true });
+    await waitFor(() => expect(router.route).toEqual({ name: "settings" }));
+    await fireEvent.keyDown(window, { key: "1", metaKey: true });
+    await waitFor(() => expect(router.route).toEqual({ name: "problems" }));
+    await fireEvent.keyDown(window, { key: "r" });
+    await waitFor(() => expect(router.route.name).toBe("problem"));
+  });
+
+  it("runs, submits and navigates problems from the keyboard", async () => {
+    const backend = installBackend();
+    await boot("#/problems/1");
+    await screen.findByRole("heading", { name: "1. Two Sum" });
+    await fireEvent.keyDown(window, { key: "'", metaKey: true });
+    await screen.findByText("Wrong Answer", { selector: "h3" });
+    await fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(backend.state.submissions).toHaveLength(1));
+    await fireEvent.keyDown(window, { key: "]" });
+    await waitFor(() => expect(router.route).toEqual({ name: "problem", id: 3 }));
+    await fireEvent.keyDown(window, { key: "{", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(router.route).toEqual({ name: "problem", id: 1 }));
+    // Handled-by-editor events are not processed twice.
+    const handled = new KeyboardEvent("keydown", { key: "]", bubbles: true, cancelable: true });
+    handled.preventDefault();
+    window.dispatchEvent(handled);
+    expect(router.route).toEqual({ name: "problem", id: 1 });
+  });
+
   it("toggles the theme from the top bar", async () => {
     const backend = installBackend();
     await boot();

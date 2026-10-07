@@ -6,6 +6,23 @@
   import ProblemView from "./components/ProblemView.svelte";
   import StatsPage from "./components/StatsPage.svelte";
   import SettingsPage from "./components/SettingsPage.svelte";
+  import ShortcutsHelp from "./components/ShortcutsHelp.svelte";
+  import { dispatchShortcut, matchShortcut } from "./lib/shortcuts";
+
+  let showShortcuts = $state(false);
+
+  function onKeydown(e: KeyboardEvent) {
+    // The editor handles its own run/submit bindings; don't act on them twice.
+    if (e.defaultPrevented) return;
+    const action = matchShortcut(e);
+    if (!action) return;
+    e.preventDefault();
+    if (action === "help") showShortcuts = !showShortcuts;
+    else if (action === "goProblems") router.go({ name: "problems" });
+    else if (action === "goStats") router.go({ name: "stats" });
+    else if (action === "goSettings") router.go({ name: "settings" });
+    else dispatchShortcut(action);
+  }
 
   onMount(() => {
     app.load();
@@ -14,6 +31,8 @@
   const theme = $derived(app.settings?.theme);
   const noToolchain = $derived(!!app.boot && !app.boot.languages.some((l) => l.available));
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <div class="shell">
   <header class="topbar">
@@ -26,6 +45,7 @@
       <a href="#/settings" class:active={router.route.name === "settings"}>Settings</a>
     </nav>
     <div class="spacer"></div>
+    <button class="ghost" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onclick={() => (showShortcuts = true)}>⌨</button>
     <button class="ghost" title="Toggle theme" aria-label="Toggle theme" onclick={() => app.toggleTheme()} data-theme-setting={theme}>
       ◐
     </button>
@@ -59,6 +79,9 @@
       <ProblemList />
     {/if}
   </main>
+  {#if showShortcuts}
+    <ShortcutsHelp onClose={() => (showShortcuts = false)} />
+  {/if}
   {#if app.toast}
     <div class="toast" role="status">{app.toast}</div>
   {/if}
