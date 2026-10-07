@@ -73,6 +73,14 @@ export async function runSmoke(deps: SmokeDeps = defaultDeps()): Promise<{ ok: b
       if (s.submission.verdict !== "Accepted") throw new Error(`verdict ${s.submission.verdict}`);
       return `${s.submission.passed}/${s.submission.total} tests, ${s.submission.runtime_ms.toFixed(1)} ms, ${s.submission.memory_kb} KB`;
     });
+    if (first.slug === "two-sum" && boot.languages.some((l) => l.id === "javascript" && l.available)) {
+      await step("submit JavaScript solution", async () => {
+        const code = "var twoSum = function(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(target - nums[i])) return [seen.get(target - nums[i]), i];\n    seen.set(nums[i], i);\n  }\n};\n";
+        const s = await api.submit(first.id, "javascript", code, 1000);
+        if (s.submission.verdict !== "Accepted") throw new Error(`verdict ${s.submission.verdict}: ${s.submission.error ?? ""}`);
+        return `${s.submission.passed}/${s.submission.total} tests, ${s.submission.runtime_ms.toFixed(1)} ms`;
+      });
+    }
     await step("stats page renders", async () => {
       router.go({ name: "stats" });
       await waitFor(() => text(deps.root, "h2", "By difficulty"), deps, "stats");

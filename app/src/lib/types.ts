@@ -2,7 +2,7 @@
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type Status = "solved" | "attempted" | "todo";
-export type LanguageId = "python";
+export type LanguageId = "python" | "javascript";
 export type Verdict =
   | "Accepted"
   | "WrongAnswer"

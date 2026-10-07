@@ -41,7 +41,7 @@ read-only SQLite catalog.
 | Module | Responsibility |
 |---|---|
 | `types` | Difficulty, `ValueType` (`int[][]`, `TreeNode`, ...), `Signature` (function / design / codec, with specials such as hidden params and node references), `Comparator` |
-| `lang` | `Language`, `Driver` trait (starter code + runnable `Program`), toolchain detection; `lang/python.rs` |
+| `lang` | `Language`, `Driver` trait (starter code + runnable `Program`), toolchain detection and probing; drivers in `lang/python.rs`, `lang/javascript.rs` |
 | `runner` | Spawns a `Program` in its own process group, streams results, enforces time limits, measures peak RSS via `wait4`, produces a `RunReport` with a `Verdict` |
 | `judge` | Output comparison modes and problem-specific validators |
 | `catalog` | Read API over `problems.db` and `CatalogWriter` used by `lg-content` |
@@ -71,6 +71,10 @@ priority (nice 10) before exec.
 `lang::probe` checks each toolchain (`python3 --version`, minimum 3.8); the UI shows the
 result in Settings and a banner when nothing usable is installed. GUI apps launched from Finder
 get a minimal `PATH`, so detection also searches Homebrew and other common prefixes.
+
+Compiled languages list their build outputs as `Program::artifacts`; the runner caches them
+under the app cache directory keyed by a hash of the sources and compile command, so Run
+followed by Submit compiles once.
 
 All comparison happens in Rust, so adding a language means writing a harness that decodes
 arguments and encodes results — never reimplementing judging.

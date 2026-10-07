@@ -100,8 +100,13 @@ Remaining:
       the real `Service` against the built catalog and must be Accepted
 
 ### M4 — Additional languages
-- [ ] Driver abstraction validated with a compiled language (C++ first: clang ships with Xcode CLT)
-- [ ] JavaScript, Java, Rust, Go drivers; toolchain detection and compile caching
+- [x] Multi-language plumbing: per-language toolchain detection, probing and path settings;
+      compile cache for compiled languages
+- [x] JavaScript driver (LeetCode-style `var f = function` / prototype design / codec
+      functions / `solution(isBadVersion)`), Worker with a 256 MB stack, e2e tests, smoke step
+- [ ] C++ driver (validates the abstraction with a compiled, typed language)
+- [ ] Rust driver
+- [ ] Java and Go drivers (toolchains are not installed on the dev machine; needs a decision)
 - [ ] Per-language reference solutions and benchmarks where available
 
 ### M5 — Review tool

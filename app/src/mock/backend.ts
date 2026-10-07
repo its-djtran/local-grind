@@ -5,6 +5,7 @@ import { emit } from "@tauri-apps/api/event";
 import catalog from "./catalog.json";
 import type {
   Bootstrap,
+  LanguageId,
   ProblemListing,
   ProblemView,
   RunOutcome,
@@ -108,14 +109,16 @@ export function createBackend(): Backend {
     return subs.length ? "attempted" : "todo";
   };
   const activeSolve = (id: number) => state.solves.find((s) => s.problem_id === id && s.completed_at === null) ?? null;
-  const view = (id: number): ProblemView => {
+  const starterFor = (id: number, language: LanguageId) =>
+    language === "javascript" ? `var solve = function() {\n    \n};\n` : starter(id);
+  const view = (id: number, language: LanguageId = state.settings.language): ProblemView => {
     const v = views.get(id);
     if (!v) throw `not found: problem ${id}`;
     return {
       ...v,
-      language: "python",
-      starter: starter(id),
-      code: state.drafts.get(`${id}:python`) ?? starter(id),
+      language,
+      starter: starterFor(id, language),
+      code: state.drafts.get(`${id}:${language}`) ?? starterFor(id, language),
       active_solve: activeSolve(id),
       status: statusOf(id),
     };
@@ -191,7 +194,8 @@ export function createBackend(): Backend {
       })),
       lists: [{ id: "blind75", name: "Blind 75", solved: solvedIds.has(1) ? 1 : 0, total: 4 }],
       heatmap: [...heat.entries()].map(([date, v]) => ({ date, ...v })),
-      review: done.map((s) => ({
+      // One entry per problem (latest solve), as the real metrics engine aggregates by slug.
+      review: [...new Map(done.map((s) => [s.slug, s])).values()].map((s) => ({
         slug: s.slug,
         problem_id: s.problem_id,
         title: s.title,
@@ -231,17 +235,20 @@ export function createBackend(): Backend {
           companies: [{ name: "Google", problem_ids: [1, 42] }, { name: "Amazon", problem_ids: [1] }],
           topics: [...new Set(listings().flatMap((p) => p.topics))].sort(),
           settings: state.settings,
-          languages: [{ id: "python", name: "Python3", available: true, executable: "/opt/homebrew/bin/python3" }],
+          languages: [
+            { id: "python", name: "Python3", available: true, executable: "/opt/homebrew/bin/python3" },
+            { id: "javascript", name: "JavaScript", available: true, executable: "/opt/homebrew/bin/node" },
+          ],
           catalog_built_at: "2026-10-07T12:00:00.000Z",
         } satisfies Bootstrap;
       case "get_problem":
-        return view(id);
+        return view(id, a.language as LanguageId | undefined);
       case "save_draft":
         state.drafts.set(`${id}:${a.language}`, a.code as string);
         return null;
       case "reset_code":
         state.drafts.delete(`${id}:${a.language}`);
-        return starter(id);
+        return starterFor(id, a.language as LanguageId);
       case "run_code": {
         const verdict = judge(a.code as string);
         const lines = (a.input as string).split("\n").filter(Boolean);

@@ -26,7 +26,7 @@ describe("CodeEditor", () => {
     expect(onRun).toHaveBeenCalled();
     expect(onSubmit).toHaveBeenCalled();
 
-    await r.rerender({ value: "y = 2", language: "python", keymap: "vim", tabSize: 2, onChange, onRun, onSubmit });
+    await r.rerender({ value: "y = 2", language: "javascript", keymap: "vim", tabSize: 2, onChange, onRun, onSubmit });
     expect(view().state.doc.toString()).toBe("y = 2");
     expect(view().state.tabSize).toBe(2);
   });

@@ -20,6 +20,7 @@ use std::str::FromStr;
 use crate::error::{Error, Result};
 use crate::types::Signature;
 
+pub mod javascript;
 pub mod python;
 
 pub const RESULT_SENTINEL: &str = "\x1eLG ";
@@ -28,26 +29,30 @@ pub const RESULT_SENTINEL: &str = "\x1eLG ";
 #[serde(rename_all = "lowercase")]
 pub enum Language {
     Python,
+    JavaScript,
 }
 
 impl Language {
-    pub const ALL: &'static [Language] = &[Language::Python];
+    pub const ALL: &'static [Language] = &[Language::Python, Language::JavaScript];
 
     pub fn id(self) -> &'static str {
         match self {
             Language::Python => "python",
+            Language::JavaScript => "javascript",
         }
     }
 
     pub fn display_name(self) -> &'static str {
         match self {
             Language::Python => "Python3",
+            Language::JavaScript => "JavaScript",
         }
     }
 
     pub fn driver(self) -> &'static dyn Driver {
         match self {
             Language::Python => &python::PythonDriver,
+            Language::JavaScript => &javascript::JavaScriptDriver,
         }
     }
 
@@ -55,6 +60,7 @@ impl Language {
     pub fn executable_name(self) -> &'static str {
         match self {
             Language::Python => "python3",
+            Language::JavaScript => "node",
         }
     }
 
@@ -62,12 +68,14 @@ impl Language {
     pub fn min_version(self) -> (u32, u32) {
         match self {
             Language::Python => (3, 8),
+            Language::JavaScript => (16, 0),
         }
     }
 
     pub fn install_hint(self) -> &'static str {
         match self {
             Language::Python => "Install Python 3 (for example `brew install python`)",
+            Language::JavaScript => "Install Node.js (for example `brew install node`)",
         }
     }
 }

@@ -213,9 +213,13 @@ describe("Workspace", () => {
     await ws.resetCode();
     expect(ws.code).toContain("class Solution");
     expect(backend.state.drafts.size).toBe(0);
-    ws.language = "other" as never;
+    await ws.changeLanguage("javascript");
+    expect(ws.language).toBe("javascript");
+    expect(ws.code).toContain("var solve = function");
+    ws.edit("// mine");
     await ws.changeLanguage("python");
-    expect(ws.language).toBe("python");
+    expect(backend.state.drafts.get("1:javascript")).toBe("// mine");
+    expect(ws.code).toContain("class Solution");
   });
 
   it("selects submissions and disposes cleanly", async () => {

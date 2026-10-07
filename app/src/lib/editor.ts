@@ -1,6 +1,7 @@
 // CodeMirror setup kept out of the component so it can be unit tested.
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import {
   bracketMatching,
@@ -34,6 +35,8 @@ export function languageExtension(lang: LanguageId): Extension {
   switch (lang) {
     case "python":
       return python();
+    case "javascript":
+      return javascript();
   }
 }
 
