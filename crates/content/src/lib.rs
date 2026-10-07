@@ -142,6 +142,25 @@ pub fn load_all(content: &Path) -> Result<Vec<Source>> {
     Ok(sources)
 }
 
+/// Loads the named problems only (all problems when `slugs` is empty), so one problem can be
+/// checked while others in the tree are half-written.
+pub fn load_selected(content: &Path, slugs: &[String]) -> Result<Vec<Source>> {
+    if slugs.is_empty() {
+        return load_all(content);
+    }
+    slugs
+        .iter()
+        .map(|slug| {
+            let dir = content.join("problems").join(slug);
+            if dir.join("problem.toml").is_file() {
+                load_problem(&dir)
+            } else {
+                Err(format!("no problem `{slug}`"))
+            }
+        })
+        .collect()
+}
+
 /// Renders markdown to HTML. Inside code spans, `^N` becomes a superscript so constraints such
 /// as `1 <= n <= 10^4` read naturally.
 pub fn render_markdown(md: &str) -> String {
@@ -706,12 +725,9 @@ pub fn cli(args: &[String]) -> Result<String> {
             ))
         }
         "check" => {
-            let sources: Vec<Source> = load_all(&content)?
-                .into_iter()
-                .filter(|s| slugs.is_empty() || slugs.contains(&s.slug))
-                .collect();
+            let sources = load_selected(&content, &slugs)?;
             if sources.is_empty() {
-                return Err("no matching problems".into());
+                return Err("no problems found".into());
             }
             let mut lines = Vec::new();
             let mut errors = Vec::new();
@@ -733,19 +749,13 @@ pub fn cli(args: &[String]) -> Result<String> {
             let [slug, file] = slugs.as_slice() else {
                 return Err(USAGE.into());
             };
-            let src = load_all(&content)?
-                .into_iter()
-                .find(|s| &s.slug == slug)
-                .ok_or(format!("no problem `{slug}`"))?;
+            let src = load_selected(&content, std::slice::from_ref(slug))?.remove(0);
             let code = read(Path::new(file))?;
             judge_file(&src, &code, &tools)
         }
         "bench" => {
             let mut done = 0;
-            for src in load_all(&content)? {
-                if !slugs.is_empty() && !slugs.contains(&src.slug) {
-                    continue;
-                }
+            for src in load_selected(&content, &slugs)? {
                 let b = benchmark(&src, &tools, runs)?;
                 let path = src.dir.join("benchmark.json");
                 let mut all: BTreeMap<String, serde_json::Value> = std::fs::read_to_string(&path)

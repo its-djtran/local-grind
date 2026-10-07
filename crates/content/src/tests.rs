@@ -312,15 +312,24 @@ fn command_line() {
     assert_eq!(msg, "benchmarked 1 problems");
     let bench = fs::read_to_string(dir.path().join("problems/two-sum/benchmark.json")).unwrap();
     assert!(bench.contains("\"runs\": 1"));
-    assert_eq!(
-        cli(&s(&["bench", "--content", &root, "other"])).unwrap(),
-        "benchmarked 0 problems"
-    );
+    assert!(cli(&s(&["bench", "--content", &root, "other"]))
+        .unwrap_err()
+        .contains("no problem `other`"));
     let msg = cli(&s(&["check", "--content", &root, "two-sum"])).unwrap();
     assert!(msg.starts_with("ok   two-sum"), "{msg}");
     assert!(cli(&s(&["check", "--content", &root, "missing"]))
         .unwrap_err()
-        .contains("no matching"));
+        .contains("no problem `missing`"));
+    // A broken sibling problem does not affect checking a named one.
+    fs::create_dir_all(dir.path().join("problems/half-written")).unwrap();
+    fs::write(
+        dir.path().join("problems/half-written/problem.toml"),
+        "id = 9",
+    )
+    .unwrap();
+    assert!(cli(&s(&["check", "--content", &root, "two-sum"])).is_ok());
+    assert!(cli(&s(&["check", "--content", &root])).is_err());
+    fs::remove_dir_all(dir.path().join("problems/half-written")).unwrap();
     fs::write(dir.path().join("problems/two-sum/gen.py"), "").unwrap();
     assert!(cli(&s(&["check", "--content", &root]))
         .unwrap_err()
