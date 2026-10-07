@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areaPath, labelIndices, linePath, nearestIndex, niceScale, segments, shortDate, ticks } from "./chart";
+import { labelIndices, linePath, nearestIndex, niceScale, segments, shortDate, ticks } from "./chart";
 
 describe("chart helpers", () => {
   it("picks nice scales", () => {
@@ -25,8 +25,6 @@ describe("chart helpers", () => {
     const x = (i: number) => i * 10;
     const y = (v: number) => 100 - v;
     expect(linePath(runs[1], x, y)).toBe("M20.0,98.0L30.0,97.0");
-    expect(areaPath(runs[1], x, y, 100)).toBe("M20.0,98.0L30.0,97.0L30.0,100L20.0,100Z");
-    expect(areaPath([], x, y, 100)).toBe("");
     expect(segments([])).toEqual([]);
   });
 

@@ -40,18 +40,6 @@ export function linePath(run: { index: number; value: number }[], x: (i: number)
   return run.map((p, k) => `${k ? "L" : "M"}${x(p.index).toFixed(1)},${y(p.value).toFixed(1)}`).join("");
 }
 
-export function areaPath(
-  run: { index: number; value: number }[],
-  x: (i: number) => number,
-  y: (v: number) => number,
-  baseline: number,
-): string {
-  if (!run.length) return "";
-  const first = x(run[0].index).toFixed(1);
-  const last = x(run[run.length - 1].index).toFixed(1);
-  return `${linePath(run, x, y)}L${last},${baseline}L${first},${baseline}Z`;
-}
-
 /** Index of the data position nearest to pixel `px` for `n` evenly spaced points. */
 export function nearestIndex(px: number, left: number, width: number, n: number): number {
   if (n <= 1) return 0;
