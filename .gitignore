@@ -1,0 +1,9 @@
+target/
+node_modules/
+app/dist/
+coverage/
+/assets/problems.db
+*.profraw
+.DS_Store
+.claude/
+/app/src-tauri/gen/schemas
