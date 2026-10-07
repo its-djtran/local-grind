@@ -13,6 +13,7 @@ content/
     description.md         statement (examples are injected at <!-- examples -->)
     editorial.md           approaches, from brute force to optimal, with complexity
     solution.py            reference (optimal) solution - produces every expected output
+    solution.{js,cpp,rs}   optional references in other languages (verified, benchmarked)
     gen.py                 test generator - prints one JSON argument array per line
     benchmark.json         optional; written by `lg-content bench`
 ```
@@ -165,6 +166,18 @@ same harness as user code, so `List`, `Optional`, `ListNode`, `TreeNode`, `Node`
 `heapq`, `defaultdict`, `Counter`, `bisect`, `lru_cache`, `math` and friends are pre-imported.
 Its output defines the expected answer for every generated test, so it must be correct; when in
 doubt, cross-check it against a brute force inside `gen.py` for small inputs.
+
+## Other languages
+
+`solution.js`, `solution.cpp` and `solution.rs` are optional optimal solutions written the way
+LeetCode users write them in that language (see the starter code the app generates). They are
+not used for expected outputs; `check`/`build` require each to be Accepted on the full suite
+(skipped when that toolchain is not installed), and `bench` records a per-language benchmark so
+submissions are compared with a reference in the same language. Rust cannot express graph-node
+or cyclic-list problems; do not add `solution.rs` there.
+
+`lg-content judge <slug> file.{py,js,cpp,rs}` judges any file in the language given by its
+extension.
 
 ## Lists and companies
 
