@@ -286,7 +286,9 @@ export class Workspace {
         this.solveId = outcome.solve.id;
       }
       this.syncTimer();
-      this.hooks.onStatus(this.id, accepted ? "solved" : "attempted");
+      const status = accepted || this.view.status === "solved" ? "solved" : "attempted";
+      this.view = { ...this.view, status };
+      this.hooks.onStatus(this.id, status);
     } catch (e) {
       this.hooks.notify(errorMessage(e));
     } finally {

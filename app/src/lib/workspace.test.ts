@@ -215,6 +215,7 @@ describe("Workspace", () => {
     expect(ws.timerRunning).toBe(false);
     expect(ws.submissions).toHaveLength(2);
     expect(statuses[1]).toEqual([1, "solved"]);
+    expect(ws.view?.status).toBe("solved");
 
     // Re-submitting a finished solve records the submission but no new solve.
     ws.code = "pass";
@@ -222,7 +223,7 @@ describe("Workspace", () => {
     expect(ws.lastSubmit?.solve).toBeNull();
     expect(backend.state.solves).toHaveLength(1);
     expect(ws.solveCompleted).toBe(true);
-    expect(statuses[2]).toEqual([1, "attempted"]);
+    expect(statuses[2]).toEqual([1, "solved"]);
 
     // Editing after a completed solve starts a fresh attempt.
     ws.edit("again");
