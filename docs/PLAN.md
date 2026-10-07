@@ -146,7 +146,7 @@ Remaining:
 - [x] Reference solution viewer per language (Editorial tab, defaults to the current language)
 - [x] Editorial code blocks and reference solutions syntax-highlighted at build time with
       syntect (class-based static HTML themed by CSS; catalog schema v2)
-- [ ] Lazy-load vim keymap and language packs to shrink the initial bundle
+- [x] Lazy-load vim keymap and language packs: initial JS chunk 965 KB → 215 KB
 
 ### M7 — Distribution
 - [x] App icon

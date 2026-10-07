@@ -290,7 +290,8 @@ describe("App", () => {
     await fireEvent.keyDown(window, { key: "/" });
     expect(document.activeElement).toBe(screen.getByLabelText("Search problems"));
     await fireEvent.keyDown(document.activeElement!, { key: "j" });
-    expect(document.activeElement).toBe(screen.getByLabelText("Search problems"), "typing keys are ignored in inputs");
+    // Plain keys are ignored while typing in an input.
+    expect(document.activeElement).toBe(screen.getByLabelText("Search problems"));
     (document.activeElement as HTMLElement).blur();
     await fireEvent.keyDown(window, { key: "j" });
     expect(document.activeElement?.textContent).toContain("1. Two Sum");

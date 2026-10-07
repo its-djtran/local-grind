@@ -1,10 +1,6 @@
 // CodeMirror setup kept out of the component so it can be unit tested.
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { cpp } from "@codemirror/lang-cpp";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
-import { rust } from "@codemirror/lang-rust";
 import {
   bracketMatching,
   foldGutter,
@@ -24,7 +20,6 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
-import { vim } from "@replit/codemirror-vim";
 import type { LanguageId, Settings } from "./types";
 
 export interface EditorHandlers {
@@ -33,21 +28,23 @@ export interface EditorHandlers {
   onSubmit: () => void;
 }
 
-export function languageExtension(lang: LanguageId): Extension {
+/** Loads a language pack on first use (code-split out of the initial bundle). */
+export async function loadLanguage(lang: LanguageId): Promise<Extension> {
   switch (lang) {
     case "python":
-      return python();
+      return (await import("@codemirror/lang-python")).python();
     case "javascript":
-      return javascript();
+      return (await import("@codemirror/lang-javascript")).javascript();
     case "cpp":
-      return cpp();
+      return (await import("@codemirror/lang-cpp")).cpp();
     case "rust":
-      return rust();
+      return (await import("@codemirror/lang-rust")).rust();
   }
 }
 
-export function keymapExtension(mode: Settings["keymap"]): Extension {
-  return mode === "vim" ? vim() : [];
+/** Loads the vim keymap only when it is selected. */
+export async function loadKeymap(mode: Settings["keymap"]): Promise<Extension> {
+  return mode === "vim" ? (await import("@replit/codemirror-vim")).vim() : [];
 }
 
 export function indentExtension(tabSize: number): Extension {
@@ -73,13 +70,10 @@ export class Compartments {
   indent = new Compartment();
 }
 
-export function createExtensions(
-  c: Compartments,
-  opts: { language: LanguageId; keymap: Settings["keymap"]; tabSize: number },
-  h: EditorHandlers,
-): Extension[] {
+/** Base extensions; language and keymap compartments start empty and are filled once loaded. */
+export function createExtensions(c: Compartments, opts: { tabSize: number }, h: EditorHandlers): Extension[] {
   return [
-    c.keymap.of(keymapExtension(opts.keymap)),
+    c.keymap.of([]),
     Prec.highest(
       keymap.of([
         { key: "Mod-'", run: () => (h.onRun(), true) },
@@ -100,7 +94,7 @@ export function createExtensions(
     highlightSelectionMatches(),
     syntaxHighlighting(classHighlighter),
     keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
-    c.language.of(languageExtension(opts.language)),
+    c.language.of([]),
     c.indent.of(indentExtension(opts.tabSize)),
     baseTheme,
     EditorView.updateListener.of((u) => {

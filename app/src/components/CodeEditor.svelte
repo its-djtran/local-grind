@@ -2,13 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import { EditorState } from "@codemirror/state";
   import { EditorView } from "@codemirror/view";
-  import {
-    Compartments,
-    createExtensions,
-    indentExtension,
-    keymapExtension,
-    languageExtension,
-  } from "../lib/editor";
+  import { Compartments, createExtensions, indentExtension, loadKeymap, loadLanguage } from "../lib/editor";
   import type { LanguageId, Settings } from "../lib/types";
 
   interface Props {
@@ -43,7 +37,7 @@
       state: EditorState.create({
         doc: value,
         extensions: [
-          ...createExtensions(compartments, { language, keymap, tabSize }, {
+          ...createExtensions(compartments, { tabSize }, {
             onChange: (code) => onChange(code),
             onRun: () => onRun(),
             onSubmit: () => onSubmit(),
@@ -65,11 +59,24 @@
     }
   });
 
+  let mounted = $state(false);
+  onMount(() => (mounted = true));
+
+  // Language packs and the vim keymap load on demand; a stale load is ignored if the prop has
+  // changed again meanwhile.
   $effect(() => {
-    view?.dispatch({ effects: compartments.language.reconfigure(languageExtension(language)) });
+    const wanted = language;
+    if (!mounted) return;
+    loadLanguage(wanted).then((ext) => {
+      if (view && wanted === language) view.dispatch({ effects: compartments.language.reconfigure(ext) });
+    });
   });
   $effect(() => {
-    view?.dispatch({ effects: compartments.keymap.reconfigure(keymapExtension(keymap)) });
+    const wanted = keymap;
+    if (!mounted) return;
+    loadKeymap(wanted).then((ext) => {
+      if (view && wanted === keymap) view.dispatch({ effects: compartments.keymap.reconfigure(ext) });
+    });
   });
   $effect(() => {
     view?.dispatch({ effects: compartments.indent.reconfigure(indentExtension(tabSize)) });
