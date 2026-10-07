@@ -1,0 +1,34 @@
+id = 56
+title = "Merge Intervals"
+difficulty = "Medium"
+topics = ["Array", "Sorting"]
+time_limit_ms = 2000
+hints = [
+  "If the intervals were ordered by their start points, where could an interval possibly overlap the ones before it?",
+  "After sorting by start, an interval either overlaps the most recently built merged interval or starts a new one.",
+  "When it overlaps, extend the last merged interval's end to the larger of the two ends - an interval can sit entirely inside another.",
+]
+
+[signature]
+kind = "function"
+name = "merge"
+params = [{ name = "intervals", type = "int[][]" }]
+returns = "int[][]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = "[[1,3],[2,6],[8,10],[15,18]]"
+output = "[[1,6],[8,10],[15,18]]"
+explanation = "[1,3] and [2,6] overlap and join into [1,6]; the other two intervals stand alone."
+
+[[examples]]
+input = "[[1,4],[4,5]]"
+output = "[[1,5]]"
+explanation = "The intervals share the endpoint 4, which counts as overlapping."
+
+[[examples]]
+input = "[[4,7],[1,4]]"
+output = "[[1,7]]"
+explanation = "The input is not necessarily sorted; these two still touch at 4."

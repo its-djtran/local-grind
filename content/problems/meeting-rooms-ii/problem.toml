@@ -1,0 +1,27 @@
+id = 253
+title = "Meeting Rooms II"
+difficulty = "Medium"
+topics = ["Array", "Two Pointers", "Greedy", "Sorting", "Heap (Priority Queue)", "Prefix Sum"]
+time_limit_ms = 2000
+hints = [
+  "The number of rooms needed equals the largest number of meetings that are running at the same instant.",
+  "Handle meetings in order of start time. When a new meeting starts, is any room already free? Which room frees up soonest?",
+  "Keep a min-heap of end times for rooms in use. Before placing a meeting, pop the earliest end if it is <= the new start - a room freed at time t can host a meeting starting at t.",
+  "Alternatively, sort all starts and all ends separately and sweep them with two pointers, tracking how many meetings are open.",
+]
+
+[signature]
+kind = "function"
+name = "minMeetingRooms"
+params = [{ name = "intervals", type = "int[][]" }]
+returns = "int"
+
+[[examples]]
+input = "[[0,30],[5,10],[15,20]]"
+output = "2"
+explanation = "[0,30] needs its own room for the whole time; [5,10] and [15,20] can share a second room."
+
+[[examples]]
+input = "[[7,10],[2,4]]"
+output = "1"
+explanation = "The meetings never overlap, so a single room is enough."

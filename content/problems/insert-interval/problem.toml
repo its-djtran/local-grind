@@ -1,0 +1,30 @@
+id = 57
+title = "Insert Interval"
+difficulty = "Medium"
+topics = ["Array"]
+time_limit_ms = 2000
+hints = [
+  "The existing intervals are already sorted and disjoint, so you never need to sort. Think of the list as three regions relative to newInterval.",
+  "Intervals that end before newInterval starts can be copied unchanged; so can intervals that start after newInterval ends.",
+  "Everything in between overlaps newInterval. Fold each of them in by taking the minimum start and the maximum end, then emit the merged interval once.",
+]
+
+[signature]
+kind = "function"
+name = "insert"
+params = [{ name = "intervals", type = "int[][]" }, { name = "newInterval", type = "int[]" }]
+returns = "int[][]"
+
+[[examples]]
+input = """
+[[1,3],[6,9]]
+[2,5]"""
+output = "[[1,5],[6,9]]"
+explanation = "[2,5] overlaps [1,3], and together they cover [1,5]. [6,9] is untouched."
+
+[[examples]]
+input = """
+[[1,2],[3,5],[6,7],[8,10],[12,16]]
+[4,8]"""
+output = "[[1,2],[3,10],[12,16]]"
+explanation = "[4,8] overlaps [3,5], [6,7] and [8,10], so all four collapse into [3,10]."

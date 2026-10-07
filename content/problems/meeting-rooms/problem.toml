@@ -1,0 +1,26 @@
+id = 252
+title = "Meeting Rooms"
+difficulty = "Easy"
+topics = ["Array", "Sorting"]
+time_limit_ms = 2000
+hints = [
+  "A person can attend everything exactly when no two meetings overlap. Checking every pair works, but is there a cheaper way?",
+  "If the meetings were listed in order of start time, which pairs could possibly clash?",
+  "After sorting by start, only neighbours need comparing: a clash exists iff some meeting starts before the previous one ends. Back-to-back meetings are fine.",
+]
+
+[signature]
+kind = "function"
+name = "canAttendMeetings"
+params = [{ name = "intervals", type = "int[][]" }]
+returns = "bool"
+
+[[examples]]
+input = "[[0,30],[5,10],[15,20]]"
+output = "false"
+explanation = "The meeting [0,30] runs through both of the other meetings."
+
+[[examples]]
+input = "[[7,10],[2,4]]"
+output = "true"
+explanation = "Taken in time order, [2,4] finishes before [7,10] begins."

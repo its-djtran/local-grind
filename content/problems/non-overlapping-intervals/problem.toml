@@ -1,0 +1,31 @@
+id = 435
+title = "Non-overlapping Intervals"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming", "Greedy", "Sorting"]
+time_limit_ms = 2000
+hints = [
+  "Removing as few intervals as possible is the same as keeping as many pairwise non-overlapping intervals as possible.",
+  "Among all intervals you could keep first, which one leaves the most room for the rest?",
+  "Sort by end point. Greedily keep an interval whenever it starts at or after the end of the last interval you kept; every other interval gets removed.",
+]
+
+[signature]
+kind = "function"
+name = "eraseOverlapIntervals"
+params = [{ name = "intervals", type = "int[][]" }]
+returns = "int"
+
+[[examples]]
+input = "[[1,2],[2,3],[3,4],[1,3]]"
+output = "1"
+explanation = "Dropping [1,3] leaves [1,2], [2,3], [3,4], which only touch at endpoints."
+
+[[examples]]
+input = "[[1,2],[1,2],[1,2]]"
+output = "2"
+explanation = "Only one copy of [1,2] can stay."
+
+[[examples]]
+input = "[[1,2],[2,3]]"
+output = "0"
+explanation = "Sharing the endpoint 2 is not an overlap, so nothing has to go."

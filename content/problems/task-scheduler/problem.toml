@@ -1,0 +1,38 @@
+id = 621
+title = "Task Scheduler"
+difficulty = "Medium"
+topics = ["Array", "Hash Table", "Greedy", "Sorting", "Heap (Priority Queue)", "Counting"]
+time_limit_ms = 1000
+hints = [
+  "Only how many times each letter appears matters, not the order of the input.",
+  "The most frequent task dictates the shape of the schedule: copies of it must be at least n slots apart. How many slots does that force, counting from its first copy to its last?",
+  "Build frames of length n + 1 around each copy of the most frequent task. Other tasks fill the gaps; tasks tied for the highest count extend the final frame.",
+  "If there are enough distinct tasks to fill every gap, no idling is needed at all, so the answer can never be less than the number of tasks.",
+]
+
+[signature]
+kind = "function"
+name = "leastInterval"
+params = [{ name = "tasks", type = "char[]" }, { name = "n", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+["A","A","A","B","B","B"]
+2"""
+output = "8"
+explanation = "One optimal schedule is A, B, idle, A, B, idle, A, B. Each A is three slots after the previous A, and likewise for B."
+
+[[examples]]
+input = """
+["A","C","A","B","D","B"]
+1"""
+output = "6"
+explanation = "A, B, C, D, A, B uses every slot with no idling; the repeats of A and B are each separated by at least one other slot."
+
+[[examples]]
+input = """
+["A","A","A","B","B","B"]
+3"""
+output = "10"
+explanation = "With a gap of 3, two idle slots are needed between rounds: A, B, idle, idle, A, B, idle, idle, A, B."

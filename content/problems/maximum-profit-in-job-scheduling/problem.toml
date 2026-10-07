@@ -1,0 +1,44 @@
+id = 1235
+title = "Maximum Profit in Job Scheduling"
+difficulty = "Hard"
+topics = ["Array", "Binary Search", "Dynamic Programming", "Sorting"]
+time_limit_ms = 2000
+hints = [
+  "Greedy rules such as 'highest profit first' or 'earliest end first' fail here. Think dynamic programming over the jobs in some order.",
+  "Sort the jobs by end time. For the first i jobs, the best profit either skips job i or takes it plus the best profit of the jobs that finish by the time job i starts.",
+  "Because the jobs are sorted by end time, the last job compatible with job i can be found by binary search on the end times. Remember a job may start exactly when another ends.",
+]
+
+[signature]
+kind = "function"
+name = "jobScheduling"
+params = [
+  { name = "startTime", type = "int[]" },
+  { name = "endTime", type = "int[]" },
+  { name = "profit", type = "int[]" },
+]
+returns = "int"
+
+[[examples]]
+input = """
+[1,2,3,3]
+[3,4,5,6]
+[50,10,40,70]"""
+output = "120"
+explanation = "Take job 0 (time 1 to 3, profit 50) and job 3 (time 3 to 6, profit 70) for 120. They meet at time 3, which is allowed."
+
+[[examples]]
+input = """
+[1,2,3,4,6]
+[3,5,10,6,9]
+[20,20,100,70,60]"""
+output = "150"
+explanation = "Jobs 0, 3 and 4 (profits 20 + 70 + 60) fit one after another for 150."
+
+[[examples]]
+input = """
+[1,1,1]
+[2,3,4]
+[5,6,4]"""
+output = "6"
+explanation = "All three jobs start at time 1, so only one can be chosen; the best is the job worth 6."

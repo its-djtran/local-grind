@@ -1,0 +1,30 @@
+id = 295
+title = "Find Median from Data Stream"
+difficulty = "Hard"
+topics = ["Two Pointers", "Design", "Sorting", "Heap (Priority Queue)", "Data Stream"]
+time_limit_ms = 2000
+hints = [
+  "Sorting the whole collection on every query is correct but slow. What is the minimum you need to know to read off the median?",
+  "Split the numbers into a lower half and an upper half. The median depends only on the largest value of the lower half and the smallest value of the upper half.",
+  "Store the lower half in a max-heap and the upper half in a min-heap. After every insertion, rebalance so that the lower heap has the same size as the upper heap or exactly one more element.",
+]
+
+[signature]
+kind = "design"
+class = "MedianFinder"
+constructor = []
+methods = [
+  { name = "addNum", params = [{ name = "num", type = "int" }], returns = "void" },
+  { name = "findMedian", params = [], returns = "double" },
+]
+
+[judge]
+mode = "float"
+tolerance = 1e-5
+
+[[examples]]
+input = """
+["MedianFinder","addNum","addNum","findMedian","addNum","findMedian"]
+[[],[1],[2],[],[3],[]]"""
+output = "[null,null,null,1.5,null,2.0]"
+explanation = "After adding 1 and 2 the median is (1 + 2) / 2 = 1.5. After adding 3 the numbers are [1, 2, 3] and the middle one is 2."
