@@ -170,7 +170,7 @@ Remaining:
 - [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
       opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
-### M8 — Refinement
+### M8 — Refinement (complete; CI awaits a git remote)
 - [x] "Use testcase": add a failed submission's input to the console (LeetCode parity)
 - [x] Personal notes per problem: Notes tab with autosave, kept in `user.db`, exported/imported
 - [~] CI workflow (`.github/workflows/ci.yml`, macOS) running `scripts/check.sh` and the smoke
@@ -179,7 +179,7 @@ Remaining:
       filter the problem list by them, see their progress in Stats, export/import (merged by name)
 - Later: Java/Go drivers (deferred), UI polish driven by usage
 
-### M9 — More content: NeetCode 150
+### M9 — More content: NeetCode 150 (not started)
 - [ ] The NeetCode 150 problems not already in Blind 75 ∪ Grind 75, with the same pipeline
       (statement, editorial, hints, generator, references in all four languages, benchmarks)
 - [ ] NeetCode 150 list (grouped by topic) and company tags
