@@ -1,0 +1,24 @@
+id = 104
+title = "Maximum Depth of Binary Tree"
+difficulty = "Easy"
+topics = ["Tree", "Depth-First Search", "Breadth-First Search", "Binary Tree"]
+time_limit_ms = 2000
+hints = [
+  "The depth of a tree is one more than the depth of its deeper subtree.",
+  "An empty tree has depth 0 — that is your base case.",
+  "Breadth-first search works too: count how many levels you process.",
+]
+
+[signature]
+kind = "function"
+name = "maxDepth"
+params = [{ name = "root", type = "TreeNode" }]
+returns = "int"
+
+[[examples]]
+input = "[3,9,20,null,null,15,7]"
+output = "3"
+
+[[examples]]
+input = "[1,null,2]"
+output = "2"

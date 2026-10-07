@@ -1,0 +1,28 @@
+id = 206
+title = "Reverse Linked List"
+difficulty = "Easy"
+topics = ["Linked List", "Recursion"]
+time_limit_ms = 2000
+hints = [
+  "Walk the list once. At each node, which pointer has to change, and what must you remember before changing it?",
+  "Keep three references: the previous node, the current node, and the next node.",
+  "A recursive version reverses the rest of the list first, then hooks the current node onto the end.",
+]
+
+[signature]
+kind = "function"
+name = "reverseList"
+params = [{ name = "head", type = "ListNode" }]
+returns = "ListNode"
+
+[[examples]]
+input = "[1,2,3,4,5]"
+output = "[5,4,3,2,1]"
+
+[[examples]]
+input = "[1,2]"
+output = "[2,1]"
+
+[[examples]]
+input = "[]"
+output = "[]"

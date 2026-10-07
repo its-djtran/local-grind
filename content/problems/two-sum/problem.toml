@@ -1,0 +1,38 @@
+id = 1
+title = "Two Sum"
+difficulty = "Easy"
+topics = ["Array", "Hash Table"]
+time_limit_ms = 2000
+hints = [
+  "A brute-force approach checks every pair of indices. What work is repeated across those checks?",
+  "For a value x, the partner you need is target - x. How quickly can you tell whether you have already seen it?",
+  "Keep a hash map from each value seen so far to its index, and look up the complement before inserting.",
+]
+
+[signature]
+kind = "function"
+name = "twoSum"
+params = [{ name = "nums", type = "int[]" }, { name = "target", type = "int" }]
+returns = "int[]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = """
+[2,7,11,15]
+9"""
+output = "[0,1]"
+explanation = "nums[0] + nums[1] == 9, so the answer is [0, 1]."
+
+[[examples]]
+input = """
+[3,2,4]
+6"""
+output = "[1,2]"
+
+[[examples]]
+input = """
+[3,3]
+6"""
+output = "[0,1]"
