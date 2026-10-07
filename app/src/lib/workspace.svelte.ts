@@ -13,7 +13,7 @@ import type {
   SubmitOutcome,
 } from "./types";
 
-export type LeftTab = "description" | "editorial" | "submissions" | "result";
+export type LeftTab = "description" | "editorial" | "submissions" | "notes" | "result";
 export type ConsoleTab = "testcase" | "result";
 
 export const DRAFT_SAVE_DELAY_MS = 600;
@@ -45,12 +45,15 @@ export class Workspace {
   elapsed = $state(0);
   timerRunning = $state(false);
   solveCompleted = $state(false);
+  note = $state("");
 
   private timer: SolveTimer;
   private solveId: number | null = null;
   private draftTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingDraft: string | null = null;
   private lastPersist = 0;
+  private noteTimer: ReturnType<typeof setTimeout> | undefined;
+  private pendingNote: string | null = null;
 
   constructor(
     readonly id: number,
@@ -74,6 +77,7 @@ export class Workspace {
       this.view = view;
       this.code = view.code;
       this.language = view.language;
+      this.note = view.note;
       this.cases = this.restoreCases() ?? casesFromExamples(view.examples, view.signature);
       this.loadError = null;
       if (view.active_solve) {
@@ -145,6 +149,26 @@ export class Workspace {
       await this.api.saveDraft(this.id, this.language, code);
     } catch (e) {
       this.hooks.notify(`Could not save draft: ${errorMessage(e)}`);
+    }
+  }
+
+  /** Called on every change in the notes panel; saved after a short pause. */
+  editNote(body: string): void {
+    this.note = body;
+    this.pendingNote = body;
+    clearTimeout(this.noteTimer);
+    this.noteTimer = setTimeout(() => void this.flushNote(), DRAFT_SAVE_DELAY_MS);
+  }
+
+  async flushNote(): Promise<void> {
+    clearTimeout(this.noteTimer);
+    if (this.pendingNote === null) return;
+    const body = this.pendingNote;
+    this.pendingNote = null;
+    try {
+      await this.api.saveNote(this.id, body);
+    } catch (e) {
+      this.hooks.notify(`Could not save note: ${errorMessage(e)}`);
     }
   }
 
@@ -281,6 +305,7 @@ export class Workspace {
   async dispose(): Promise<void> {
     clearTimeout(this.draftTimer);
     await this.flushDraft();
+    await this.flushNote();
     if (this.timer.running) {
       this.timer.pause();
       this.syncTimer();

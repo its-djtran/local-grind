@@ -72,6 +72,11 @@ fn save_draft(svc: Svc, id: i64, language: Language, code: String) -> Result<()>
 }
 
 #[tauri::command]
+fn save_note(svc: Svc, id: i64, body: String) -> Result<()> {
+    svc.save_note(id, &body)
+}
+
+#[tauri::command]
 fn reset_code(svc: Svc, id: i64, language: Language) -> Result<String> {
     svc.reset_code(id, language)
 }
@@ -262,6 +267,7 @@ pub fn run() {
             bootstrap,
             get_problem,
             save_draft,
+            save_note,
             reset_code,
             run_code,
             submit_code,

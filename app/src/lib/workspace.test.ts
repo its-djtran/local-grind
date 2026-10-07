@@ -149,6 +149,40 @@ describe("Workspace", () => {
     expect(ws.cases.at(-1)).toEqual(["[1]", "null"]);
   });
 
+  it("saves notes after a pause and on dispose", async () => {
+    vi.useFakeTimers();
+    try {
+      const backend = installBackend();
+      const { ws } = make();
+      await ws.load();
+      expect(ws.note).toBe("");
+      ws.editNote("hash");
+      ws.editNote("hash map");
+      await vi.advanceTimersByTimeAsync(DRAFT_SAVE_DELAY_MS + 10);
+      expect(backend.state.notes.get(1)).toBe("hash map");
+      ws.editNote("hash map, check duplicates");
+      await ws.dispose();
+      expect(backend.state.notes.get(1)).toBe("hash map, check duplicates");
+      const again = make().ws;
+      await again.load();
+      expect(again.note).toBe("hash map, check duplicates");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports note save failures", async () => {
+    installBackend((cmd) => {
+      if (cmd === "save_note") throw "disk full";
+    });
+    const { ws, notes } = make();
+    await ws.load();
+    ws.editNote("x");
+    await ws.flushNote();
+    expect(notes[0]).toContain("disk full");
+    await ws.flushNote();
+  });
+
   it("restores edited cases from the session", async () => {
     installBackend();
     sessionStorage.setItem("lg-cases-1", JSON.stringify([["[9]", "9"]]));

@@ -23,6 +23,7 @@ export const api = {
   problem: (id: number, language?: LanguageId) => invoke<ProblemView>("get_problem", { id, language }),
   saveDraft: (id: number, language: LanguageId, code: string) =>
     invoke<void>("save_draft", { id, language, code }),
+  saveNote: (id: number, body: string) => invoke<void>("save_note", { id, body }),
   resetCode: (id: number, language: LanguageId) => invoke<string>("reset_code", { id, language }),
   run: (id: number, language: LanguageId, code: string, input: string) =>
     invoke<RunOutcome>("run_code", { id, language, code, input }),

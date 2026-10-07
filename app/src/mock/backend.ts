@@ -54,11 +54,12 @@ export interface Backend {
     files: Map<string, string>;
     localBenchmarks: number;
     calibratedAt: number | null;
+    notes: Map<number, string>;
   };
 }
 
 export function createBackend(): Backend {
-  const views = new Map<number, Omit<ProblemView, "code" | "starter" | "active_solve" | "status" | "language" | "languages">>();
+  const views = new Map<number, Omit<ProblemView, "code" | "starter" | "active_solve" | "status" | "language" | "languages" | "note">>();
   for (const p of catalog as unknown as ProblemView[]) {
     views.set(p.id, {
       ...p,
@@ -102,6 +103,7 @@ export function createBackend(): Backend {
     files: new Map(),
     localBenchmarks: 0,
     calibratedAt: null,
+    notes: new Map(),
   };
   let calibrationCancelled = false;
   let nextId = 1;
@@ -129,6 +131,7 @@ export function createBackend(): Backend {
       code: state.drafts.get(`${id}:${language}`) ?? starterFor(id, language),
       active_solve: activeSolve(id),
       status: statusOf(id),
+      note: state.notes.get(id) ?? "",
     };
   };
   const listings = (): ProblemListing[] =>
@@ -261,6 +264,10 @@ export function createBackend(): Backend {
         return view(id, a.language as LanguageId | undefined);
       case "save_draft":
         state.drafts.set(`${id}:${a.language}`, a.code as string);
+        return null;
+      case "save_note":
+        if ((a.body as string).trim()) state.notes.set(id, a.body as string);
+        else state.notes.delete(id);
         return null;
       case "reset_code":
         state.drafts.delete(`${id}:${a.language}`);

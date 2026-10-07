@@ -63,6 +63,13 @@ CREATE TABLE local_benchmarks (
     PRIMARY KEY (problem_id, language)
 );
 ",
+    "
+CREATE TABLE notes (
+    problem_id INTEGER PRIMARY KEY,
+    body TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+",
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -298,6 +305,43 @@ impl UserDb {
     pub fn clear_local_benchmarks(&self) -> Result<()> {
         self.conn.execute("DELETE FROM local_benchmarks", [])?;
         Ok(())
+    }
+
+    // ---- notes ----
+
+    pub fn note(&self, problem_id: i64) -> Result<Option<String>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT body FROM notes WHERE problem_id = ?1",
+                [problem_id],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Saves a problem's note; an empty (whitespace-only) note deletes it.
+    pub fn save_note(&self, problem_id: i64, body: &str) -> Result<()> {
+        if body.trim().is_empty() {
+            self.conn
+                .execute("DELETE FROM notes WHERE problem_id = ?1", [problem_id])?;
+        } else {
+            self.conn.execute(
+                "INSERT INTO notes (problem_id, body, updated_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (problem_id) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at",
+                params![problem_id, body, now_ms()],
+            )?;
+        }
+        Ok(())
+    }
+
+    /// All notes as `(problem_id, body)`.
+    pub fn notes(&self) -> Result<Vec<(i64, String)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT problem_id, body FROM notes ORDER BY problem_id")?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
     // ---- drafts ----
@@ -586,10 +630,11 @@ impl UserDb {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Deletes all user history (submissions, solves, drafts), keeping settings.
+    /// Deletes all user history (submissions, solves, drafts, notes), keeping settings.
     pub fn clear_history(&self) -> Result<()> {
-        self.conn
-            .execute_batch("DELETE FROM submissions; DELETE FROM solves; DELETE FROM drafts;")?;
+        self.conn.execute_batch(
+            "DELETE FROM submissions; DELETE FROM solves; DELETE FROM drafts; DELETE FROM notes;",
+        )?;
         Ok(())
     }
 
@@ -681,6 +726,21 @@ mod tests {
         assert!(at.is_some());
         db.clear_local_benchmarks().unwrap();
         assert!(db.local_benchmarks(1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn notes_crud() {
+        let db = UserDb::in_memory().unwrap();
+        assert_eq!(db.note(1).unwrap(), None);
+        db.save_note(1, "use a hash map").unwrap();
+        db.save_note(1, "use a hash map!").unwrap();
+        db.save_note(2, "two pointers").unwrap();
+        assert_eq!(db.note(1).unwrap().as_deref(), Some("use a hash map!"));
+        assert_eq!(db.notes().unwrap().len(), 2);
+        db.save_note(2, "   ").unwrap();
+        assert_eq!(db.note(2).unwrap(), None);
+        db.clear_history().unwrap();
+        assert!(db.notes().unwrap().is_empty());
     }
 
     #[test]

@@ -114,6 +114,9 @@ describe("App", () => {
     await fireEvent.click(row);
     await screen.findByText("Failing testcase #4");
 
+    await fireEvent.click(screen.getByRole("tab", { name: "Notes" }));
+    await fireEvent.input(screen.getByLabelText("Notes"), { target: { value: "complement lookup" } });
+    expect(screen.getByLabelText("has notes")).toBeInTheDocument();
     await fireEvent.click(screen.getByRole("tab", { name: "Editorial" }));
     expect(await screen.findByText("Approach 2: One-Pass Hash Map (Optimal)")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Python3", selected: true })).toBeInTheDocument();

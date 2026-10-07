@@ -78,6 +78,8 @@ pub struct ProblemView {
     pub starter: String,
     pub active_solve: Option<Solve>,
     pub status: Status,
+    /// The user's personal note for this problem (empty when none).
+    pub note: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -364,6 +366,7 @@ impl Service {
             .map(|d| d.code)
             .unwrap_or_else(|| starter.clone());
         let active_solve = user.active_solve(&problem.summary.slug)?;
+        let note = user.note(id)?.unwrap_or_default();
         let status = user
             .problem_statuses()?
             .into_iter()
@@ -394,6 +397,7 @@ impl Service {
             starter,
             active_solve,
             status,
+            note,
         })
     }
 
@@ -405,6 +409,11 @@ impl Service {
     }
 
     /// Discards the draft and returns the starter code.
+    pub fn save_note(&self, id: i64, body: &str) -> Result<()> {
+        self.summary(id)?;
+        self.user.lock().unwrap().save_note(id, body)
+    }
+
     pub fn reset_code(&self, id: i64, language: Language) -> Result<String> {
         let sig = self.catalog.lock().unwrap().problem(id)?.signature;
         self.user.lock().unwrap().delete_draft(id, language.id())?;
@@ -835,6 +844,9 @@ mod tests {
         assert_eq!(v.solutions.len(), 2);
         assert!(svc.problem(42, None).is_err());
 
+        svc.save_note(1, "hash map").unwrap();
+        assert_eq!(svc.problem(1, None).unwrap().note, "hash map");
+        assert!(svc.save_note(404, "x").is_err());
         svc.save_draft(1, Language::Python, "mine").unwrap();
         assert_eq!(svc.problem(1, Some(Language::Python)).unwrap().code, "mine");
         let starter = svc.reset_code(1, Language::Python).unwrap();

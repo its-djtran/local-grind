@@ -94,8 +94,10 @@
       {#snippet first()}
         <section class="panel left">
           <div class="tabs" role="tablist">
-            {#each [["description", "Description"], ["editorial", "Editorial"], ["submissions", "Submissions"]] as [key, label] (key)}
-              <button role="tab" aria-selected={ws.leftTab === key} class:active={ws.leftTab === key} onclick={() => setTab(key as LeftTab)}>{label}</button>
+            {#each [["description", "Description"], ["editorial", "Editorial"], ["submissions", "Submissions"], ["notes", "Notes"]] as [key, label] (key)}
+              <button role="tab" aria-selected={ws.leftTab === key} class:active={ws.leftTab === key} onclick={() => setTab(key as LeftTab)}>
+                {label}{#if key === "notes" && ws.note.trim()}<span class="dot" aria-label="has notes"> •</span>{/if}
+              </button>
             {/each}
             {#if ws.selected}
               <button role="tab" aria-selected={ws.leftTab === "result"} class:active={ws.leftTab === "result"} onclick={() => setTab("result")}>Result</button>
@@ -150,6 +152,15 @@
                   <div class="prose">{@html shown.html}</div>
                 </section>
               {/if}
+            {:else if ws.leftTab === "notes"}
+              <textarea
+                class="notes"
+                aria-label="Notes"
+                placeholder="Your notes for this problem: the key idea, pitfalls, what to review next time…"
+                value={ws.note}
+                oninput={(e) => ws.editNote(e.currentTarget.value)}
+              ></textarea>
+              <p class="muted small-note">Saved automatically. Notes are included when you export your history.</p>
             {:else if ws.leftTab === "submissions"}
               <SubmissionList submissions={ws.submissions} onSelect={(s) => ws.selectSubmission(s)} />
             {:else if ws.selected}
@@ -301,6 +312,19 @@
   }
   .linkish {
     cursor: pointer;
+  }
+  .notes {
+    width: 100%;
+    min-height: 60vh;
+    resize: vertical;
+    line-height: 1.6;
+    font-family: var(--font-family);
+  }
+  .small-note {
+    font-size: 0.85em;
+  }
+  .dot {
+    color: var(--accent);
   }
   .references h2 {
     font-size: 1.2em;

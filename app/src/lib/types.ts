@@ -108,6 +108,7 @@ export interface ProblemView extends ProblemSummary {
   starter: string;
   active_solve: Solve | null;
   status: Status;
+  note: string;
 }
 
 export interface CaseResult {
@@ -316,6 +317,7 @@ export interface ImportSummary {
   solves_added: number;
   solves_skipped: number;
   drafts_added: number;
+  notes_added?: number;
   settings_applied: boolean;
   source: string;
 }

@@ -54,6 +54,12 @@ pub struct ExportedDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExportedNote {
+    pub problem_id: i64,
+    pub body: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Export {
     pub format: String,
     pub version: u32,
@@ -64,6 +70,8 @@ pub struct Export {
     pub solves: Vec<ExportedSolve>,
     #[serde(default)]
     pub drafts: Vec<ExportedDraft>,
+    #[serde(default)]
+    pub notes: Vec<ExportedNote>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -73,6 +81,8 @@ pub struct ImportSummary {
     pub solves_added: usize,
     pub solves_skipped: usize,
     pub drafts_added: usize,
+    #[serde(default)]
+    pub notes_added: usize,
     pub settings_applied: bool,
     pub source: String,
 }
@@ -129,6 +139,11 @@ pub fn export(db: &UserDb, problems: &[ProblemSummary]) -> Result<Export> {
         submissions,
         solves,
         drafts,
+        notes: db
+            .notes()?
+            .into_iter()
+            .map(|(problem_id, body)| ExportedNote { problem_id, body })
+            .collect(),
     })
 }
 
@@ -199,6 +214,12 @@ fn import_native(db: &UserDb, data: Export, apply_settings: bool) -> Result<Impo
             summary.drafts_added += 1;
         }
     }
+    for n in data.notes {
+        if db.note(n.problem_id)?.is_none() {
+            db.save_note(n.problem_id, &n.body)?;
+            summary.notes_added += 1;
+        }
+    }
     if apply_settings {
         db.save_settings(&data.settings)?;
         summary.settings_applied = true;
@@ -258,6 +279,7 @@ mod tests {
         db.start_solve(&p, 1_699_999_000_000).unwrap();
         db.record_attempt(&p, &sub, 1_000_000).unwrap();
         db.save_draft(1, "python", "draft").unwrap();
+        db.save_note(1, "remember the complement").unwrap();
         let s = Settings {
             font_size: 20,
             ..Default::default()
@@ -285,6 +307,11 @@ mod tests {
             (1, 1, 1)
         );
         assert!(summary.settings_applied);
+        assert_eq!(summary.notes_added, 1);
+        assert_eq!(
+            dst.note(1).unwrap().as_deref(),
+            Some("remember the complement")
+        );
         assert_eq!(dst.settings().unwrap().font_size, 20);
         let again = import(&dst, &json, false).unwrap();
         assert_eq!(

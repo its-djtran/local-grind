@@ -117,7 +117,7 @@ loads summaries, lists and the company index once at startup; problem detail and
 are read on demand.
 
 **`user.db` (app data dir).** `submissions`, `drafts`, `solves` (at most one active per problem,
-enforced by a partial unique index), `settings` (one JSON row). Schema changes are append-only
+enforced by a partial unique index), `settings` (one JSON row), `local_benchmarks` (recalibration results), `notes` (one per problem). Schema changes are append-only
 entries in `userdb::MIGRATIONS`, tracked with `PRAGMA user_version`.
 
 ## Desktop shell (`app/src-tauri`)
