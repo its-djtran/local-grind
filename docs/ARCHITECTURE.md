@@ -41,7 +41,7 @@ read-only SQLite catalog.
 | Module | Responsibility |
 |---|---|
 | `types` | Difficulty, `ValueType` (`int[][]`, `TreeNode`, ...), `Signature` (function / design / codec, with specials such as hidden params and node references), `Comparator` |
-| `lang` | `Language`, `Driver` trait (starter code + runnable `Program`), toolchain detection and probing; drivers in `lang/python.rs`, `lang/javascript.rs` |
+| `lang` | `Language`, `Driver` trait (starter code, runnable `Program`, `supports`), toolchain detection and probing; drivers in `lang/{python,javascript,cpp,rust}.rs` |
 | `runner` | Spawns a `Program` in its own process group, streams results, enforces time limits, measures peak RSS via `wait4`, produces a `RunReport` with a `Verdict` |
 | `judge` | Output comparison modes and problem-specific validators |
 | `catalog` | Read API over `problems.db` and `CatalogWriter` used by `lg-content` |
@@ -79,10 +79,27 @@ followed by Submit compiles once.
 All comparison happens in Rust, so adding a language means writing a harness that decodes
 arguments and encodes results — never reimplementing judging.
 
+### Language drivers
+
+| Language | Toolchain | How user code runs |
+|---|---|---|
+| Python | `python3` ≥ 3.8 | `lg_harness.py` execs `solution.py` with a LeetCode-style prelude, on a thread with a 512 MB stack |
+| JavaScript | `node` ≥ 16 | `lg_harness.js` runs `solution.js` via `vm` inside a Worker with a 256 MB stack; synchronous stdout |
+| C++ | `clang++` (C++20, `-O2`) | `solution.cpp` = prelude + `#line 1` user code + driver + generated `lg_case.inc`; runs on a 512 MB-stack thread |
+| Rust | `rustc` (edition 2021, `-O`, overflow checks) | `lg_main.rs` `include!`s the user's `solution.rs` and generated `lg_case.rs` into one module |
+
+Dynamic languages decode arguments from the signature at runtime; typed languages get a
+generated per-signature `lg_case` that decodes into native types. Drivers report which
+signatures they can express (`Driver::supports`); Rust omits graph-node and cyclic-list
+problems, matching LeetCode. Problems ship reference solutions per language; Run uses the
+reference in the user's language (falling back to Python) to compute expected outputs for
+custom testcases, and benchmarks are recorded per language.
+
 ### Run vs Submit
 
-- **Run** executes the user's code on the console testcases and, in parallel, the bundled
-  reference solution on the same inputs to obtain expected outputs (so custom inputs work).
+- **Run** executes the user's code on the console testcases and, in parallel (when
+  `max_parallel_jobs` > 1), a bundled reference solution on the same inputs to obtain expected
+  outputs, so custom inputs work.
 - **Submit** judges against the full stored suite, records a `Submission`, and applies it to the
   problem's active `Solve`: failures increment its error count; Accepted completes it with the
   elapsed time from the UI timer.
