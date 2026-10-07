@@ -138,9 +138,13 @@ Remaining:
 ### M6 — Portability & polish
 - [x] Export / import complete user history (JSON)
 - [x] Search (title / number / topic) and filters (list, difficulty, status, topic, company)
-- [~] Keyboard shortcuts: run (⌘') and submit (⌘⏎) done; navigation shortcuts pending
-- [ ] Local benchmark recalibration (uses `max_parallel_jobs`)
-- [ ] Lazy-load vim keymap and other heavy editor extensions
+- [~] Keyboard shortcuts: run (⌘') and submit (⌘⏎) done; navigation shortcuts and a `?`
+      help overlay pending
+- [ ] Local benchmark recalibration: re-run reference solutions on this machine (respecting
+      `max_parallel_jobs`), store results locally, prefer them over bundled numbers
+- [ ] Reference solution viewer per language (Editorial tab)
+- [ ] Editorial code blocks syntax-highlighted at build time (static HTML)
+- [ ] Lazy-load vim keymap and language packs to shrink the initial bundle
 
 ### M7 — Distribution
 - [x] App icon
