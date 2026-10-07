@@ -34,6 +34,10 @@ if ! cargo tarpaulin --engine llvm --workspace --skip-clean --fail-under 90 \
 fi
 grep -E 'coverage, ' "$log"
 
+step "catalog: every reference solution accepted"
+cargo run -q --release -p lg-content -- build
+cargo test -q -p localgrind-core --test catalog_e2e -- --ignored
+
 step "frontend tests + coverage (floor 90%)"
 (cd app && npx vitest run --coverage)
 

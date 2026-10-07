@@ -95,7 +95,9 @@ Remaining:
       judged to hit the time limit where the constraints make that possible, and plausible
       buggy variants were judged to be rejected
 - [x] Reproducible builds (generators run with `PYTHONHASHSEED=0`; two set-order bugs fixed)
-- [ ] Reference benchmarks (avg of 10 runs) for every problem
+- [x] Reference benchmarks (avg of 10 runs) for every problem
+- [x] `catalog_e2e` test (in `scripts/check.sh`): every reference solution is submitted through
+      the real `Service` against the built catalog and must be Accepted
 
 ### M4 — Additional languages
 - [ ] Driver abstraction validated with a compiled language (C++ first: clang ships with Xcode CLT)

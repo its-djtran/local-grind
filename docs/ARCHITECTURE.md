@@ -122,6 +122,9 @@ driven by settings. Inconsolata is bundled via `@fontsource` (no network access 
 
 - Rust unit tests live beside the code; `crates/core/tests/python_e2e.rs` runs real Python
   solutions through the harness; `lg-content` tests build fixture content end to end.
+- `crates/core/tests/catalog_e2e.rs` (ignored by default; run by `scripts/check.sh` after a
+  fresh `lg-content build`) submits every problem's reference solution through `Service` and
+  requires Accepted, so harness changes cannot silently break content.
 - Frontend tests run under Vitest + jsdom. Components are tested against the mock backend via
   Tauri's `mockIPC`, so the UI is exercised through the same command interface as production.
 - `scripts/check.sh` is the gate: formatting, clippy, svelte-check, all tests, and a 90%
