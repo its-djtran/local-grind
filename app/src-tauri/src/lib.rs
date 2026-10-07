@@ -5,7 +5,8 @@ use localgrind_core::lang::Language;
 use localgrind_core::metrics::Stats;
 use localgrind_core::portable::ImportSummary;
 use localgrind_core::service::{
-    Bootstrap, CalibrationStatus, CalibrationSummary, ProblemView, RunOutcome, Service, SubmitOutcome,
+    Bootstrap, CalibrationStatus, CalibrationSummary, ProblemView, RunOutcome, Service,
+    SubmitOutcome,
 };
 use localgrind_core::settings::Settings;
 use localgrind_core::userdb::{Solve, Submission};
@@ -174,11 +175,22 @@ async fn check_toolchains(svc: Svc<'_>) -> Result<Vec<localgrind_core::lang::Too
 }
 
 #[tauri::command]
-async fn recalibrate_benchmarks(app: AppHandle, svc: Svc<'_>, runs: u32) -> Result<CalibrationSummary> {
+async fn recalibrate_benchmarks(
+    app: AppHandle,
+    svc: Svc<'_>,
+    runs: u32,
+) -> Result<CalibrationSummary> {
     let svc = svc.inner().clone();
     blocking(move || {
         svc.recalibrate(runs, &|done, total| {
-            let _ = app.emit("calibration-progress", Progress { problem_id: 0, done, total });
+            let _ = app.emit(
+                "calibration-progress",
+                Progress {
+                    problem_id: 0,
+                    done,
+                    total,
+                },
+            );
         })
     })
     .await

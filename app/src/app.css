@@ -262,6 +262,53 @@ pre {
   padding: 0.3em 0.7em;
 }
 
+.prose pre.code {
+  white-space: pre;
+  line-height: 1.5;
+}
+
+/* Build-time highlighted code (syntect scopes as hl-* classes). */
+.hl-keyword,
+.hl-storage {
+  color: var(--tok-keyword);
+}
+.hl-string {
+  color: var(--tok-string);
+}
+.hl-comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+.hl-constant.hl-numeric,
+.hl-constant.hl-language {
+  color: var(--tok-number);
+}
+.hl-entity.hl-name.hl-function,
+.hl-support.hl-function {
+  color: var(--tok-function);
+}
+.hl-entity.hl-name.hl-class,
+.hl-entity.hl-name.hl-type,
+.hl-support.hl-type,
+.hl-support.hl-class,
+.hl-storage.hl-type {
+  color: var(--tok-type);
+}
+/* `def`, `class`, `fn`, `struct`: declaration keywords, not types. */
+.hl-storage.hl-type.hl-function,
+.hl-storage.hl-type.hl-class,
+.hl-storage.hl-type.hl-struct,
+.hl-storage.hl-type.hl-impl {
+  color: var(--tok-keyword);
+}
+.hl-variable.hl-parameter {
+  color: var(--tok-variable);
+}
+.hl-keyword.hl-operator,
+.hl-punctuation {
+  color: var(--tok-operator);
+}
+
 .tok-keyword {
   color: var(--tok-keyword);
 }

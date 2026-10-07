@@ -67,6 +67,7 @@ export function createBackend(): Backend {
         { company: "Amazon", frequency: 88.1, recency: "3m" },
       ],
       benchmarks: { python: { runtime_ms: 4.2, memory_kb: 17_400, runs: 10 } },
+      solutions: p.solutions ?? [],
       lists: ["Blind 75", "Grind 75"],
     });
   }
@@ -86,6 +87,7 @@ export function createBackend(): Backend {
       test_count: 40,
       companies: [],
       benchmarks: {},
+      solutions: [],
       lists: [],
     });
   }

@@ -85,6 +85,11 @@ export interface Solve {
   submission_id: number | null;
 }
 
+export interface ReferenceSolution {
+  language: LanguageId;
+  html: string;
+}
+
 export interface ProblemView extends ProblemSummary {
   signature: Signature;
   time_limit_ms: number;
@@ -95,6 +100,7 @@ export interface ProblemView extends ProblemSummary {
   test_count: number;
   companies: CompanyTag[];
   benchmarks: Record<string, Benchmark>;
+  solutions: ReferenceSolution[];
   lists: string[];
   language: LanguageId;
   languages: LanguageId[];

@@ -143,8 +143,9 @@ Remaining:
 - [x] Local benchmark recalibration: Settings re-runs every reference solution on this machine
       (3 runs each, up to `max_parallel_jobs` at once, with progress and Stop), stores results in
       `user.db`, and prefers them over bundled numbers (labelled "on this machine")
-- [ ] Reference solution viewer per language (Editorial tab)
-- [ ] Editorial code blocks syntax-highlighted at build time (static HTML)
+- [x] Reference solution viewer per language (Editorial tab, defaults to the current language)
+- [x] Editorial code blocks and reference solutions syntax-highlighted at build time with
+      syntect (class-based static HTML themed by CSS; catalog schema v2)
 - [ ] Lazy-load vim keymap and language packs to shrink the initial bundle
 
 ### M7 — Distribution

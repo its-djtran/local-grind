@@ -112,6 +112,9 @@ describe("App", () => {
 
     await fireEvent.click(screen.getByRole("tab", { name: "Editorial" }));
     expect(await screen.findByText("Approach 2: One-Pass Hash Map (Optimal)")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Python3", selected: true })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("tab", { name: "C++" }));
+    expect(screen.getByRole("tab", { name: "C++", selected: true })).toBeInTheDocument();
     await fireEvent.click(screen.getByRole("tab", { name: "Result" }));
     await fireEvent.click(screen.getByRole("tab", { name: "Description" }));
 

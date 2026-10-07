@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use crate::catalog::{Benchmark, Catalog, CompanyTag, Problem, ProblemList, ProblemSummary};
+use crate::catalog::{
+    Benchmark, Catalog, CompanyTag, Problem, ProblemList, ProblemSummary, ReferenceSolution,
+};
 use crate::error::{Error, Result};
 use crate::lang::{Language, Toolchains};
 use crate::metrics::{self, Stats, StatsInput};
@@ -66,6 +68,8 @@ pub struct ProblemView {
     pub problem: Problem,
     pub companies: Vec<CompanyTag>,
     pub benchmarks: BTreeMap<String, Benchmark>,
+    /// Highlighted reference solutions, one per available language.
+    pub solutions: Vec<ReferenceSolution>,
     pub lists: Vec<String>,
     pub language: Language,
     /// Languages that can express this problem, in display order.
@@ -312,9 +316,14 @@ impl Service {
     }
 
     pub fn problem(&self, id: i64, language: Option<Language>) -> Result<ProblemView> {
-        let (problem, companies, benchmarks) = {
+        let (problem, companies, benchmarks, solutions) = {
             let c = self.catalog.lock().unwrap();
-            (c.problem(id)?, c.companies_for(id)?, c.benchmarks(id)?)
+            (
+                c.problem(id)?,
+                c.companies_for(id)?,
+                c.benchmarks(id)?,
+                c.reference_solutions(id)?,
+            )
         };
         let benchmarks = self.merge_local_benchmarks(id, benchmarks)?;
         let user = self.user.lock().unwrap();
@@ -350,6 +359,7 @@ impl Service {
             problem,
             companies,
             benchmarks,
+            solutions,
             lists,
             language,
             languages,
@@ -792,6 +802,7 @@ mod tests {
         assert_eq!(v.lists, vec!["Blind 75".to_string()]);
         assert_eq!(v.companies.len(), 2);
         assert!(v.benchmarks.contains_key("python"));
+        assert_eq!(v.solutions.len(), 2);
         assert!(svc.problem(42, None).is_err());
 
         svc.save_draft(1, Language::Python, "mine").unwrap();
@@ -1045,6 +1056,7 @@ mod tests {
             1,
             Language::Python,
             "class Solution:\n    def twoSum(self, nums, target):\n        return [9, 9]\n",
+            "",
         )
         .unwrap();
         let svc = Service::new(w.finish().unwrap(), UserDb::in_memory().unwrap()).unwrap();

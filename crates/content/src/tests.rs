@@ -59,6 +59,13 @@ fn markdown_rendering() {
     assert!(html.contains("<code>a^b</code>"));
     assert!(html.contains("<table>"));
     assert_eq!(escape("<a&b>"), "&lt;a&amp;b&gt;");
+    let code = render_markdown("```python\nreturn 1\n```\n\n    plain <b>\n");
+    assert!(
+        code.contains("<pre class=\"code\"><code class=\"language-python\">"),
+        "{code}"
+    );
+    assert!(code.contains("hl-keyword"), "{code}");
+    assert!(code.contains("plain &lt;b&gt;"), "{code}");
 }
 
 #[test]

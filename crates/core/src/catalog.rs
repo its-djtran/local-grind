@@ -11,7 +11,7 @@ use crate::lang::Language;
 use crate::runner::TestCase;
 use crate::types::{Comparator, Difficulty, Signature};
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Orders company tags by how recently they were reported, then by frequency.
 const RECENCY_RANK: &str = "CASE recency WHEN '30d' THEN 0 WHEN '3m' THEN 1 WHEN '6m' THEN 2 \
@@ -36,7 +36,7 @@ CREATE TABLE problems (
 );
 CREATE TABLE tests (problem_id INTEGER PRIMARY KEY, data BLOB NOT NULL);
 CREATE TABLE solutions (
-    problem_id INTEGER NOT NULL, language TEXT NOT NULL, code TEXT NOT NULL,
+    problem_id INTEGER NOT NULL, language TEXT NOT NULL, code TEXT NOT NULL, html TEXT NOT NULL,
     PRIMARY KEY (problem_id, language)
 );
 CREATE TABLE benchmarks (
@@ -85,6 +85,13 @@ pub struct Benchmark {
     /// Measured on this machine by a local recalibration rather than bundled with the app.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub local: bool,
+}
+
+/// A reference solution pre-rendered (syntax-highlighted) for display.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReferenceSolution {
+    pub language: Language,
+    pub html: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -240,6 +247,27 @@ impl Catalog {
             .optional()?)
     }
 
+    /// Highlighted reference solutions for display, in [`Language::ALL`] order.
+    pub fn reference_solutions(&self, id: i64) -> Result<Vec<ReferenceSolution>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT language, html FROM solutions WHERE problem_id = ?1")?;
+        let rows: Vec<(String, String)> = stmt
+            .query_map([id], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut out: Vec<ReferenceSolution> = rows
+            .into_iter()
+            .filter_map(|(lang, html)| {
+                Some(ReferenceSolution {
+                    language: lang.parse().ok()?,
+                    html,
+                })
+            })
+            .collect();
+        out.sort_by_key(|s| s.language);
+        Ok(out)
+    }
+
     pub fn benchmarks(&self, id: i64) -> Result<BTreeMap<String, Benchmark>> {
         let mut stmt = self.conn.prepare(
             "SELECT language, runtime_ms, memory_kb, runs FROM benchmarks WHERE problem_id = ?1",
@@ -390,10 +418,11 @@ impl CatalogWriter {
         Ok(())
     }
 
-    pub fn add_solution(&self, id: i64, lang: Language, code: &str) -> Result<()> {
+    /// Stores a reference solution and its pre-rendered display HTML.
+    pub fn add_solution(&self, id: i64, lang: Language, code: &str, html: &str) -> Result<()> {
         self.conn.execute(
-            "INSERT OR REPLACE INTO solutions (problem_id, language, code) VALUES (?1, ?2, ?3)",
-            params![id, lang.id(), code],
+            "INSERT OR REPLACE INTO solutions (problem_id, language, code, html) VALUES (?1, ?2, ?3, ?4)",
+            params![id, lang.id(), code, html],
         )?;
         Ok(())
     }
@@ -498,6 +527,7 @@ pub(crate) mod tests {
             1,
             Language::Python,
             "class Solution:\n    def twoSum(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            if target - n in seen:\n                return [seen[target - n], i]\n            seen[n] = i\n",
+            "<pre>py</pre>",
         )
         .unwrap();
         // Returns the pair reversed so tests can tell which reference produced an answer.
@@ -505,6 +535,7 @@ pub(crate) mod tests {
             1,
             Language::JavaScript,
             "var twoSum = function(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(target - nums[i])) return [i, seen.get(target - nums[i])];\n    seen.set(nums[i], i);\n  }\n};\n",
+            "<pre>js</pre>",
         )
         .unwrap();
         w.add_benchmark(
@@ -577,6 +608,13 @@ pub(crate) mod tests {
         assert!(c.tests(99).is_err());
         assert!(c.solution(1, Language::Python).unwrap().is_some());
         assert!(c.solution(2, Language::Python).unwrap().is_none());
+        let refs = c.reference_solutions(1).unwrap();
+        assert_eq!(
+            refs.iter().map(|r| r.language).collect::<Vec<_>>(),
+            vec![Language::Python, Language::JavaScript]
+        );
+        assert_eq!(refs[0].html, "<pre>py</pre>");
+        assert!(c.reference_solutions(2).unwrap().is_empty());
         assert_eq!(c.benchmarks(1).unwrap()["python"].runs, 10);
         let lists = c.lists().unwrap();
         assert_eq!(lists[0].items.len(), 2);

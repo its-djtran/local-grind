@@ -108,7 +108,7 @@ custom testcases, and benchmarks are recorded per language.
 
 **`problems.db` (read-only, bundled).** Tables: `problems` (metadata, signature JSON,
 pre-rendered description/editorial HTML, examples, hints), `tests` (deflate-compressed JSONL per
-problem), `solutions`, `benchmarks`, `lists`/`list_items`, `problem_companies`, `meta`. The app
+problem), `solutions` (code plus build-time highlighted HTML per language), `benchmarks`, `lists`/`list_items`, `problem_companies`, `meta`. The app
 loads summaries, lists and the company index once at startup; problem detail and test suites
 are read on demand.
 

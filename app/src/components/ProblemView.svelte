@@ -23,6 +23,7 @@
   });
 
   let showHints = $state(false);
+  let solutionLanguage = $state<LanguageId | null>(null);
   let showTopics = $state(false);
   let showCompanies = $state(false);
   let ticker: ReturnType<typeof setInterval>;
@@ -121,6 +122,25 @@
               {/if}
             {:else if ws.leftTab === "editorial"}
               <article class="prose">{@html view.editorial_html}</article>
+              {#if view.solutions.length}
+                {@const shown = view.solutions.find((s) => s.language === (solutionLanguage ?? ws.language)) ?? view.solutions[0]}
+                <section class="references">
+                  <h2>Reference solutions</h2>
+                  <div class="lang-tabs" role="tablist" aria-label="Reference solution language">
+                    {#each view.solutions as s (s.language)}
+                      <button
+                        role="tab"
+                        aria-selected={s.language === shown.language}
+                        class:active={s.language === shown.language}
+                        onclick={() => (solutionLanguage = s.language)}
+                      >
+                        {app.boot?.languages.find((l) => l.id === s.language)?.name ?? s.language}
+                      </button>
+                    {/each}
+                  </div>
+                  <div class="prose">{@html shown.html}</div>
+                </section>
+              {/if}
             {:else if ws.leftTab === "submissions"}
               <SubmissionList submissions={ws.submissions} onSelect={(s) => ws.selectSubmission(s)} />
             {:else if ws.selected}
@@ -271,6 +291,25 @@
   }
   .linkish {
     cursor: pointer;
+  }
+  .references h2 {
+    font-size: 1.2em;
+    margin: 1.6em 0 0.6em;
+  }
+  .lang-tabs {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+  }
+  .lang-tabs button {
+    background: transparent;
+    border-color: transparent;
+    color: var(--muted);
+  }
+  .lang-tabs button.active {
+    color: var(--text);
+    border-color: var(--border);
+    background: var(--panel-2);
   }
   .hints {
     border-top: 1px solid var(--border);

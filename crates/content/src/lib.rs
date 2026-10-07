@@ -16,13 +16,15 @@ use localgrind_core::lang::{Language, Toolchains};
 use localgrind_core::runner::{self, Limits, RunOptions, TestCase, Verdict};
 use localgrind_core::timeutil::{now_ms, to_iso};
 use localgrind_core::types::{Comparator, Difficulty, Signature};
-use pulldown_cmark::{html, CowStr, Event, Options, Parser};
+use pulldown_cmark::{html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
+
+pub mod highlight;
 
 pub type Result<T> = std::result::Result<T, String>;
 
@@ -177,15 +179,34 @@ pub fn render_markdown(md: &str) -> String {
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
-    let events = Parser::new_ext(md, opts).map(|ev| match ev {
-        Event::Code(code) => Event::InlineHtml(CowStr::from(format!(
-            "<code>{}</code>",
-            superscripts(&escape(&code))
-        ))),
-        other => other,
-    });
+    let mut events = Vec::new();
+    // Fenced code blocks are highlighted here so the app only displays static HTML.
+    let mut code: Option<(String, String)> = None;
+    for ev in Parser::new_ext(md, opts) {
+        match ev {
+            Event::Start(Tag::CodeBlock(kind)) => {
+                let lang = match kind {
+                    CodeBlockKind::Fenced(l) => l.to_string(),
+                    CodeBlockKind::Indented => String::new(),
+                };
+                code = Some((lang, String::new()));
+            }
+            Event::Text(t) if code.is_some() => code.as_mut().unwrap().1.push_str(&t),
+            Event::End(TagEnd::CodeBlock) => {
+                let (lang, text) = code.take().unwrap_or_default();
+                events.push(Event::Html(CowStr::from(highlight::highlight(
+                    &text, &lang,
+                ))));
+            }
+            Event::Code(c) => events.push(Event::InlineHtml(CowStr::from(format!(
+                "<code>{}</code>",
+                superscripts(&escape(&c))
+            )))),
+            other => events.push(other),
+        }
+    }
     let mut out = String::new();
-    html::push_html(&mut out, events);
+    html::push_html(&mut out, events.into_iter());
     out
 }
 
@@ -641,7 +662,8 @@ pub fn build(
         w.add_problem(&b.problem, &b.tests)
             .map_err(|e| e.to_string())?;
         for (&lang, code) in &b.solutions {
-            w.add_solution(id, lang, code).map_err(|e| e.to_string())?;
+            w.add_solution(id, lang, code, &highlight::highlight(code, lang.id()))
+                .map_err(|e| e.to_string())?;
         }
         for (lang, bench) in &b.benchmarks {
             w.add_benchmark(id, lang, bench)
