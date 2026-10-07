@@ -84,7 +84,7 @@ pub mod validators {
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
 
-    pub const NAMES: &[&str] = &["alien_order"];
+    pub const NAMES: &[&str] = &["alien_order", "longest_palindrome"];
 
     pub fn exists(name: &str) -> bool {
         NAMES.contains(&name)
@@ -93,8 +93,25 @@ pub mod validators {
     pub fn run(name: &str, args: &Value, expected: &Value, actual: &Value) -> bool {
         match name {
             "alien_order" => alien_order(args, expected, actual),
+            "longest_palindrome" => longest_palindrome(args, expected, actual),
             _ => false,
         }
+    }
+
+    /// Longest Palindromic Substring: any palindromic substring of `s` with the maximal length
+    /// (the expected answer's length) is accepted.
+    fn longest_palindrome(args: &Value, expected: &Value, actual: &Value) -> bool {
+        let (Some(s), Some(expected), Some(actual)) = (
+            args.get(0).and_then(Value::as_str),
+            expected.as_str(),
+            actual.as_str(),
+        ) else {
+            return false;
+        };
+        let chars: Vec<char> = actual.chars().collect();
+        chars.len() == expected.chars().count()
+            && s.contains(actual)
+            && chars.iter().eq(chars.iter().rev())
     }
 
     /// Alien Dictionary: any ordering consistent with the word list is accepted; the expected
@@ -221,6 +238,18 @@ mod tests {
         ));
         assert!(!matches(&cmp, &json!({}), &json!("abc"), &json!("abc")));
         assert!(validators::exists("alien_order"));
+        let lp = Comparator::Validator {
+            name: "longest_palindrome".into(),
+        };
+        let babad = json!(["babad"]);
+        let ok = |a: Value| matches(&lp, &babad, &json!("bab"), &a);
+        assert!(ok(json!("bab")));
+        assert!(ok(json!("aba")));
+        assert!(!ok(json!("ba")));
+        assert!(!ok(json!("dad")));
+        assert!(!ok(json!("abd")));
+        assert!(!ok(json!(5)));
+        assert!(!matches(&lp, &json!([]), &json!("a"), &json!("a")));
         assert!(!validators::exists("nope"));
         assert!(!validators::run("nope", &args, &json!(1), &json!(1)));
     }

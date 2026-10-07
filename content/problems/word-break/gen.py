@@ -11,7 +11,7 @@ def dictionary(count, alpha, lo, hi):
     words = set()
     while len(words) < count:
         words.add(random_string(r, r.randint(lo, hi), alpha))
-    out = list(words)
+    out = sorted(words)
     r.shuffle(out)
     return out
 

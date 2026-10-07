@@ -184,10 +184,31 @@ class Emitter:
         self.out.flush()
 
 
+# What solution code can use without importing, mirroring a typical LeetCode Python 3
+# environment: whole modules, plus star imports from modules whose names cannot shadow builtins
+# (`math`, `operator` and `random` are deliberately not star-imported: they would replace the
+# three-argument `pow` or the `random` module itself).
+USER_PRELUDE = """
+from bisect import *
+from collections import *
+from functools import *
+from heapq import *
+from itertools import *
+from string import *
+from typing import *
+from math import (ceil, comb, factorial, floor, gcd, inf, isqrt, lcm, log, log2, log10, nan,
+                  perm, prod, sqrt)
+# Module imports come last so that e.g. `bisect` names the module, not bisect.bisect.
+import bisect, collections, copy, datetime, functools, heapq, itertools, json, math, operator
+import random, re, statistics, string, sys
+"""
+
+
 def load_solution():
     with open("solution.py", encoding="utf-8") as f:
         src = f.read()
     namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
+    exec(USER_PRELUDE, namespace)
     namespace["__name__"] = "solution"
     code = compile(src, "solution.py", "exec")
     exec(code, namespace)

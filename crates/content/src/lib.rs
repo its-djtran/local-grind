@@ -303,6 +303,8 @@ pub fn example_args(src: &Source) -> Result<Vec<Value>> {
 pub fn generated_args(src: &Source, tools: &Toolchains) -> Result<Vec<Value>> {
     let out = Command::new(&tools.python)
         .arg("gen.py")
+        // Pin set/dict iteration order so builds are reproducible.
+        .env("PYTHONHASHSEED", "0")
         .current_dir(&src.dir)
         .output()
         .map_err(|e| format!("{}: running gen.py: {e}", src.slug))?;

@@ -91,7 +91,9 @@ for alphabet, lo in [("abc", 8), ("abcd", 7), ("abcd", 7), ("abcde", 6)]:
     words = set()
     while len(words) < 3 * 10**4:
         words.add(random_string(r, r.randint(lo, 10), alphabet))
-    case(board, sorted(words, key=lambda w: r.random()))
+    ordered = sorted(words)
+    r.shuffle(ordered)
+    case(board, ordered)
 # A board of one letter: the all-'a' words are found at once, while 30000 other words never
 # match a single cell. Only the first letters need checking if the words share one trie.
 board = [["a"] * 12 for _ in range(12)]

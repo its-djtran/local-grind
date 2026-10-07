@@ -16,10 +16,14 @@ name = "longestPalindrome"
 params = [{ name = "s", type = "string" }]
 returns = "string"
 
+[judge]
+mode = "validator"
+name = "longest_palindrome"
+
 [[examples]]
-input = '"babadada"'
-output = '"adada"'
-explanation = "\"bab\" and \"aba\" are palindromes of length 3, but \"adada\" (indices 3 to 7) is longer, and no other palindromic substring has length 5 or more."
+input = '"babad"'
+output = '"bab"'
+explanation = "\"aba\" is also a longest palindromic substring, so it is accepted too."
 
 [[examples]]
 input = '"cbbd"'

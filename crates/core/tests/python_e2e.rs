@@ -439,3 +439,24 @@ class Codec:
     let r = run(&s, not_str, &cases);
     assert!(r.error.unwrap().contains("must return a str"));
 }
+
+#[test]
+fn leetcode_style_preimports() {
+    let s = sig(json!({"kind": "function", "name": "f",
+        "params": [{"name": "nums", "type": "int[]"}], "returns": "int"}));
+    let code = "
+class Solution:
+    def f(self, nums: List[int]) -> int:
+        nums = sorted(nums)
+        i = bisect.bisect_left(nums, 3) + bisect_right(nums, 3)
+        c = collections.Counter(nums)[3] + Counter(nums)[3]
+        h = heapq.nsmallest(1, nums)[0]
+        p = pow(2, 10, 1000) + math.comb(4, 2) + comb(4, 2)
+        r = random.Random(1).randint(0, 0)
+        q = deque(nums).popleft() + reduce(lambda a, b: a + b, nums) + len(list(combinations(nums, 2)))
+        return i + c + h + p + r + q + len(ascii_lowercase) + gcd(4, 6) + lcm(2, 3)
+";
+    // i = 2 + 3, c = 1 + 1, h = 1, p = 24 + 6 + 6, r = 0, q = 1 + 10 + 6, then 26 + 2 + 6 = 95
+    let r = run(&s, code, &[(json!([[4, 3, 1, 2]]), json!(95))]);
+    assert_eq!(r.verdict, Verdict::Accepted, "{r:#?}");
+}
