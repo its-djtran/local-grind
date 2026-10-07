@@ -117,8 +117,51 @@ fn benchmark_runs_reference() {
     let dir = fixture();
     let src = load_problem(&dir.path().join("problems/two-sum")).unwrap();
     let b = benchmark(&src, &tools(), 2).unwrap();
-    assert_eq!(b.runs, 2);
-    assert!(b.memory_kb > 0);
+    assert_eq!(b[&Language::Python].runs, 2);
+    assert!(b[&Language::Python].memory_kb > 0);
+}
+
+const JS_TWO_SUM: &str = "var twoSum = function(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(target - nums[i])) return [seen.get(target - nums[i]), i];\n    seen.set(nums[i], i);\n  }\n};\n";
+
+#[test]
+fn extra_language_solutions_are_verified_and_benchmarked() {
+    let dir = fixture();
+    let p = dir.path().join("problems/two-sum");
+    fs::write(p.join("solution.js"), JS_TWO_SUM).unwrap();
+    let src = load_problem(&p).unwrap();
+    assert!(src.extra_solutions.contains_key(&Language::JavaScript));
+    let built = build_problem(&src, &tools()).unwrap();
+    assert_eq!(built.solutions.len(), 2);
+    let b = benchmark(&src, &tools(), 1).unwrap();
+    assert!(b.contains_key(&Language::JavaScript) && b.contains_key(&Language::Python));
+
+    fs::write(p.join("solution.js"), "var twoSum = () => [0, 0];").unwrap();
+    let err = build_problem(&load_problem(&p).unwrap(), &tools())
+        .err()
+        .unwrap();
+    assert!(
+        err.contains("solution.js was not accepted: Wrong Answer"),
+        "{err}"
+    );
+
+    // A missing toolchain skips verification instead of failing the build.
+    let mut no_node = tools();
+    no_node.set(Language::JavaScript, PathBuf::from("/nonexistent/node"));
+    assert!(build_problem(&load_problem(&p).unwrap(), &no_node).is_ok());
+}
+
+#[test]
+fn rejects_solutions_in_unsupported_languages() {
+    let dir = fixture();
+    let mut src = load_problem(&dir.path().join("problems/two-sum")).unwrap();
+    src.meta.signature = serde_json::from_value(serde_json::json!({"kind": "function",
+        "name": "cloneGraph", "special": "deep_copy", "params": [{"name": "node", "type": "Node"}],
+        "returns": "Node"}))
+    .unwrap();
+    src.extra_solutions
+        .insert(Language::Rust, "impl Solution {}".into());
+    let err = verify_extra_solutions(&src, &[], &tools()).unwrap_err();
+    assert!(err.contains("Rust cannot express this problem"), "{err}");
 }
 
 #[test]
@@ -342,6 +385,28 @@ fn command_line() {
     let sol = sol.to_string_lossy().to_string();
     let msg = cli(&s(&["judge", "--content", &root, "two-sum", &sol])).unwrap();
     assert!(msg.starts_with("Accepted"), "{msg}");
+    let js = dir.path().join("p/sol.js");
+    fs::write(&js, JS_TWO_SUM).unwrap();
+    let msg = cli(&s(&[
+        "judge",
+        "--content",
+        &root,
+        "two-sum",
+        &js.to_string_lossy(),
+    ]))
+    .unwrap();
+    assert!(msg.starts_with("Accepted"), "{msg}");
+    let weird = dir.path().join("p/sol.kt");
+    fs::write(&weird, "").unwrap();
+    assert!(cli(&s(&[
+        "judge",
+        "--content",
+        &root,
+        "two-sum",
+        &weird.to_string_lossy()
+    ]))
+    .unwrap_err()
+    .contains("unknown solution language"));
     fs::write(
         &sol,
         "class Solution:\n    def twoSum(self, nums, target):\n        return [0, 0]\n",

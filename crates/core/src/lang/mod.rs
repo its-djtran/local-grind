@@ -91,6 +91,23 @@ impl Language {
         }
     }
 
+    /// Source file extension used for solutions in this language.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Language::Python => "py",
+            Language::JavaScript => "js",
+            Language::Cpp => "cpp",
+            Language::Rust => "rs",
+        }
+    }
+
+    pub fn from_extension(ext: &str) -> Option<Language> {
+        match ext {
+            "cc" | "cxx" => Some(Language::Cpp),
+            _ => Language::ALL.iter().copied().find(|l| l.extension() == ext),
+        }
+    }
+
     pub fn install_hint(self) -> &'static str {
         match self {
             Language::Python => "Install Python 3 (for example `brew install python`)",
@@ -380,7 +397,14 @@ mod tests {
             assert!(!l.executable_name().is_empty());
             assert!(!l.install_hint().is_empty());
             assert!(l.min_version() > (0, 0));
+            assert_eq!(Language::from_extension(l.extension()), Some(*l));
         }
+    }
+
+    #[test]
+    fn extensions() {
+        assert_eq!(Language::from_extension("cc"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("java"), None);
     }
 
     #[test]

@@ -77,6 +77,8 @@ pub struct Source {
     pub description_md: String,
     pub editorial_md: String,
     pub solution: String,
+    /// Optional reference solutions in other languages (`solution.js`, `solution.cpp`, ...).
+    pub extra_solutions: BTreeMap<Language, String>,
 }
 
 fn read(path: &Path) -> Result<String> {
@@ -110,6 +112,14 @@ pub fn load_problem(dir: &Path) -> Result<Source> {
         description_md: read(&dir.join("description.md"))?,
         editorial_md: read(&dir.join("editorial.md"))?,
         solution: read(&dir.join("solution.py"))?,
+        extra_solutions: Language::ALL
+            .iter()
+            .filter(|l| **l != Language::Python)
+            .filter_map(|&l| {
+                let path = dir.join(format!("solution.{}", l.extension()));
+                path.is_file().then(|| read(&path).map(|code| (l, code)))
+            })
+            .collect::<Result<_>>()?,
         slug,
         dir: dir.to_path_buf(),
         meta,
@@ -381,12 +391,78 @@ pub fn reference_outputs(src: &Source, args: &[Value], tools: &Toolchains) -> Re
         .collect())
 }
 
-/// Fully built problem: catalog row, test suite and reference solution.
+/// Fully built problem: catalog row, test suite and reference solutions by language.
 pub struct Built {
     pub problem: Problem,
     pub tests: Vec<TestCase>,
-    pub solution: String,
+    pub solutions: BTreeMap<Language, String>,
     pub benchmarks: BTreeMap<String, Benchmark>,
+}
+
+/// Whether `language`'s toolchain is usable (probed once per executable per process).
+pub fn toolchain_ok(language: Language, tools: &Toolchains) -> bool {
+    use std::sync::OnceLock;
+    static PROBED: OnceLock<Mutex<HashMap<PathBuf, bool>>> = OnceLock::new();
+    let exe = tools.path(language);
+    let cache = PROBED.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(&ok) = cache.lock().unwrap().get(&exe) {
+        return ok;
+    }
+    let ok = localgrind_core::lang::probe(language, tools).ok;
+    cache.lock().unwrap().insert(exe, ok);
+    ok
+}
+
+/// Runs `code` in `language` over the full suite and returns the runner's report.
+fn judge_suite(
+    src: &Source,
+    language: Language,
+    code: &str,
+    tests: &[TestCase],
+    opts: &RunOptions,
+    tools: &Toolchains,
+) -> Result<runner::RunReport> {
+    let program = language.driver().program(&src.meta.signature, code, tools);
+    runner::execute(&program, tests, &src.meta.judge, opts, &mut |_, _| {})
+        .map_err(|e| format!("{}: {e}", src.slug))
+}
+
+/// Every non-Python reference solution must be Accepted on the generated suite. Languages
+/// without an installed toolchain are skipped.
+fn verify_extra_solutions(src: &Source, tests: &[TestCase], tools: &Toolchains) -> Result<()> {
+    for (&language, code) in &src.extra_solutions {
+        if !language.driver().supports(&src.meta.signature) {
+            return Err(format!(
+                "{}: solution.{} exists but {} cannot express this problem",
+                src.slug,
+                language.extension(),
+                language.display_name()
+            ));
+        }
+        if !toolchain_ok(language, tools) {
+            continue;
+        }
+        let r = judge_suite(src, language, code, tests, &reference_limits(), tools)?;
+        if r.verdict != Verdict::Accepted {
+            let detail = r
+                .failure
+                .map(|f| {
+                    format!(
+                        " on test #{}: expected {} got {:?}",
+                        f.index, f.expected, f.output
+                    )
+                })
+                .unwrap_or_default();
+            return Err(format!(
+                "{}: solution.{} was not accepted: {}{detail}\n{}",
+                src.slug,
+                language.extension(),
+                r.verdict.label(),
+                r.error.unwrap_or_default()
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn build_problem(src: &Source, tools: &Toolchains) -> Result<Built> {
@@ -419,6 +495,7 @@ pub fn build_problem(src: &Source, tools: &Toolchains) -> Result<Built> {
         .zip(outputs)
         .map(|(args, expected)| TestCase { args, expected })
         .collect();
+    verify_extra_solutions(src, &tests, tools)?;
     let bench_path = src.dir.join("benchmark.json");
     let benchmarks = if bench_path.is_file() {
         serde_json::from_str(&read(&bench_path)?)
@@ -454,7 +531,9 @@ pub fn build_problem(src: &Source, tools: &Toolchains) -> Result<Built> {
             test_count: tests.len(),
         },
         tests,
-        solution: src.solution.clone(),
+        solutions: std::iter::once((Language::Python, src.solution.clone()))
+            .chain(src.extra_solutions.clone())
+            .collect(),
         benchmarks,
     })
 }
@@ -561,8 +640,9 @@ pub fn build(
         slugs.insert(b.problem.summary.slug.clone(), id);
         w.add_problem(&b.problem, &b.tests)
             .map_err(|e| e.to_string())?;
-        w.add_solution(id, Language::Python, &b.solution)
-            .map_err(|e| e.to_string())?;
+        for (&lang, code) in &b.solutions {
+            w.add_solution(id, lang, code).map_err(|e| e.to_string())?;
+        }
         for (lang, bench) in &b.benchmarks {
             w.add_benchmark(id, lang, bench)
                 .map_err(|e| e.to_string())?;
@@ -589,11 +669,13 @@ pub fn build(
 
 /// Judges arbitrary code against a problem's full suite with the app's default limits, as a
 /// submission would be. Used to confirm that naive or buggy solutions are rejected.
-pub fn judge_file(src: &Source, code: &str, tools: &Toolchains) -> Result<String> {
+pub fn judge_file(
+    src: &Source,
+    language: Language,
+    code: &str,
+    tools: &Toolchains,
+) -> Result<String> {
     let built = build_problem(src, tools)?;
-    let program = Language::Python
-        .driver()
-        .program(&src.meta.signature, code, tools);
     let time = built.problem.time_limit_ms;
     let opts = RunOptions {
         limits: Limits {
@@ -606,14 +688,7 @@ pub fn judge_file(src: &Source, code: &str, tools: &Toolchains) -> Result<String
         low_priority: false,
         cache_dir: None,
     };
-    let r = runner::execute(
-        &program,
-        &built.tests,
-        &built.problem.comparator,
-        &opts,
-        &mut |_, _| {},
-    )
-    .map_err(|e| format!("{}: {e}", src.slug))?;
+    let r = judge_suite(src, language, code, &built.tests, &opts, tools)?;
     let mut out = format!(
         "{} ({}/{} passed, {:.1} ms, {} KB)",
         r.verdict.label(),
@@ -640,6 +715,19 @@ pub fn judge_file(src: &Source, code: &str, tools: &Toolchains) -> Result<String
     Ok(out)
 }
 
+fn tempfile_dir() -> Result<PathBuf> {
+    let dir = std::env::temp_dir().join(format!(
+        "lg-bench-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
 fn truncate(s: &str) -> String {
     if s.len() <= 300 {
         s.to_string()
@@ -652,24 +740,42 @@ fn truncate(s: &str) -> String {
     }
 }
 
-/// Runs the reference solution `runs` times over the full suite and returns the averages.
-pub fn benchmark(src: &Source, tools: &Toolchains, runs: u32) -> Result<Benchmark> {
+/// Runs each available reference solution `runs` times over the full suite and returns the
+/// averages by language.
+pub fn benchmark(
+    src: &Source,
+    tools: &Toolchains,
+    runs: u32,
+) -> Result<BTreeMap<Language, Benchmark>> {
     let built = build_problem(src, tools)?;
-    let program = Language::Python
-        .driver()
-        .program(&src.meta.signature, &src.solution, tools);
+    let mut out = BTreeMap::new();
+    for (&language, code) in &built.solutions {
+        if toolchain_ok(language, tools) {
+            out.insert(
+                language,
+                benchmark_one(src, language, code, &built.tests, tools, runs)?,
+            );
+        }
+    }
+    Ok(out)
+}
+
+fn benchmark_one(
+    src: &Source,
+    language: Language,
+    code: &str,
+    tests: &[TestCase],
+    tools: &Toolchains,
+    runs: u32,
+) -> Result<Benchmark> {
     let mut opts = reference_limits();
     opts.keep_all_cases = false;
+    // Compile once; every timed run reuses the cached binary.
+    let cache = tempfile_dir()?;
+    opts.cache_dir = Some(cache.clone());
     let (mut runtime, mut memory) = (0.0, 0u64);
     for _ in 0..runs.max(1) {
-        let r = runner::execute(
-            &program,
-            &built.tests,
-            &built.problem.comparator,
-            &opts,
-            &mut |_, _| {},
-        )
-        .map_err(|e| format!("{}: {e}", src.slug))?;
+        let r = judge_suite(src, language, code, tests, &opts, tools)?;
         if r.verdict != Verdict::Accepted {
             return Err(format!(
                 "{}: reference solution was not accepted: {:?}",
@@ -679,6 +785,7 @@ pub fn benchmark(src: &Source, tools: &Toolchains, runs: u32) -> Result<Benchmar
         runtime += r.runtime_ms;
         memory += r.memory_kb;
     }
+    let _ = std::fs::remove_dir_all(&cache);
     let runs = runs.max(1);
     Ok(Benchmark {
         runtime_ms: (runtime / runs as f64 * 100.0).round() / 100.0,
@@ -692,7 +799,7 @@ pub const USAGE: &str = "usage:
   lg-content build [--content DIR] [--out FILE] [--jobs N]
   lg-content bench [--content DIR] [--runs N] [SLUG...]
   lg-content check [--content DIR] [SLUG...]
-  lg-content judge [--content DIR] SLUG SOLUTION.py";
+  lg-content judge [--content DIR] SLUG SOLUTION.{py,js,cpp,rs}";
 
 pub fn cli(args: &[String]) -> Result<String> {
     let (cmd, rest) = args.split_first().ok_or(USAGE)?;
@@ -754,25 +861,35 @@ pub fn cli(args: &[String]) -> Result<String> {
                 return Err(USAGE.into());
             };
             let src = load_selected(&content, std::slice::from_ref(slug))?.remove(0);
-            let code = read(Path::new(file))?;
-            judge_file(&src, &code, &tools)
+            let path = Path::new(file);
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or_default();
+            let language = Language::from_extension(ext)
+                .ok_or(format!("unknown solution language `.{ext}`"))?;
+            judge_file(&src, language, &read(path)?, &tools)
         }
         "bench" => {
             let mut done = 0;
             for src in load_selected(&content, &slugs)? {
-                let b = benchmark(&src, &tools, runs)?;
                 let path = src.dir.join("benchmark.json");
                 let mut all: BTreeMap<String, serde_json::Value> = std::fs::read_to_string(&path)
                     .ok()
                     .and_then(|s| serde_json::from_str(&s).ok())
                     .unwrap_or_default();
-                all.insert("python".into(), serde_json::to_value(&b).unwrap());
+                for (language, b) in benchmark(&src, &tools, runs)? {
+                    all.insert(language.id().into(), serde_json::to_value(&b).unwrap());
+                    println!(
+                        "{:<50} {:<10} {:>9.2} ms {:>8} KB",
+                        src.slug,
+                        language.id(),
+                        b.runtime_ms,
+                        b.memory_kb
+                    );
+                }
                 std::fs::write(&path, serde_json::to_string_pretty(&all).unwrap() + "\n")
                     .map_err(|e| e.to_string())?;
-                println!(
-                    "{:<50} {:>9.2} ms {:>8} KB",
-                    src.slug, b.runtime_ms, b.memory_kb
-                );
                 done += 1;
             }
             Ok(format!("benchmarked {done} problems"))
