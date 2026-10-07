@@ -1,0 +1,25 @@
+id = 11
+title = "Container With Most Water"
+difficulty = "Medium"
+topics = ["Array", "Two Pointers", "Greedy"]
+time_limit_ms = 2000
+hints = [
+  "The water held by lines i and j is (j - i) * min(height[i], height[j]). Checking every pair is quadratic.",
+  "Start with the widest container: one pointer at each end. Every move inward loses width, so it only helps if the limiting height can grow.",
+  "Always move the pointer at the shorter line. Moving the taller one can never produce a larger area while the shorter line stays.",
+]
+
+[signature]
+kind = "function"
+name = "maxArea"
+params = [{ name = "height", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[1,8,6,2,5,4,8,3,7]"
+output = "49"
+explanation = "Using the lines at indices 1 (height 8) and 8 (height 7) gives width 7 and water level 7, so 7 * 7 = 49."
+
+[[examples]]
+input = "[1,1]"
+output = "1"

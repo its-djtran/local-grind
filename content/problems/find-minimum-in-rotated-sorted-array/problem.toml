@@ -1,0 +1,31 @@
+id = 153
+title = "Find Minimum in Rotated Sorted Array"
+difficulty = "Medium"
+topics = ["Array", "Binary Search"]
+time_limit_ms = 1000
+hints = [
+  "A linear scan is easy but ignores the structure. The array is two sorted runs glued together; the minimum is where the second run starts.",
+  "Compare the middle element with the last element. Which half must contain the drop?",
+  "If nums[mid] > nums[hi], the minimum is strictly to the right of mid; otherwise it is at mid or to its left. Shrink the range until one element remains.",
+]
+
+[signature]
+kind = "function"
+name = "findMin"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[3,4,5,1,2]"
+output = "1"
+explanation = "The sorted array was [1,2,3,4,5], rotated 3 times."
+
+[[examples]]
+input = "[4,5,6,7,0,1,2]"
+output = "0"
+explanation = "The sorted array was [0,1,2,4,5,6,7], rotated 4 times."
+
+[[examples]]
+input = "[11,13,15,17]"
+output = "11"
+explanation = "The array was rotated 4 times, which brings it back to sorted order."

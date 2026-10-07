@@ -1,0 +1,25 @@
+id = 75
+title = "Sort Colors"
+difficulty = "Medium"
+topics = ["Array", "Two Pointers", "Sorting"]
+time_limit_ms = 1000
+hints = [
+  "There are only three possible values. Counting how many of each there are already gives a simple two-pass solution.",
+  "For a single pass, keep three regions: 0s at the front, 2s at the back, and an unexplored middle.",
+  "Use pointers low, mid and high. A 0 at mid is swapped to low, a 2 is swapped to high, and a 1 stays. After swapping with high, do not advance mid — the incoming value has not been examined yet.",
+]
+
+[signature]
+kind = "function"
+name = "sortColors"
+params = [{ name = "nums", type = "int[]" }]
+returns = "void"
+output_param = "nums"
+
+[[examples]]
+input = "[2,0,2,1,1,0]"
+output = "[0,0,1,1,2,2]"
+
+[[examples]]
+input = "[2,0,1]"
+output = "[0,1,2]"

@@ -1,0 +1,34 @@
+id = 15
+title = "3Sum"
+difficulty = "Medium"
+topics = ["Array", "Two Pointers", "Sorting"]
+time_limit_ms = 4000
+hints = [
+  "Checking all triples is O(n^3). If you fix the first number a, the problem becomes: find two numbers that add up to -a.",
+  "Sort the array first. Then, for a fixed first element, a pair with a given sum can be found with two pointers moving inward from both ends.",
+  "To avoid repeated triplets, skip a first element equal to the previous one, and after recording a triplet move the pointer past equal values.",
+]
+
+[signature]
+kind = "function"
+name = "threeSum"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int[][]"
+
+[judge]
+mode = "unordered_nested"
+
+[[examples]]
+input = "[-1,0,1,2,-1,-4]"
+output = "[[-1,-1,2],[-1,0,1]]"
+explanation = "Three index triples sum to zero: (0,1,2), (1,2,4) and (0,3,4). The first and second both use the values -1, 0, 1, so only two distinct triplets remain: [-1,0,1] and [-1,-1,2]."
+
+[[examples]]
+input = "[0,1,1]"
+output = "[]"
+explanation = "The only triple adds up to 2."
+
+[[examples]]
+input = "[0,0,0]"
+output = "[[0,0,0]]"
+explanation = "The only triple adds up to 0."

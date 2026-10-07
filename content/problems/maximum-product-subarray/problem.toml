@@ -1,0 +1,26 @@
+id = 152
+title = "Maximum Product Subarray"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming"]
+time_limit_ms = 2000
+hints = [
+  "Unlike sums, a very negative product can become the largest one after multiplying by another negative number.",
+  "For each index, keep both the largest and the smallest product of a subarray ending there.",
+  "The new extremes at index i come from nums[i] alone, previous max * nums[i], or previous min * nums[i]. A zero resets everything.",
+]
+
+[signature]
+kind = "function"
+name = "maxProduct"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[2,3,-2,4]"
+output = "6"
+explanation = "The block [2,3] multiplies to 6. Any longer block containing -2 has a negative product."
+
+[[examples]]
+input = "[-2,0,-1]"
+output = "0"
+explanation = "[-2,-1] would give 2, but those elements are not adjacent, so it is not a subarray. The best choice is [0]."

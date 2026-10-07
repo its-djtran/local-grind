@@ -1,0 +1,26 @@
+id = 121
+title = "Best Time to Buy and Sell Stock"
+difficulty = "Easy"
+topics = ["Array", "Dynamic Programming"]
+time_limit_ms = 2000
+hints = [
+  "Checking every buy day against every later sell day works but is quadratic. Can you decide the best buy day for each sell day without looking back over the whole prefix?",
+  "If you sell on day i, the best day to have bought is the day with the lowest price before i.",
+  "Scan once, keeping the cheapest price seen so far and the best profit seen so far.",
+]
+
+[signature]
+kind = "function"
+name = "maxProfit"
+params = [{ name = "prices", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[7,1,5,3,6,4]"
+output = "5"
+explanation = "Buy on day 2 at price 1 and sell on day 5 at price 6 for a profit of 5. Selling on day 1 at price 7 is not allowed because the sale must come after the purchase."
+
+[[examples]]
+input = "[7,6,4,3,1]"
+output = "0"
+explanation = "Prices only fall, so every trade loses money. Making no trade gives 0."

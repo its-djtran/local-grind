@@ -1,0 +1,39 @@
+id = 347
+title = "Top K Frequent Elements"
+difficulty = "Medium"
+topics = ["Array", "Hash Table", "Divide and Conquer", "Sorting", "Heap (Priority Queue)", "Bucket Sort", "Counting", "Quickselect"]
+time_limit_ms = 2000
+hints = [
+  "Start by counting how many times each value occurs with a hash map.",
+  "Sorting the distinct values by count works in O(n log n). A min-heap of size k gets you O(n log k).",
+  "No value can occur more than n times. Put each value into a bucket indexed by its count, then read buckets from the highest count down until you have k values.",
+]
+
+[signature]
+kind = "function"
+name = "topKFrequent"
+params = [{ name = "nums", type = "int[]" }, { name = "k", type = "int" }]
+returns = "int[]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = """
+[1,1,1,2,2,3]
+2"""
+output = "[1,2]"
+explanation = "1 occurs three times and 2 twice; 3 occurs only once."
+
+[[examples]]
+input = """
+[1]
+1"""
+output = "[1]"
+
+[[examples]]
+input = """
+[1,2,1,2,1,2,3,1,3,2]
+2"""
+output = "[1,2]"
+explanation = "1 and 2 each occur four times, and 3 occurs twice."

@@ -1,0 +1,31 @@
+id = 53
+title = "Maximum Subarray"
+difficulty = "Medium"
+topics = ["Array", "Divide and Conquer", "Dynamic Programming"]
+time_limit_ms = 2000
+hints = [
+  "Trying every start and end index is quadratic. Think about the best subarray that ends exactly at index i.",
+  "The best subarray ending at i either is nums[i] alone or extends the best subarray ending at i - 1. When is extending a bad idea?",
+  "Keep a running sum; if it ever drops below zero, it can only hurt what comes next, so start over. Track the largest running sum you see. The array may be all negative.",
+]
+
+[signature]
+kind = "function"
+name = "maxSubArray"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[-2,1,-3,4,-1,2,1,-5,4]"
+output = "6"
+explanation = "The block [4,-1,2,1] adds up to 6, and no other contiguous block does better."
+
+[[examples]]
+input = "[1]"
+output = "1"
+explanation = "The only non-empty subarray is [1]."
+
+[[examples]]
+input = "[5,4,-1,7,8]"
+output = "23"
+explanation = "Taking the whole array gives 5 + 4 - 1 + 7 + 8 = 23."

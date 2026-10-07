@@ -1,0 +1,26 @@
+id = 238
+title = "Product of Array Except Self"
+difficulty = "Medium"
+topics = ["Array", "Prefix Sum"]
+time_limit_ms = 2000
+hints = [
+  "answer[i] is the product of everything to the left of i times the product of everything to the right of i.",
+  "Build an array of left-side products in one pass and an array of right-side products in another, then multiply them position by position.",
+  "To use O(1) extra space, store the left products directly in the output array, then sweep from the right while carrying a single running product.",
+]
+
+[signature]
+kind = "function"
+name = "productExceptSelf"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int[]"
+
+[[examples]]
+input = "[1,2,3,4]"
+output = "[24,12,8,6]"
+explanation = "For index 0 the other values multiply to 2 * 3 * 4 = 24; for index 1 they give 1 * 3 * 4 = 12, and so on."
+
+[[examples]]
+input = "[-1,1,0,-3,3]"
+output = "[0,0,9,0,0]"
+explanation = "Every product that includes the 0 is 0. Only index 2, which skips the 0, gets -1 * 1 * -3 * 3 = 9."
