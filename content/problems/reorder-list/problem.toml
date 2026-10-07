@@ -1,0 +1,25 @@
+id = 143
+title = "Reorder List"
+difficulty = "Medium"
+topics = ["Linked List", "Two Pointers", "Stack", "Recursion"]
+time_limit_ms = 1000
+hints = [
+  "The new order alternates between the front of the list and the back. Reaching the back repeatedly is slow in a singly linked list; how could you walk the second half backwards?",
+  "Copying the nodes into an array gives random access, at the cost of O(n) extra memory.",
+  "For O(1) extra memory, combine three familiar steps: find the middle, reverse the second half, then interleave the two halves.",
+]
+
+[signature]
+kind = "function"
+name = "reorderList"
+params = [{ name = "head", type = "ListNode" }]
+returns = "void"
+output_param = "head"
+
+[[examples]]
+input = "[1,2,3,4]"
+output = "[1,4,2,3]"
+
+[[examples]]
+input = "[1,2,3,4,5]"
+output = "[1,5,2,4,3]"

@@ -1,0 +1,35 @@
+id = 19
+title = "Remove Nth Node From End of List"
+difficulty = "Medium"
+topics = ["Linked List", "Two Pointers"]
+time_limit_ms = 1000
+hints = [
+  "Counting from the end is awkward in a singly linked list. If you knew the length L, which position from the front would you remove?",
+  "Removing a node means changing the next pointer of the node before it. What if the node to remove is the head itself? A dummy node in front helps.",
+  "For a single pass, start two pointers n nodes apart and move them together until the leading one reaches the end.",
+]
+
+[signature]
+kind = "function"
+name = "removeNthFromEnd"
+params = [{ name = "head", type = "ListNode" }, { name = "n", type = "int" }]
+returns = "ListNode"
+
+[[examples]]
+input = """
+[1,2,3,4,5]
+2"""
+output = "[1,2,3,5]"
+explanation = "The 2nd node from the end holds 4; unlinking it leaves 1->2->3->5."
+
+[[examples]]
+input = """
+[1]
+1"""
+output = "[]"
+
+[[examples]]
+input = """
+[1,2]
+1"""
+output = "[1]"

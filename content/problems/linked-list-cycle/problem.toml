@@ -1,0 +1,38 @@
+id = 141
+title = "Linked List Cycle"
+difficulty = "Easy"
+topics = ["Hash Table", "Linked List", "Two Pointers"]
+time_limit_ms = 1000
+hints = [
+  "If the list has no cycle, walking it eventually reaches None. What happens to the walk when there is a cycle?",
+  "Remembering every node you have visited (by identity, not by value) detects the first repeat, at the cost of O(n) memory.",
+  "For O(1) memory, move two pointers at different speeds. If there is a loop, can the faster one avoid catching the slower one?",
+]
+
+[signature]
+kind = "function"
+name = "hasCycle"
+special = "list_cycle"
+params = [{ name = "head", type = "ListNode" }, { name = "pos", type = "int", hidden = true }]
+returns = "bool"
+
+[[examples]]
+input = """
+[3,2,0,-4]
+1"""
+output = "true"
+explanation = "The last node (-4) links back to the node at index 1 (value 2), so the walk loops forever."
+
+[[examples]]
+input = """
+[1,2]
+0"""
+output = "true"
+explanation = "The second node links back to the first one."
+
+[[examples]]
+input = """
+[1]
+-1"""
+output = "false"
+explanation = "The single node's next pointer is None, so there is no loop."

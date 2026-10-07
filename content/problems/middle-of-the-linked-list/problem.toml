@@ -1,0 +1,26 @@
+id = 876
+title = "Middle of the Linked List"
+difficulty = "Easy"
+topics = ["Linked List", "Two Pointers"]
+time_limit_ms = 1000
+hints = [
+  "If you knew how many nodes the list has, how many steps from the head would the middle be?",
+  "Can you find the middle in a single pass? Try two pointers that move at different speeds.",
+  "When the faster pointer (two steps at a time) can no longer move, where is the slower one? Check both odd and even lengths.",
+]
+
+[signature]
+kind = "function"
+name = "middleNode"
+params = [{ name = "head", type = "ListNode" }]
+returns = "ListNode"
+
+[[examples]]
+input = "[1,2,3,4,5]"
+output = "[3,4,5]"
+explanation = "The list has five nodes; the third one (value 3) is the middle, and the list read from it is [3,4,5]."
+
+[[examples]]
+input = "[1,2,3,4,5,6]"
+output = "[4,5,6]"
+explanation = "With six nodes there are two middle nodes, 3 and 4. The second one is returned."

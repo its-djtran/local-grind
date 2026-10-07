@@ -1,0 +1,28 @@
+id = 232
+title = "Implement Queue using Stacks"
+difficulty = "Easy"
+topics = ["Stack", "Design", "Queue"]
+time_limit_ms = 1000
+hints = [
+  "Pouring all the elements of one stack into another reverses their order. How does that help turn last-in-first-out into first-in-first-out?",
+  "One valid design moves every element across on each push so the oldest element always sits on top. Can you avoid moving elements that often?",
+  "Use an inbox stack for pushes and an outbox stack for pops and peeks. Refill the outbox from the inbox only when the outbox is empty.",
+]
+
+[signature]
+kind = "design"
+class = "MyQueue"
+constructor = []
+methods = [
+  { name = "push", params = [{ name = "x", type = "int" }], returns = "void" },
+  { name = "pop", params = [], returns = "int" },
+  { name = "peek", params = [], returns = "int" },
+  { name = "empty", params = [], returns = "bool" },
+]
+
+[[examples]]
+input = """
+["MyQueue","push","push","peek","pop","empty"]
+[[],[1],[2],[],[],[]]"""
+output = "[null,null,null,1,1,false]"
+explanation = "After pushing 1 and then 2, the front of the queue is 1, so peek returns 1 and pop removes and returns it. The queue still holds 2, so empty returns false."

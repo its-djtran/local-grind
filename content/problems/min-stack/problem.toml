@@ -1,0 +1,28 @@
+id = 155
+title = "Min Stack"
+difficulty = "Medium"
+topics = ["Stack", "Design"]
+time_limit_ms = 1000
+hints = [
+  "Scanning the whole stack on every getMin is O(n). What information could you record at push time so the minimum is always at hand?",
+  "The minimum only changes when you push a smaller value or pop the current minimum. After a pop, you need the minimum of what remains, which was known when that element was pushed.",
+  "Store, alongside each element, the minimum of the stack from the bottom up to and including that element.",
+]
+
+[signature]
+kind = "design"
+class = "MinStack"
+constructor = []
+methods = [
+  { name = "push", params = [{ name = "val", type = "int" }], returns = "void" },
+  { name = "pop", params = [], returns = "void" },
+  { name = "top", params = [], returns = "int" },
+  { name = "getMin", params = [], returns = "int" },
+]
+
+[[examples]]
+input = """
+["MinStack","push","push","push","getMin","pop","top","getMin"]
+[[],[-2],[0],[-3],[],[],[],[]]"""
+output = "[null,null,null,null,-3,null,0,-2]"
+explanation = "After pushing -2, 0 and -3, the minimum is -3. Popping removes -3, leaving 0 on top and -2 as the new minimum."

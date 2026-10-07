@@ -1,0 +1,34 @@
+id = 21
+title = "Merge Two Sorted Lists"
+difficulty = "Easy"
+topics = ["Linked List", "Recursion"]
+time_limit_ms = 1000
+hints = [
+  "The first node of the merged list is whichever head is smaller. What remains to be done after you pick it?",
+  "A dummy node in front of the result removes the special case of choosing the very first node.",
+  "When one list runs out, the rest of the other list is already sorted and can be attached in one step.",
+]
+
+[signature]
+kind = "function"
+name = "mergeTwoLists"
+params = [{ name = "list1", type = "ListNode" }, { name = "list2", type = "ListNode" }]
+returns = "ListNode"
+
+[[examples]]
+input = """
+[1,2,4]
+[1,3,4]"""
+output = "[1,1,2,3,4,4]"
+
+[[examples]]
+input = """
+[]
+[]"""
+output = "[]"
+
+[[examples]]
+input = """
+[]
+[0]"""
+output = "[0]"
