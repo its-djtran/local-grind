@@ -1,0 +1,44 @@
+id = 236
+title = "Lowest Common Ancestor of a Binary Tree"
+difficulty = "Medium"
+topics = ["Tree", "Depth-First Search", "Binary Tree"]
+time_limit_ms = 2000
+hints = [
+  "Unlike in a binary search tree, values tell you nothing about where p and q are. Each subtree has to be searched.",
+  "Let a recursive call report whether it found p or q in its subtree. What should a node conclude when both its left and right calls report a find?",
+  "If the current node is p or q, return it immediately: whatever lies below it, the node itself is either the answer or the evidence its ancestors need.",
+]
+
+[signature]
+kind = "function"
+name = "lowestCommonAncestor"
+returns = "TreeNode"
+output_mode = "node_val"
+params = [
+  { name = "root", type = "TreeNode" },
+  { name = "p", type = "TreeNode", ref_of = "root" },
+  { name = "q", type = "TreeNode", ref_of = "root" },
+]
+
+[[examples]]
+input = """
+[3,5,1,6,2,0,8,null,null,7,4]
+5
+1"""
+output = "3"
+explanation = "5 is in the left subtree of the root and 1 is in its right subtree, so the root 3 is their lowest common ancestor."
+
+[[examples]]
+input = """
+[3,5,1,6,2,0,8,null,null,7,4]
+5
+4"""
+output = "5"
+explanation = "4 sits below 5, and every node counts as its own descendant, so 5 is the answer."
+
+[[examples]]
+input = """
+[1,2]
+1
+2"""
+output = "1"

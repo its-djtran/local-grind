@@ -1,0 +1,26 @@
+id = 211
+title = "Design Add and Search Words Data Structure"
+difficulty = "Medium"
+topics = ["String", "Depth-First Search", "Design", "Trie"]
+time_limit_ms = 2000
+hints = [
+  "Comparing a query against every stored word is too slow once there are thousands of both. Store the words in a trie so each query only follows matching paths.",
+  "A letter in the query selects exactly one child. A `.` has to try every child of the current node.",
+  "Search with a recursive helper (or a set of current nodes) that advances one character at a time, and only report a match if a word actually ends at the final node.",
+]
+
+[signature]
+kind = "design"
+class = "WordDictionary"
+constructor = []
+methods = [
+  { name = "addWord", params = [{ name = "word", type = "string" }], returns = "void" },
+  { name = "search", params = [{ name = "word", type = "string" }], returns = "bool" },
+]
+
+[[examples]]
+input = """
+["WordDictionary","addWord","addWord","addWord","search","search","search","search"]
+[[],["bad"],["dad"],["mad"],["pad"],["bad"],[".ad"],["b.."]]"""
+output = "[null,null,null,null,false,true,true,true]"
+explanation = "\"pad\" was never added. \"bad\" was. \".ad\" matches \"bad\", \"dad\" and \"mad\", and \"b..\" matches \"bad\"."

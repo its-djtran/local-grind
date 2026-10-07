@@ -1,0 +1,44 @@
+id = 235
+title = "Lowest Common Ancestor of a Binary Search Tree"
+difficulty = "Medium"
+topics = ["Tree", "Depth-First Search", "Binary Search Tree", "Binary Tree"]
+time_limit_ms = 2000
+hints = [
+  "Compare p and q with the root's value. If both are smaller, where must their lowest common ancestor be? What if both are larger?",
+  "The first node whose value lies between p and q (inclusive) is the place where their paths from the root split apart.",
+  "You only ever move down one path, so a simple loop with no recursion and no extra memory is enough.",
+]
+
+[signature]
+kind = "function"
+name = "lowestCommonAncestor"
+returns = "TreeNode"
+output_mode = "node_val"
+params = [
+  { name = "root", type = "TreeNode" },
+  { name = "p", type = "TreeNode", ref_of = "root" },
+  { name = "q", type = "TreeNode", ref_of = "root" },
+]
+
+[[examples]]
+input = """
+[6,2,8,0,4,7,9,null,null,3,5]
+2
+8"""
+output = "6"
+explanation = "2 is in the root's left subtree and 8 is in its right subtree, so the root 6 is the deepest node above both."
+
+[[examples]]
+input = """
+[6,2,8,0,4,7,9,null,null,3,5]
+2
+4"""
+output = "2"
+explanation = "4 lies inside the subtree rooted at 2, and a node counts as its own descendant, so the answer is 2."
+
+[[examples]]
+input = """
+[2,1]
+2
+1"""
+output = "2"

@@ -1,0 +1,38 @@
+id = 39
+title = "Combination Sum"
+difficulty = "Medium"
+topics = ["Array", "Backtracking"]
+time_limit_ms = 2000
+hints = [
+  "Build combinations one number at a time with backtracking, tracking how much of the target remains.",
+  "To avoid producing the same multiset in different orders, only allow choosing candidates at or after the index of the last one chosen. Staying at the same index is what allows reuse.",
+  "Sort the candidates first: once a candidate exceeds the remaining target, every later one does too, so you can stop the loop early.",
+]
+
+[signature]
+kind = "function"
+name = "combinationSum"
+params = [{ name = "candidates", type = "int[]" }, { name = "target", type = "int" }]
+returns = "int[][]"
+
+[judge]
+mode = "unordered_nested"
+
+[[examples]]
+input = """
+[2,3,6,7]
+7"""
+output = "[[2,2,3],[7]]"
+explanation = "2 + 2 + 3 = 7, using 2 twice, and 7 on its own also works. No other combination reaches 7."
+
+[[examples]]
+input = """
+[2,3,5]
+8"""
+output = "[[2,2,2,2],[2,3,3],[3,5]]"
+
+[[examples]]
+input = """
+[2]
+1"""
+output = "[]"

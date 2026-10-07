@@ -1,0 +1,31 @@
+id = 17
+title = "Letter Combinations of a Phone Number"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Backtracking"]
+time_limit_ms = 2000
+hints = [
+  "Store the keypad as a map from each digit to its letters.",
+  "Choose one letter for the first digit, then one for the second, and so on: a recursive function that fills one position per call explores every choice.",
+  "Iteratively, start from a list containing the empty string and, for each digit, extend every string in the list with each of that digit's letters. Watch out for empty input.",
+]
+
+[signature]
+kind = "function"
+name = "letterCombinations"
+params = [{ name = "digits", type = "string" }]
+returns = "string[]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = "\"23\""
+output = "[\"ad\",\"ae\",\"af\",\"bd\",\"be\",\"bf\",\"cd\",\"ce\",\"cf\"]"
+
+[[examples]]
+input = "\"\""
+output = "[]"
+
+[[examples]]
+input = "\"2\""
+output = "[\"a\",\"b\",\"c\"]"

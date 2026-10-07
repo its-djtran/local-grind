@@ -1,0 +1,33 @@
+id = 199
+title = "Binary Tree Right Side View"
+difficulty = "Medium"
+topics = ["Tree", "Depth-First Search", "Breadth-First Search", "Binary Tree"]
+time_limit_ms = 2000
+hints = [
+  "Following right pointers from the root is not enough: a deep left subtree can stick out below a short right one.",
+  "Exactly one node is visible per depth. Process the tree level by level and keep the last node of each level.",
+  "A depth-first search that visits right children before left ones sees each depth for the first time at the visible node.",
+]
+
+[signature]
+kind = "function"
+name = "rightSideView"
+params = [{ name = "root", type = "TreeNode" }]
+returns = "int[]"
+
+[[examples]]
+input = "[1,2,3,null,5,null,4]"
+output = "[1,3,4]"
+
+[[examples]]
+input = "[1,2,3,4,null,null,null,5]"
+output = "[1,3,4,5]"
+explanation = "The left branch is deeper than the right one, so the nodes 4 and 5 are visible below 3."
+
+[[examples]]
+input = "[1,null,3]"
+output = "[1,3]"
+
+[[examples]]
+input = "[]"
+output = "[]"

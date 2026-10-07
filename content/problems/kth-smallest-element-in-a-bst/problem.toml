@@ -1,0 +1,29 @@
+id = 230
+title = "Kth Smallest Element in a BST"
+difficulty = "Medium"
+topics = ["Tree", "Depth-First Search", "Binary Search Tree", "Binary Tree"]
+time_limit_ms = 2000
+hints = [
+  "Which traversal order visits the values of a binary search tree from smallest to largest?",
+  "An in-order traversal yields sorted values, so the answer is the k-th node it visits. You can stop as soon as you reach it.",
+  "With an explicit stack you only ever descend along left spines, so the work is proportional to the tree height plus k.",
+  "For the follow-up, consider storing in every node the size of its left subtree so each query can walk a single root-to-node path.",
+]
+
+[signature]
+kind = "function"
+name = "kthSmallest"
+params = [{ name = "root", type = "TreeNode" }, { name = "k", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+[3,1,4,null,2]
+1"""
+output = "1"
+
+[[examples]]
+input = """
+[5,3,6,2,4,null,null,1]
+3"""
+output = "3"

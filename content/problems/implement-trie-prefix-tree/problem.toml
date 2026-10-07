@@ -1,0 +1,27 @@
+id = 208
+title = "Implement Trie (Prefix Tree)"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Design", "Trie"]
+time_limit_ms = 2000
+hints = [
+  "Scanning every stored word for each prefix query is too slow when there are many words. Can words with a common beginning share storage?",
+  "Build a tree in which each edge is labelled with a letter, so every path from the root spells a prefix. Each node needs a map (or 26-slot array) from letter to child.",
+  "`search` and `startsWith` walk the same path. The only difference is that `search` also needs to know whether a word ends exactly at the final node, so store an end-of-word flag.",
+]
+
+[signature]
+kind = "design"
+class = "Trie"
+constructor = []
+methods = [
+  { name = "insert", params = [{ name = "word", type = "string" }], returns = "void" },
+  { name = "search", params = [{ name = "word", type = "string" }], returns = "bool" },
+  { name = "startsWith", params = [{ name = "prefix", type = "string" }], returns = "bool" },
+]
+
+[[examples]]
+input = """
+["Trie","insert","search","search","startsWith","insert","search"]
+[[],["apple"],["apple"],["app"],["app"],["app"],["app"]]"""
+output = "[null,null,true,false,true,null,true]"
+explanation = "After inserting \"apple\", searching \"apple\" succeeds but \"app\" is only a prefix, so search(\"app\") is false while startsWith(\"app\") is true. Once \"app\" itself is inserted, search(\"app\") becomes true."
