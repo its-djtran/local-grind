@@ -7,6 +7,11 @@
   import { onMount } from "svelte";
 
   let draft = $state<Settings>(structuredClone($state.snapshot(app.settings!)));
+  // Follow changes made elsewhere (the top-bar theme toggle, imports) so a later save here
+  // cannot write stale values back.
+  $effect(() => {
+    draft = structuredClone($state.snapshot(app.settings!));
+  });
   let applySettingsOnImport = $state(false);
   let message = $state<string | null>(null);
   let toolchains = $state<ToolchainStatus[] | null>(null);
@@ -48,8 +53,12 @@
   }
 
   async function revertBenchmarks() {
-    await api.clearLocalBenchmarks();
-    calibrationMessage = "Using the bundled benchmarks again.";
+    try {
+      await api.clearLocalBenchmarks();
+      calibrationMessage = "Using the bundled benchmarks again.";
+    } catch (e) {
+      calibrationMessage = errorMessage(e);
+    }
     await loadCalibration();
   }
 
@@ -59,9 +68,11 @@
   });
 
   async function commit() {
+    const pathsChanged = JSON.stringify(draft.eval.toolchain_paths) !== JSON.stringify(app.settings!.eval.toolchain_paths);
     await app.saveSettings($state.snapshot(draft));
+    // Shows the saved (normalised) values, or the previous ones if saving failed.
     draft = structuredClone($state.snapshot(app.settings!));
-    await probe();
+    if (pathsChanged) await probe();
   }
 
   async function exportData() {
@@ -82,7 +93,6 @@
       const s = await api.importHistory(path, applySettingsOnImport);
       message = `Imported ${s.submissions_added} submissions and ${s.solves_added} solves (${s.submissions_skipped + s.solves_skipped} duplicates skipped).`;
       await app.load();
-      draft = structuredClone($state.snapshot(app.settings!));
     } catch (e) {
       message = `Import failed: ${errorMessage(e)}`;
     }
@@ -94,9 +104,13 @@
       kind: "warning",
     });
     if (!ok) return;
-    await api.clearHistory();
-    await app.load();
-    message = "History cleared.";
+    try {
+      await api.clearHistory();
+      await app.load();
+      message = "History cleared.";
+    } catch (e) {
+      message = errorMessage(e);
+    }
   }
 </script>
 

@@ -7,15 +7,23 @@
   import StatsPage from "./components/StatsPage.svelte";
   import SettingsPage from "./components/SettingsPage.svelte";
   import ShortcutsHelp from "./components/ShortcutsHelp.svelte";
-  import { dispatchShortcut, matchShortcut } from "./lib/shortcuts";
+  import { dispatchShortcut, matchShortcut, type Scope } from "./lib/shortcuts";
 
   let showShortcuts = $state(false);
+
+  const PAGE_SCOPE: Partial<Record<string, Scope>> = { problems: "Problem list", problem: "Problem" };
 
   function onKeydown(e: KeyboardEvent) {
     // The editor handles its own run/submit bindings; don't act on them twice.
     if (e.defaultPrevented) return;
-    const action = matchShortcut(e);
+    if (showShortcuts && e.key === "Escape") {
+      showShortcuts = false;
+      return;
+    }
+    const action = matchShortcut(e, PAGE_SCOPE[router.route.name] ?? null);
     if (!action) return;
+    // The help overlay is modal: only `?` (to close it) acts while it is open.
+    if (showShortcuts && action !== "help") return;
     e.preventDefault();
     if (action === "help") showShortcuts = !showShortcuts;
     else if (action === "goProblems") router.go({ name: "problems" });

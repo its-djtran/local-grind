@@ -38,11 +38,15 @@ class AppState {
   }
 
   async saveSettings(next: Settings): Promise<void> {
+    const paths = JSON.stringify(this.settings?.eval.toolchain_paths ?? {});
     try {
       const saved = await api.saveSettings(next);
       this.settings = saved;
       applyAppearance(saved);
-      if (this.boot) this.boot.languages = (await api.bootstrap()).languages;
+      // Only toolchain paths change which languages can run.
+      if (this.boot && JSON.stringify(saved.eval.toolchain_paths) !== paths) {
+        this.boot.languages = (await api.bootstrap()).languages;
+      }
     } catch (e) {
       this.notify(errorMessage(e));
     }

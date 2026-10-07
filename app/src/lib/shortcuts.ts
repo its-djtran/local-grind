@@ -14,18 +14,19 @@ export type Action =
   | "rowUp"
   | "random";
 
+export type Scope = "Global" | "Problem list" | "Problem";
+
 export interface Shortcut {
   action: Action;
   keys: string;
   description: string;
   /** Requires Cmd (macOS) or Ctrl. */
   mod?: boolean;
-  shift?: boolean;
   /** `KeyboardEvent.key` values that trigger it. */
   key: string[];
   /** Fires even while typing in an input or the editor (only for modifier shortcuts). */
   whileTyping?: boolean;
-  scope: "Global" | "Problem list" | "Problem";
+  scope: Scope;
 }
 
 export const SHORTCUTS: Shortcut[] = [
@@ -52,14 +53,19 @@ export function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-/** Resolves a keydown to an action, honouring modifiers and whether the user is typing. */
-export function matchShortcut(e: KeyboardEvent): Action | null {
+/**
+ * Resolves a keydown to an action, honouring modifiers, whether the user is typing, and the
+ * current page: only global shortcuts and those of `page` match, so keys such as the arrows keep
+ * their default behaviour (scrolling) elsewhere.
+ */
+export function matchShortcut(e: KeyboardEvent, page: Scope | null): Action | null {
   const mod = e.metaKey || e.ctrlKey;
   const typing = isTyping(e.target);
-  // ⌘⇧] / ⌘⇧[ navigate problems from anywhere, including the editor.
-  if (mod && e.shiftKey && (e.key === "]" || e.key === "}")) return "nextProblem";
-  if (mod && e.shiftKey && (e.key === "[" || e.key === "{")) return "prevProblem";
+  // ⌘⇧] / ⌘⇧[ navigate problems from anywhere in the workspace, including the editor.
+  if (page === "Problem" && mod && e.shiftKey && (e.key === "]" || e.key === "}")) return "nextProblem";
+  if (page === "Problem" && mod && e.shiftKey && (e.key === "[" || e.key === "{")) return "prevProblem";
   for (const s of SHORTCUTS) {
+    if (s.scope !== "Global" && s.scope !== page) continue;
     if (!s.key.includes(e.key)) continue;
     if (Boolean(s.mod) !== mod) continue;
     if (e.altKey) continue;

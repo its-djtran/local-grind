@@ -3,10 +3,14 @@
 
   let { onClose }: { onClose: () => void } = $props();
   const scopes = ["Global", "Problem list", "Problem"] as const;
+  let dialog: HTMLElement | undefined = $state();
+
+  // Take focus so keys go to the dialog rather than the page behind it.
+  $effect(() => dialog?.focus());
 </script>
 
-<div class="backdrop" onclick={onClose} role="presentation">
-  <div class="dialog card" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.key === "Escape" && onClose()}>
+<div class="backdrop" onclick={(e) => e.target === e.currentTarget && onClose()} role="presentation">
+  <div class="dialog card" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" tabindex="-1" bind:this={dialog}>
     <header>
       <h2>Keyboard shortcuts</h2>
       <button class="ghost" onclick={onClose} aria-label="Close">×</button>

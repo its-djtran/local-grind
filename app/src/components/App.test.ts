@@ -340,6 +340,10 @@ describe("App", () => {
     await fireEvent.keyDown(window, { key: "?" });
     const dialog = await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
     expect(within(dialog).getByText("Search problems")).toBeInTheDocument();
+    expect(document.activeElement).toBe(dialog);
+    // Page shortcuts don't fire behind the modal overlay.
+    await fireEvent.keyDown(window, { key: "/" });
+    expect(document.activeElement).toBe(dialog);
     await fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await fireEvent.click(screen.getByLabelText("Keyboard shortcuts"));
@@ -362,6 +366,8 @@ describe("App", () => {
 
     await fireEvent.keyDown(window, { key: "2", metaKey: true });
     await waitFor(() => expect(router.route).toEqual({ name: "stats" }));
+    // Outside the problem list the arrow keys keep scrolling.
+    expect(await fireEvent.keyDown(window, { key: "ArrowDown" })).toBe(true);
     await fireEvent.keyDown(window, { key: ",", ctrlKey: true });
     await waitFor(() => expect(router.route).toEqual({ name: "settings" }));
     await fireEvent.keyDown(window, { key: "1", metaKey: true });
@@ -395,5 +401,31 @@ describe("App", () => {
     await (await table()).findByText("1. Two Sum");
     await fireEvent.click(screen.getByLabelText("Toggle theme"));
     await waitFor(() => expect(backend.state.settings.theme).toBe("light"));
+  });
+
+  it("keeps the settings page in sync with the top-bar theme toggle", async () => {
+    const backend = installBackend();
+    await boot("#/settings");
+    const theme = (await screen.findByLabelText("Theme")) as HTMLSelectElement;
+    await waitFor(() => expect(theme.value).toBe("dark"));
+    await fireEvent.click(screen.getByLabelText("Toggle theme"));
+    await waitFor(() => expect(theme.value).toBe("light"));
+    // A later edit on the page must not write the old theme back.
+    await fireEvent.change(screen.getByLabelText("Key bindings"), { target: { value: "vim" } });
+    await waitFor(() => expect(backend.state.settings.keymap).toBe("vim"));
+    expect(backend.state.settings.theme).toBe("light");
+  });
+
+  it("reports failures to clear history or revert benchmarks", async () => {
+    installBackend((cmd) => {
+      if (cmd === "clear_history") throw "db locked";
+      if (cmd === "clear_local_benchmarks") throw "db busy";
+    });
+    await boot("#/settings");
+    await fireEvent.click(await screen.findByText("Recalibrate on this machine"));
+    await fireEvent.click(await screen.findByText("Use bundled benchmarks"));
+    expect(await screen.findByText("db busy")).toBeInTheDocument();
+    await fireEvent.click(screen.getByText("Clear history…"));
+    expect(await screen.findByText("db locked")).toBeInTheDocument();
   });
 });

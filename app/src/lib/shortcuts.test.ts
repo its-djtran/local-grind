@@ -9,33 +9,42 @@ function key(k: string, opts: Partial<KeyboardEventInit> = {}, target?: HTMLElem
 
 describe("shortcuts", () => {
   it("matches plain and modified keys", () => {
-    expect(matchShortcut(key("?"))).toBe("help");
-    expect(matchShortcut(key("/"))).toBe("focusSearch");
-    expect(matchShortcut(key("j"))).toBe("rowDown");
-    expect(matchShortcut(key("ArrowUp"))).toBe("rowUp");
-    expect(matchShortcut(key("1", { metaKey: true }))).toBe("goProblems");
-    expect(matchShortcut(key("2", { ctrlKey: true }))).toBe("goStats");
-    expect(matchShortcut(key(",", { metaKey: true }))).toBe("goSettings");
-    expect(matchShortcut(key("Enter", { metaKey: true }))).toBe("submit");
-    expect(matchShortcut(key("]"))).toBe("nextProblem");
-    expect(matchShortcut(key("}", { metaKey: true, shiftKey: true }))).toBe("nextProblem");
-    expect(matchShortcut(key("{", { metaKey: true, shiftKey: true }))).toBe("prevProblem");
-    expect(matchShortcut(key("1"))).toBeNull();
-    expect(matchShortcut(key("j", { altKey: true }))).toBeNull();
-    expect(matchShortcut(key("x"))).toBeNull();
+    expect(matchShortcut(key("?"), null)).toBe("help");
+    expect(matchShortcut(key("/"), "Problem list")).toBe("focusSearch");
+    expect(matchShortcut(key("j"), "Problem list")).toBe("rowDown");
+    expect(matchShortcut(key("ArrowUp"), "Problem list")).toBe("rowUp");
+    expect(matchShortcut(key("1", { metaKey: true }), "Problem")).toBe("goProblems");
+    expect(matchShortcut(key("2", { ctrlKey: true }), null)).toBe("goStats");
+    expect(matchShortcut(key(",", { metaKey: true }), null)).toBe("goSettings");
+    expect(matchShortcut(key("Enter", { metaKey: true }), "Problem")).toBe("submit");
+    expect(matchShortcut(key("]"), "Problem")).toBe("nextProblem");
+    expect(matchShortcut(key("}", { metaKey: true, shiftKey: true }), "Problem")).toBe("nextProblem");
+    expect(matchShortcut(key("{", { metaKey: true, shiftKey: true }), "Problem")).toBe("prevProblem");
+    expect(matchShortcut(key("1"), null)).toBeNull();
+    expect(matchShortcut(key("j", { altKey: true }), "Problem list")).toBeNull();
+    expect(matchShortcut(key("x"), "Problem list")).toBeNull();
+  });
+
+  it("only matches shortcuts of the current page", () => {
+    // Arrow keys scroll normally outside the problem list.
+    expect(matchShortcut(key("ArrowDown"), null)).toBeNull();
+    expect(matchShortcut(key("ArrowDown"), "Problem")).toBeNull();
+    expect(matchShortcut(key("Enter", { metaKey: true }), "Problem list")).toBeNull();
+    expect(matchShortcut(key("}", { metaKey: true, shiftKey: true }), null)).toBeNull();
+    expect(matchShortcut(key("r"), "Problem")).toBeNull();
   });
 
   it("ignores plain keys while typing but keeps modifier shortcuts", () => {
     const input = document.createElement("input");
     expect(isTyping(input)).toBe(true);
-    expect(matchShortcut(key("j", {}, input))).toBeNull();
-    expect(matchShortcut(key("'", { metaKey: true }, input))).toBe("run");
+    expect(matchShortcut(key("j", {}, input), "Problem list")).toBeNull();
+    expect(matchShortcut(key("'", { metaKey: true }, input), "Problem")).toBe("run");
     const editor = document.createElement("div");
     editor.className = "cm-editor";
     const line = document.createElement("div");
     editor.appendChild(line);
     expect(isTyping(line)).toBe(true);
-    expect(matchShortcut(key("]", { metaKey: true, shiftKey: true }, line))).toBe("nextProblem");
+    expect(matchShortcut(key("]", { metaKey: true, shiftKey: true }, line), "Problem")).toBe("nextProblem");
     expect(isTyping(null)).toBe(false);
     expect(isTyping(document.createElement("div"))).toBe(false);
   });
