@@ -106,3 +106,29 @@ export function pickRandom(groups: Group[], rand: () => number = Math.random): P
   const from = pool.length ? pool : all;
   return from.length ? from[Math.floor(rand() * from.length)] : null;
 }
+
+export interface NextUp {
+  listId: string;
+  listName: string;
+  group: string;
+  problem: ProblemListing;
+  remaining: number;
+}
+
+/** The first unsolved problem of each list, in list order (lists with nothing left are skipped). */
+export function nextInLists(problems: ProblemListing[], lists: ProblemList[]): NextUp[] {
+  const byId = new Map(problems.map((p) => [p.id, p]));
+  const out: NextUp[] = [];
+  for (const list of lists) {
+    const open = list.items.filter((i) => byId.get(i.problem_id) && byId.get(i.problem_id)!.status !== "solved");
+    if (!open.length) continue;
+    out.push({
+      listId: list.id,
+      listName: list.name,
+      group: open[0].group,
+      problem: byId.get(open[0].problem_id)!,
+      remaining: open.length,
+    });
+  }
+  return out;
+}

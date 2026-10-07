@@ -2,6 +2,7 @@
   import { app } from "../lib/state.svelte";
   import { router } from "../lib/router.svelte";
   import { countByStatus, emptyFilters, filterProblems, pickRandom, type Filters } from "../lib/filter";
+  import PracticeNext from "./PracticeNext.svelte";
 
   const boot = $derived(app.boot!);
   let filters = $state<Filters>(loadFilters());
@@ -48,6 +49,8 @@
       </button>
     {/each}
   </section>
+
+  <PracticeNext problems={boot.problems} lists={boot.lists} />
 
   <section class="filters">
     <input class="search" type="search" placeholder="Search by title, number or topic" bind:value={filters.query} aria-label="Search problems" />

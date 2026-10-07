@@ -195,6 +195,12 @@ export function createBackend(): Backend {
       })),
       lists: [{ id: "blind75", name: "Blind 75", solved: solvedIds.has(1) ? 1 : 0, total: 4 }],
       heatmap: [...heat.entries()].map(([date, v]) => ({ date, ...v })),
+      weekly: Array.from({ length: 26 }, (_, i) => {
+        const d = new Date(2026, 3, 6 + i * 7);
+        const week_start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const has = done.length > 0 && i % 3 !== 1;
+        return { week_start, solves: has ? 2 : 0, avg_ms: has ? 600_000 + i * 20_000 : null, error_rate: has ? 30 - i : null };
+      }),
       // One entry per problem (latest solve), as the real metrics engine aggregates by slug.
       review: [...new Map(done.map((s) => [s.slug, s])).values()].map((s) => ({
         slug: s.slug,

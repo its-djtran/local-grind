@@ -271,6 +271,13 @@ export interface Totals {
   longest_streak: number;
 }
 
+export interface WeekPoint {
+  week_start: string;
+  solves: number;
+  avg_ms: number | null;
+  error_rate: number | null;
+}
+
 export interface Stats {
   totals: Totals;
   recent_n: number;
@@ -280,6 +287,7 @@ export interface Stats {
   topics: TopicStats[];
   lists: ListProgress[];
   heatmap: DayCount[];
+  weekly: WeekPoint[];
   review: ReviewItem[];
 }
 

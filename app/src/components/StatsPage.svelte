@@ -5,6 +5,7 @@
   import { hasData, severity, sortReview, trend, type ReviewSort } from "../lib/review";
   import type { Stats } from "../lib/types";
   import Heatmap from "./Heatmap.svelte";
+  import TrendChart from "./TrendChart.svelte";
 
   let stats = $state<Stats | null>(null);
   let error = $state<string | null>(null);
@@ -57,6 +58,24 @@
     </section>
 
     <section class="card"><Heatmap days={stats.heatmap} /></section>
+
+    <section class="two">
+      <div class="card">
+        <TrendChart
+          title="Average solve time"
+          points={stats.weekly.map((w) => ({ label: w.week_start, value: w.avg_ms === null ? null : w.avg_ms / 60000 }))}
+          format={(minutes) => formatDuration(minutes * 60000)}
+          tickFormat={(minutes) => `${minutes}m`}
+        />
+      </div>
+      <div class="card">
+        <TrendChart
+          title="Error rate"
+          points={stats.weekly.map((w) => ({ label: w.week_start, value: w.error_rate }))}
+          format={(v) => percent(v)}
+        />
+      </div>
+    </section>
 
     <section class="card">
       <h2>By difficulty</h2>

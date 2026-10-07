@@ -128,9 +128,12 @@ Pulled forward while building M1 (done):
 - [x] Stats page
 
 Remaining:
-- [ ] Trends over time (solve time and error rate per week)
-- [ ] "Practice next" suggestions on the problem list (review-due and unsolved-in-list)
-- [ ] Performance check: stats over 10k synthetic solves stays fast
+- [x] Trends over time: 26 weeks of average solve time and error rate as separate line charts
+      (crosshair + keyboard readout + table view; gaps for weeks without solves)
+- [x] "Practice next" on the problem list: next unsolved problem per list and the top
+      review-due problems
+- [x] Performance: stats over 20k submissions / 10k solves in ~13 ms (release), pinned by
+      `tests/stats_perf.rs`; statistics read a lightweight activity view
 
 ### M6 — Portability & polish
 - [x] Export / import complete user history (JSON)

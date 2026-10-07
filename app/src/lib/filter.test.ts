@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countByStatus, emptyFilters, filterProblems, matchesQuery, pickRandom } from "./filter";
+import { countByStatus, emptyFilters, filterProblems, matchesQuery, nextInLists, pickRandom } from "./filter";
 import type { CompanyEntry, ProblemList, ProblemListing } from "./types";
 
 const problems: ProblemListing[] = [
@@ -75,5 +75,16 @@ describe("filterProblems", () => {
     expect(pickRandom(solvedOnly, () => 0.5)?.id).toBe(1);
     expect(pickRandom([], () => 0)).toBeNull();
     expect(pickRandom(groups)).not.toBeNull();
+  });
+});
+
+describe("nextInLists", () => {
+  it("finds the first unsolved item per list", () => {
+    const next = nextInLists(problems, lists);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ listId: "blind75", group: "Linked List", remaining: 2 });
+    expect(next[0].problem.id).toBe(206);
+    const allSolved = problems.map((p) => ({ ...p, status: "solved" as const }));
+    expect(nextInLists(allSolved, lists)).toEqual([]);
   });
 });

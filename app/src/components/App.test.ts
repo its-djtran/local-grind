@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
+
+const table = async () => within(await screen.findByRole("table", { name: "Problems" }));
 import App from "../App.svelte";
 import { installBackend } from "../test/backend";
 import { router } from "../lib/router.svelte";
@@ -19,13 +21,13 @@ describe("App", () => {
   it("shows the problem list and filters it", async () => {
     installBackend();
     await boot();
-    await screen.findByText("1. Two Sum");
+    await (await table()).findByText("1. Two Sum");
     const search = screen.getByLabelText("Search problems");
     await fireEvent.input(search, { target: { value: "trap" } });
-    await waitFor(() => expect(screen.queryByText("1. Two Sum")).not.toBeInTheDocument());
-    expect(screen.getByText("42. Trapping Rain Water")).toBeInTheDocument();
+    await waitFor(async () => expect((await table()).queryByText("1. Two Sum")).not.toBeInTheDocument());
+    expect((await table()).getByText("42. Trapping Rain Water")).toBeInTheDocument();
     await fireEvent.click(screen.getByText("Reset"));
-    await screen.findByText("1. Two Sum");
+    await (await table()).findByText("1. Two Sum");
 
     await fireEvent.click(screen.getByText("Blind 75"));
     expect(await screen.findByText("Linked List", { selector: "h3" })).toBeInTheDocument();
@@ -38,19 +40,39 @@ describe("App", () => {
     await waitFor(() => expect(router.route.name).toBe("problem"));
   });
 
+  it("suggests what to practice next", async () => {
+    installBackend();
+    const { api } = await import("../lib/api");
+    await api.submit(1, "python", "return 1", 90_000);
+    await boot();
+    const practice = await screen.findByRole("region", { name: "Practice next" });
+    expect(within(practice).getByText("Next in Blind 75 · Array", { exact: false })).toBeInTheDocument();
+    expect(await within(practice).findByText(/Due for review/)).toBeInTheDocument();
+    expect(within(practice).getByText("clean solve, just due for a refresh")).toBeInTheDocument();
+  });
+
+  it("still suggests list progress when stats fail", async () => {
+    installBackend((cmd) => {
+      if (cmd === "get_stats") throw "nope";
+    });
+    await boot();
+    const practice = await screen.findByRole("region", { name: "Practice next" });
+    expect(within(practice).queryByText(/Due for review/)).not.toBeInTheDocument();
+  });
+
   it("restores filters from the session and tolerates corrupt state", async () => {
     installBackend();
     sessionStorage.setItem("lg-filters", JSON.stringify({ query: "valid" }));
     await boot();
-    await screen.findByText("20. Valid Parentheses");
-    expect(screen.queryByText("1. Two Sum")).not.toBeInTheDocument();
+    await (await table()).findByText("20. Valid Parentheses");
+    expect((await table()).queryByText("1. Two Sum")).not.toBeInTheDocument();
   });
 
   it("falls back to empty filters when session state is corrupt", async () => {
     installBackend();
     sessionStorage.setItem("lg-filters", "{nope");
     await boot();
-    await screen.findByText("1. Two Sum");
+    await (await table()).findByText("1. Two Sum");
   });
 
   it("shows a retry screen when the backend fails", async () => {
@@ -62,7 +84,7 @@ describe("App", () => {
     await screen.findByText("problems.db not found");
     fail = false;
     await fireEvent.click(screen.getByText("Retry"));
-    await screen.findByText("1. Two Sum");
+    await (await table()).findByText("1. Two Sum");
   });
 
   it("works through a problem: run, submit, history", async () => {
@@ -218,7 +240,7 @@ describe("App", () => {
   it("toggles the theme from the top bar", async () => {
     const backend = installBackend();
     await boot();
-    await screen.findByText("1. Two Sum");
+    await (await table()).findByText("1. Two Sum");
     await fireEvent.click(screen.getByLabelText("Toggle theme"));
     await waitFor(() => expect(backend.state.settings.theme).toBe("light"));
   });
