@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Read};
 use std::os::unix::process::CommandExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -96,6 +96,55 @@ pub struct RunOptions {
     pub keep_all_cases: bool,
     /// Run the program at a lower scheduling priority so judging yields to other work.
     pub low_priority: bool,
+    /// Where compiled artifacts are cached, keyed by [`Program::cache_key`].
+    pub cache_dir: Option<PathBuf>,
+}
+
+/// Compiled programs kept in the cache; older entries are pruned.
+pub const CACHE_ENTRIES: usize = 64;
+
+fn cache_lookup(program: &Program, cache_dir: Option<&Path>) -> Option<PathBuf> {
+    if program.artifacts.is_empty() {
+        return None;
+    }
+    cache_dir.map(|d| d.join(program.cache_key()))
+}
+
+fn cache_store(program: &Program, build_dir: &Path, entry: &Path) {
+    let Some(root) = entry.parent() else { return };
+    let staging = root.join(format!(
+        ".staging-{}-{}",
+        std::process::id(),
+        program.cache_key()
+    ));
+    let stored = std::fs::create_dir_all(&staging).is_ok()
+        && program
+            .artifacts
+            .iter()
+            .all(|a| std::fs::copy(build_dir.join(a), staging.join(a)).is_ok())
+        && std::fs::rename(&staging, entry).is_ok();
+    if !stored {
+        let _ = std::fs::remove_dir_all(&staging);
+        return;
+    }
+    prune_cache(root, CACHE_ENTRIES);
+}
+
+/// Keeps the `keep` most recently modified cache entries.
+fn prune_cache(root: &Path, keep: usize) {
+    let Ok(read) = std::fs::read_dir(root) else {
+        return;
+    };
+    let mut entries: Vec<(std::time::SystemTime, PathBuf)> = read
+        .filter_map(|e| e.ok())
+        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+        .collect();
+    entries.sort();
+    let excess = entries.len().saturating_sub(keep);
+    for (_, path) in entries.into_iter().take(excess) {
+        let _ = std::fs::remove_dir_all(path);
+    }
 }
 
 /// Nice value applied to low-priority judge processes.
@@ -362,12 +411,24 @@ pub fn execute(
     };
 
     if let Some(compile) = &program.compile {
-        let timeout = Duration::from_millis(opts.limits.compile_timeout_ms);
-        let (ok, output) = run_to_completion(compile, dir.path(), timeout)?;
-        if !ok {
-            report.verdict = Verdict::CompileError;
-            report.error = Some(output);
-            return Ok(report);
+        let entry = cache_lookup(program, opts.cache_dir.as_deref());
+        let cached = entry.as_ref().is_some_and(|e| {
+            program
+                .artifacts
+                .iter()
+                .all(|a| std::fs::copy(e.join(a), dir.path().join(a)).is_ok())
+        });
+        if !cached {
+            let timeout = Duration::from_millis(opts.limits.compile_timeout_ms);
+            let (ok, output) = run_to_completion(compile, dir.path(), timeout)?;
+            if !ok {
+                report.verdict = Verdict::CompileError;
+                report.error = Some(output);
+                return Ok(report);
+            }
+            if let Some(entry) = &entry {
+                cache_store(program, dir.path(), entry);
+            }
         }
     }
 
@@ -560,6 +621,7 @@ mod tests {
         Program {
             files: vec![("run.sh".into(), script.into())],
             compile: None,
+            artifacts: vec![],
             run: vec!["/bin/sh".into(), "run.sh".into()],
         }
     }
@@ -715,8 +777,12 @@ mod tests {
         let program = Program {
             files: vec![],
             compile: None,
+            artifacts: vec![],
             run: vec![
-                crate::lang::Toolchains::detect().python.to_string_lossy().into_owned(),
+                crate::lang::Toolchains::detect()
+                    .path(crate::lang::Language::Python)
+                    .to_string_lossy()
+                    .into_owned(),
                 "-c".into(),
                 "import time\nblocks = []\nwhile True:\n    blocks.append(bytearray(8 * 1024 * 1024))\n    time.sleep(0.005)\n".into(),
             ],
@@ -794,6 +860,57 @@ mod tests {
         };
         let r = run(&p, &cases(1), opts);
         assert!(r.error.unwrap().contains("timed out"));
+    }
+
+    #[test]
+    fn compile_cache_reuses_artifacts() {
+        let cache = tempfile::tempdir().unwrap();
+        let count = cache.path().join("compiles.txt");
+        let compile_script = format!("echo x >> {}; cp run.sh prog.sh", count.display());
+        let mut p = shell(ECHO_ALL);
+        p.compile = Some(vec!["/bin/sh".into(), "-c".into(), compile_script]);
+        p.run = vec!["/bin/sh".into(), "prog.sh".into()];
+        p.artifacts = vec!["prog.sh".into()];
+        let opts = RunOptions {
+            cache_dir: Some(cache.path().join("entries")),
+            ..Default::default()
+        };
+        for _ in 0..3 {
+            assert_eq!(run(&p, &cases(1), opts.clone()).verdict, Verdict::Accepted);
+        }
+        assert_eq!(std::fs::read_to_string(&count).unwrap().lines().count(), 1);
+        // Different sources compile again.
+        p.files.push(("other.txt".into(), "x".into()));
+        assert_eq!(run(&p, &cases(1), opts.clone()).verdict, Verdict::Accepted);
+        assert_eq!(std::fs::read_to_string(&count).unwrap().lines().count(), 2);
+        // A compile that produces no artifact is not cached and does not break the run.
+        let mut broken = p.clone();
+        broken.artifacts = vec!["missing.bin".into()];
+        broken.run = vec!["/bin/sh".into(), "run.sh".into()];
+        assert_eq!(
+            run(&broken, &cases(1), opts.clone()).verdict,
+            Verdict::Accepted
+        );
+        // Without artifacts nothing is looked up.
+        assert!(cache_lookup(&shell(""), Some(cache.path())).is_none());
+    }
+
+    #[test]
+    fn cache_pruning_keeps_newest() {
+        let dir = tempfile::tempdir().unwrap();
+        for i in 0..5 {
+            std::fs::create_dir(dir.path().join(format!("e{i}"))).unwrap();
+            std::thread::sleep(Duration::from_millis(15));
+        }
+        std::fs::create_dir(dir.path().join(".staging-x")).unwrap();
+        prune_cache(dir.path(), 2);
+        let mut left: Vec<String> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        assert_eq!(left, vec![".staging-x", "e3", "e4"]);
+        prune_cache(&dir.path().join("missing"), 1);
     }
 
     #[test]

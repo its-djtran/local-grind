@@ -179,7 +179,7 @@ fn rejects_bad_examples_and_generators() {
     assert!(err.contains("reference solution failed"), "{err}");
 
     let mut broken = tools();
-    broken.python = PathBuf::from("/nonexistent/python");
+    broken.set(Language::Python, PathBuf::from("/nonexistent/python"));
     let err = build_problem(&load_problem(&p).unwrap(), &broken)
         .err()
         .unwrap();

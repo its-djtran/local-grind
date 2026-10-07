@@ -301,7 +301,7 @@ pub fn example_args(src: &Source) -> Result<Vec<Value>> {
 
 /// Runs `gen.py` and returns its argument arrays.
 pub fn generated_args(src: &Source, tools: &Toolchains) -> Result<Vec<Value>> {
-    let out = Command::new(&tools.python)
+    let out = Command::new(tools.path(Language::Python))
         .arg("gen.py")
         // Pin set/dict iteration order so builds are reproducible.
         .env("PYTHONHASHSEED", "0")
@@ -342,6 +342,7 @@ fn reference_limits() -> RunOptions {
         stop_on_failure: false,
         keep_all_cases: true,
         low_priority: false,
+        cache_dir: None,
     }
 }
 
@@ -603,6 +604,7 @@ pub fn judge_file(src: &Source, code: &str, tools: &Toolchains) -> Result<String
         stop_on_failure: true,
         keep_all_cases: false,
         low_priority: false,
+        cache_dir: None,
     };
     let r = runner::execute(
         &program,

@@ -159,8 +159,9 @@ impl Driver for PythonDriver {
                 ),
             ],
             compile: None,
+            artifacts: vec![],
             run: vec![
-                tools.python.to_string_lossy().into_owned(),
+                tools.path(Language::Python).to_string_lossy().into_owned(),
                 "-X".into(),
                 "utf8".into(),
                 "lg_harness.py".into(),

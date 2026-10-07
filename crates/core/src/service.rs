@@ -95,6 +95,7 @@ pub struct Service {
     lists: Vec<ProblemList>,
     companies: Vec<CompanyEntry>,
     toolchains: Mutex<Toolchains>,
+    cache_dir: Option<PathBuf>,
 }
 
 /// Parses LeetCode-style testcase text (one JSON value per line, one group of lines per case).
@@ -137,8 +138,12 @@ fn limits_for(problem: &Problem, settings: &Settings) -> Limits {
 
 fn toolchains_for(settings: &Settings) -> Toolchains {
     let mut t = Toolchains::detect();
-    if !settings.eval.python_path.trim().is_empty() {
-        t.python = PathBuf::from(settings.eval.python_path.trim());
+    for &l in Language::ALL {
+        if let Some(p) = settings.eval.toolchain_paths.get(l.id()) {
+            if !p.trim().is_empty() {
+                t.set(l, PathBuf::from(p.trim()));
+            }
+        }
     }
     t
 }
@@ -166,7 +171,14 @@ impl Service {
             lists,
             companies,
             toolchains: Mutex::new(toolchains),
+            cache_dir: None,
         })
+    }
+
+    /// Caches compiled programs under `dir` so Run followed by Submit compiles once.
+    pub fn with_cache_dir(mut self, dir: PathBuf) -> Service {
+        self.cache_dir = Some(dir);
+        self
     }
 
     pub fn open(catalog_path: &Path, user_path: &Path) -> Result<Service> {
@@ -215,9 +227,7 @@ impl Service {
         Language::ALL
             .iter()
             .map(|&l| {
-                let exe = match l {
-                    Language::Python => tools.python.clone(),
-                };
+                let exe = tools.path(l);
                 LanguageInfo {
                     id: l,
                     name: l.display_name().into(),
@@ -331,6 +341,7 @@ impl Service {
             stop_on_failure,
             keep_all_cases: !stop_on_failure,
             low_priority: settings.eval.low_priority,
+            cache_dir: self.cache_dir.clone(),
         })
     }
 
@@ -682,7 +693,10 @@ mod tests {
     fn settings_update_toolchains() {
         let svc = service();
         let mut s = svc.settings().unwrap();
-        s.eval.python_path = "/nonexistent/python3".into();
+        s.eval
+            .toolchain_paths
+            .insert("python".into(), "/nonexistent/python3".into());
+        s.eval.toolchain_paths.insert("cobol".into(), "/x".into());
         s.eval.time_limit_multiplier = 2.0;
         let saved = svc.save_settings(&s).unwrap();
         assert_eq!(saved.eval.time_limit_multiplier, 2.0);
@@ -701,7 +715,10 @@ mod tests {
 
     #[test]
     fn toolchain_checks() {
-        let svc = service();
+        let dir = tempfile::tempdir().unwrap();
+        let svc = service().with_cache_dir(dir.path().join("compiled"));
+        let ok = svc.run(1, Language::Python, GOOD, "[3,2,4]\n6").unwrap();
+        assert_eq!(ok.report.verdict, Verdict::Accepted);
         assert!(svc.check_toolchains().iter().all(|t| t.ok));
     }
 

@@ -1,6 +1,7 @@
 //! User preferences, persisted as one JSON document in the user database.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::lang::Language;
 
@@ -32,8 +33,8 @@ pub struct EvalSettings {
     /// Run judged programs at a lower scheduling priority so the rest of the machine stays
     /// responsive (timings may vary more under load).
     pub low_priority: bool,
-    /// Explicit interpreter/compiler paths; empty means auto-detect.
-    pub python_path: String,
+    /// Explicit interpreter/compiler paths by language id; missing or empty means auto-detect.
+    pub toolchain_paths: BTreeMap<String, String>,
 }
 
 impl Default for EvalSettings {
@@ -45,7 +46,7 @@ impl Default for EvalSettings {
                 .map(|n| (n.get() / 2).max(1))
                 .unwrap_or(1),
             low_priority: false,
-            python_path: String::new(),
+            toolchain_paths: BTreeMap::new(),
         }
     }
 }

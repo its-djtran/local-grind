@@ -151,6 +151,8 @@ describe("App", () => {
     await waitFor(() => expect(backend.state.settings.theme).toBe("light"));
     await fireEvent.change(screen.getByLabelText("Key bindings"), { target: { value: "vim" } });
     await waitFor(() => expect(backend.state.settings.keymap).toBe("vim"));
+    await fireEvent.change(screen.getByLabelText("Python3 toolchain path"), { target: { value: "/opt/py" } });
+    await waitFor(() => expect(backend.state.settings.eval.toolchain_paths.python).toBe("/opt/py"));
     await fireEvent.click(screen.getByLabelText("Low priority judging"));
     await waitFor(() => expect(backend.state.settings.eval.low_priority).toBe(true));
 

@@ -12,6 +12,7 @@
 //! Anything else on stdout is user output and is attributed to the test that follows it.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -49,6 +50,26 @@ impl Language {
             Language::Python => &python::PythonDriver,
         }
     }
+
+    /// Executable looked up on the search path when no explicit path is configured.
+    pub fn executable_name(self) -> &'static str {
+        match self {
+            Language::Python => "python3",
+        }
+    }
+
+    /// Oldest toolchain version the harness supports.
+    pub fn min_version(self) -> (u32, u32) {
+        match self {
+            Language::Python => (3, 8),
+        }
+    }
+
+    pub fn install_hint(self) -> &'static str {
+        match self {
+            Language::Python => "Install Python 3 (for example `brew install python`)",
+        }
+    }
 }
 
 impl fmt::Display for Language {
@@ -75,6 +96,8 @@ pub struct Program {
     pub files: Vec<(String, String)>,
     pub compile: Option<Vec<String>>,
     pub run: Vec<String>,
+    /// Files produced by `compile` that can be cached and reused for identical sources.
+    pub artifacts: Vec<String>,
 }
 
 impl Program {
@@ -84,24 +107,37 @@ impl Program {
         }
         Ok(())
     }
-}
 
-/// Resolved executables for each language's toolchain.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Toolchains {
-    pub python: PathBuf,
-}
-
-impl Default for Toolchains {
-    fn default() -> Self {
-        Toolchains {
-            python: PathBuf::from("python3"),
+    /// Stable key over everything that determines the compiled artifacts (FNV-1a, 64-bit).
+    pub fn cache_key(&self) -> String {
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        let mut eat = |bytes: &[u8]| {
+            for b in bytes {
+                h ^= u64::from(*b);
+                h = h.wrapping_mul(0x0100_0000_01b3);
+            }
+            h ^= 0xff;
+            h = h.wrapping_mul(0x0100_0000_01b3);
+        };
+        for (name, contents) in &self.files {
+            eat(name.as_bytes());
+            eat(contents.as_bytes());
         }
+        for part in self.compile.iter().flatten() {
+            eat(part.as_bytes());
+        }
+        format!("{h:016x}")
     }
 }
 
+/// Resolved executables for each language's toolchain.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Toolchains {
+    paths: BTreeMap<Language, PathBuf>,
+}
+
 /// Directories searched for toolchains in addition to `$PATH`. Apps launched from Finder get a
-/// minimal `PATH`, so Homebrew and other common prefixes are probed explicitly.
+/// minimal `PATH`, so Homebrew, rustup and other common prefixes are probed explicitly.
 pub const EXTRA_SEARCH_DIRS: &[&str] = &[
     "/opt/homebrew/bin",
     "/usr/local/bin",
@@ -109,25 +145,48 @@ pub const EXTRA_SEARCH_DIRS: &[&str] = &[
     "/opt/local/bin",
 ];
 
-/// Finds `name` on `path_var` (a `PATH`-style list) or in [`EXTRA_SEARCH_DIRS`].
+/// Finds `name` on `path_var` (a `PATH`-style list), in `~/.cargo/bin`, or in
+/// [`EXTRA_SEARCH_DIRS`].
 pub fn find_executable(name: &str, path_var: Option<&str>) -> Option<PathBuf> {
     let dirs = path_var
         .map(|p| std::env::split_paths(p).collect::<Vec<_>>())
         .unwrap_or_default();
+    let cargo = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cargo/bin"));
     dirs.into_iter()
+        .chain(cargo)
         .chain(EXTRA_SEARCH_DIRS.iter().map(PathBuf::from))
         .map(|d| d.join(name))
         .find(|p| p.is_file())
 }
 
 impl Toolchains {
-    /// Detects toolchains from the environment, falling back to bare command names.
+    /// Detects every toolchain from the environment.
     pub fn detect() -> Toolchains {
         let path = std::env::var("PATH").ok();
-        Toolchains {
-            python: find_executable("python3", path.as_deref())
-                .unwrap_or_else(|| PathBuf::from("python3")),
+        let mut t = Toolchains::default();
+        for &l in Language::ALL {
+            if let Some(p) = find_executable(l.executable_name(), path.as_deref()) {
+                t.set(l, p);
+            }
         }
+        t
+    }
+
+    /// The executable for `language`: configured, detected, or the bare command name.
+    pub fn path(&self, language: Language) -> PathBuf {
+        self.paths
+            .get(&language)
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from(language.executable_name()))
+    }
+
+    pub fn set(&mut self, language: Language, path: PathBuf) {
+        self.paths.insert(language, path);
+    }
+
+    pub fn with(mut self, language: Language, path: impl Into<PathBuf>) -> Toolchains {
+        self.set(language, path.into());
+        self
     }
 }
 
@@ -142,29 +201,37 @@ pub struct ToolchainStatus {
     pub message: Option<String>,
 }
 
-/// Oldest Python the harness supports.
-pub const MIN_PYTHON: (u32, u32) = (3, 8);
-
-/// Parses `Python 3.12.1` (or `3.12`) into `(3, 12)`.
-pub fn parse_python_version(s: &str) -> Option<(u32, u32)> {
-    let v = s.trim().trim_start_matches("Python").trim();
-    let mut parts = v.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts
-        .next()?
-        .trim_end_matches(|c: char| !c.is_ascii_digit())
-        .parse()
-        .ok()?;
-    Some((major, minor))
+/// Extracts the first `major.minor` pair from version output such as `Python 3.12.1`,
+/// `v20.1.0`, `rustc 1.79.0 (...)` or `Apple clang version 15.0.0`.
+pub fn parse_version(s: &str) -> Option<(u32, u32)> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            if i + 1 < bytes.len() && bytes[i] == b'.' && bytes[i + 1].is_ascii_digit() {
+                let major = s[start..i].parse().ok()?;
+                let mstart = i + 1;
+                let mut j = mstart;
+                while j < bytes.len() && bytes[j].is_ascii_digit() {
+                    j += 1;
+                }
+                return Some((major, s[mstart..j].parse().ok()?));
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Runs `<exe> --version` and judges whether the toolchain is usable.
 pub fn probe(language: Language, tools: &Toolchains) -> ToolchainStatus {
-    let exe = match language {
-        Language::Python => &tools.python,
-    };
+    let exe = tools.path(language);
     let executable = exe.to_string_lossy().into_owned();
-    let output = std::process::Command::new(exe)
+    let output = std::process::Command::new(&exe)
         .arg("--version")
         .stdin(std::process::Stdio::null())
         .output();
@@ -179,29 +246,33 @@ pub fn probe(language: Language, tools: &Toolchains) -> ToolchainStatus {
         Ok(out) if out.status.success() => out,
         Ok(out) => {
             return fail(
-                format!("`{executable} --version` failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
+                format!(
+                    "`{executable} --version` failed: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ),
                 None,
             )
         }
         Err(e) => {
             return fail(
                 format!(
-                    "{} was not found ({e}). Install Python 3 (for example `brew install python`) or set its path in Settings.",
-                    executable
+                    "{executable} was not found ({e}). {} or set its path in Settings.",
+                    language.install_hint()
                 ),
                 None,
             )
         }
     };
-    // Python 2 printed its version to stderr.
+    // Some tools (Python 2) print their version to stderr.
     let text = format!(
         "{}{}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
-    let version = text.trim().to_string();
-    match parse_python_version(&version) {
-        Some(v) if v >= MIN_PYTHON => ToolchainStatus {
+    let version = text.lines().next().unwrap_or_default().trim().to_string();
+    let (min_major, min_minor) = language.min_version();
+    match parse_version(&version) {
+        Some(v) if v >= (min_major, min_minor) => ToolchainStatus {
             language,
             executable,
             version: Some(version),
@@ -210,8 +281,8 @@ pub fn probe(language: Language, tools: &Toolchains) -> ToolchainStatus {
         },
         Some(_) => fail(
             format!(
-                "{version} is too old; Python {}.{} or newer is required.",
-                MIN_PYTHON.0, MIN_PYTHON.1
+                "{version} is too old; {} {min_major}.{min_minor} or newer is required.",
+                language.display_name()
             ),
             Some(version.clone()),
         ),
@@ -255,10 +326,41 @@ mod tests {
     }
 
     #[test]
-    fn detects_python() {
+    fn detects_toolchains() {
         let t = Toolchains::detect();
-        assert!(t.python.to_string_lossy().contains("python3"));
-        assert_eq!(Toolchains::default().python, PathBuf::from("python3"));
+        assert!(t
+            .path(Language::Python)
+            .to_string_lossy()
+            .contains("python3"));
+        assert_eq!(
+            Toolchains::default().path(Language::Python),
+            PathBuf::from("python3")
+        );
+        let custom = Toolchains::default().with(Language::Python, "/x/py");
+        assert_eq!(custom.path(Language::Python), PathBuf::from("/x/py"));
+        for l in Language::ALL {
+            assert!(!l.executable_name().is_empty());
+            assert!(!l.install_hint().is_empty());
+            assert!(l.min_version() > (0, 0));
+        }
+    }
+
+    #[test]
+    fn cache_keys() {
+        let p = Program {
+            files: vec![("a".into(), "1".into())],
+            compile: Some(vec!["cc".into()]),
+            run: vec![],
+            artifacts: vec![],
+        };
+        let mut q = p.clone();
+        assert_eq!(p.cache_key(), q.cache_key());
+        q.files[0].1 = "2".into();
+        assert_ne!(p.cache_key(), q.cache_key());
+        let mut r = p.clone();
+        r.compile = Some(vec!["c".into(), "c".into()]);
+        assert_ne!(p.cache_key(), r.cache_key());
+        assert_eq!(p.cache_key().len(), 16);
     }
 
     #[test]
@@ -269,9 +371,7 @@ mod tests {
 
         let missing = probe(
             Language::Python,
-            &Toolchains {
-                python: "/nonexistent/python3".into(),
-            },
+            &Toolchains::default().with(Language::Python, "/nonexistent/python3"),
         );
         assert!(!missing.ok);
         assert!(missing.message.unwrap().contains("was not found"));
@@ -282,7 +382,10 @@ mod tests {
             std::fs::write(&p, format!("#!/bin/sh\n{script}\n")).unwrap();
             std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755))
                 .unwrap();
-            probe(Language::Python, &Toolchains { python: p })
+            probe(
+                Language::Python,
+                &Toolchains::default().with(Language::Python, p),
+            )
         };
         let old = fake("old", "echo 'Python 2.7.18' >&2");
         assert!(!old.ok && old.message.unwrap().contains("too old"));
@@ -293,13 +396,21 @@ mod tests {
     }
 
     #[test]
-    fn parses_python_versions() {
-        assert_eq!(parse_python_version("Python 3.12.1"), Some((3, 12)));
-        assert_eq!(parse_python_version("3.9"), Some((3, 9)));
-        assert_eq!(parse_python_version("Python 3.13.0rc1"), Some((3, 13)));
-        assert_eq!(parse_python_version("Python 3.14b"), Some((3, 14)));
-        assert_eq!(parse_python_version("Python"), None);
-        assert_eq!(parse_python_version("x.y"), None);
+    fn parses_versions() {
+        assert_eq!(parse_version("Python 3.12.1"), Some((3, 12)));
+        assert_eq!(parse_version("3.9"), Some((3, 9)));
+        assert_eq!(parse_version("Python 3.13.0rc1"), Some((3, 13)));
+        assert_eq!(parse_version("v26.10.0"), Some((26, 10)));
+        assert_eq!(
+            parse_version("rustc 1.97.1 (8bab26f4f 2026-07-14)"),
+            Some((1, 97))
+        );
+        assert_eq!(
+            parse_version("Apple clang version 21.0.0 (clang-2100.3.34.2)"),
+            Some((21, 0))
+        );
+        assert_eq!(parse_version("Python"), None);
+        assert_eq!(parse_version("x.y 3."), None);
     }
 
     #[test]
@@ -309,6 +420,7 @@ mod tests {
             files: vec![("a.txt".into(), "hello".into())],
             compile: None,
             run: vec![],
+            artifacts: vec![],
         };
         p.write_to(dir.path()).unwrap();
         assert_eq!(

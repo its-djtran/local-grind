@@ -142,7 +142,7 @@ export interface EvalSettings {
   memory_limit_mb: number;
   max_parallel_jobs: number;
   low_priority: boolean;
-  python_path: string;
+  toolchain_paths: Record<string, string>;
 }
 
 export interface Settings {

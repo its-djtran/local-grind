@@ -27,7 +27,7 @@ export const defaultSettings = (): Settings => ({
   tab_size: 4,
   auto_start_timer: true,
   show_timer: true,
-  eval: { time_limit_multiplier: 1, memory_limit_mb: 1024, max_parallel_jobs: 4, low_priority: false, python_path: "" },
+  eval: { time_limit_multiplier: 1, memory_limit_mb: 1024, max_parallel_jobs: 4, low_priority: false, toolchain_paths: {} },
 });
 
 const EXTRA: [number, string, string, "Easy" | "Medium" | "Hard", string[]][] = [

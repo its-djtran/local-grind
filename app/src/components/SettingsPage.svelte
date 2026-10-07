@@ -127,9 +127,20 @@
     <label class="row">Judge at low priority (keeps the machine responsive; timings vary more)
       <input type="checkbox" bind:checked={draft.eval.low_priority} onchange={commit} aria-label="Low priority judging" />
     </label>
-    <label class="row">Python interpreter
-      <input type="text" placeholder="auto-detect" bind:value={draft.eval.python_path} onchange={commit} aria-label="Python interpreter" />
-    </label>
+    {#each app.boot?.languages ?? [] as l (l.id)}
+      <label class="row">{l.name} toolchain path
+        <input
+          type="text"
+          placeholder="auto-detect"
+          value={draft.eval.toolchain_paths[l.id] ?? ""}
+          onchange={(e) => {
+            draft.eval.toolchain_paths = { ...draft.eval.toolchain_paths, [l.id]: e.currentTarget.value };
+            commit();
+          }}
+          aria-label="{l.name} toolchain path"
+        />
+      </label>
+    {/each}
     <ul class="langs" aria-label="Toolchains">
       {#if toolchains === null}
         <li class="muted">Checking toolchains…</li>

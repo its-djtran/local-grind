@@ -203,7 +203,8 @@ pub fn run() {
                 std::env::var_os("LOCALGRIND_DATA_DIR").map(PathBuf::from),
                 app.path().app_data_dir()?,
             );
-            let service = Service::open(&catalog, &user)?;
+            let service = Service::open(&catalog, &user)?
+                .with_cache_dir(app.path().app_cache_dir()?.join("compiled"));
             app.manage(Arc::new(service));
             Ok(())
         })
