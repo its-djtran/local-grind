@@ -431,6 +431,10 @@ fn command_line() {
         truncate(&"é".repeat(200)).chars().count(),
         150 + "… (400 chars)".chars().count()
     );
+    let starter = cli(&s(&["starter", "--content", &root, "two-sum", "rust"])).unwrap();
+    assert!(starter.contains("pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32>"));
+    assert!(cli(&s(&["starter", "--content", &root, "two-sum", "cobol"])).is_err());
+    assert!(cli(&s(&["starter", "--content", &root, "two-sum"])).is_err());
     assert!(cli(&s(&[])).is_err());
     assert!(cli(&s(&["dance"])).is_err());
     assert!(cli(&s(&["build", "--jobs"]))

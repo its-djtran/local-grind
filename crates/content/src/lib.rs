@@ -799,7 +799,8 @@ pub const USAGE: &str = "usage:
   lg-content build [--content DIR] [--out FILE] [--jobs N]
   lg-content bench [--content DIR] [--runs N] [SLUG...]
   lg-content check [--content DIR] [SLUG...]
-  lg-content judge [--content DIR] SLUG SOLUTION.{py,js,cpp,rs}";
+  lg-content judge [--content DIR] SLUG SOLUTION.{py,js,cpp,rs}
+  lg-content starter [--content DIR] SLUG LANGUAGE";
 
 pub fn cli(args: &[String]) -> Result<String> {
     let (cmd, rest) = args.split_first().ok_or(USAGE)?;
@@ -869,6 +870,17 @@ pub fn cli(args: &[String]) -> Result<String> {
             let language = Language::from_extension(ext)
                 .ok_or(format!("unknown solution language `.{ext}`"))?;
             judge_file(&src, language, &read(path)?, &tools)
+        }
+        "starter" => {
+            let [slug, lang] = slugs.as_slice() else {
+                return Err(USAGE.into());
+            };
+            let language: Language = lang.parse().map_err(|e| format!("{e}"))?;
+            let src = load_selected(&content, std::slice::from_ref(slug))?.remove(0);
+            if !language.driver().supports(&src.meta.signature) {
+                return Err(format!("{} cannot express {slug}", language.display_name()));
+            }
+            Ok(language.driver().starter_code(&src.meta.signature))
         }
         "bench" => {
             let mut done = 0;
