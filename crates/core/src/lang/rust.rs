@@ -317,7 +317,7 @@ impl Driver for RustDriver {
                 }
                 let ctor: Vec<String> = constructor.iter().map(|p| snake(&p.name)).collect();
                 out.push_str(&format!(
-                    "}}\n\n/**\n * Your {class} object will be instantiated and called as such:\n * let obj = {class}::new({});\n",
+                    "}}\n\n/*\n * Your {class} object will be instantiated and called as such:\n * let obj = {class}::new({});\n",
                     ctor.join(", ")
                 ));
                 for (i, m) in methods.iter().enumerate() {
@@ -349,7 +349,7 @@ impl Driver for RustDriver {
                 out.push('\n');
                 out.push_str(&method_stub(decode));
                 out.push_str(&format!(
-                    "}}\n\n/**\n * Your {class} object will be instantiated and called as such:\n\
+                    "}}\n\n/*\n * Your {class} object will be instantiated and called as such:\n\
                      \x20* let obj = {class}::new();\n * let data: String = obj.{}(strs);\n * let ans = obj.{}(data);\n */\n",
                     snake(&encode.name),
                     snake(&decode.name)
@@ -457,6 +457,8 @@ mod tests {
         assert!(code.contains("    fn push(&self, val: i32) {"));
         assert!(code.contains("    fn get_min(&self) -> i32 {"));
         assert!(code.contains(" * obj.push(val);\n * let ret_2: i32 = obj.get_min();\n"));
+        // A trailing doc comment documents nothing and would not compile.
+        assert!(code.contains("}\n\n/*\n * Your MinStack object"));
         let src = case_source(&d);
         assert!(src.contains("\"getMin\" => {") && src.contains("o.get_min()"));
 

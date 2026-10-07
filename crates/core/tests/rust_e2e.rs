@@ -294,3 +294,30 @@ impl Solution {
     );
     assert_eq!(r.verdict, Verdict::Accepted, "{r:#?}");
 }
+
+#[test]
+fn starters_compile_once_bodies_are_filled() {
+    let sigs = [
+        two_sum(),
+        sig(
+            json!({"kind": "design", "class": "MinStack", "constructor": [],
+            "methods": [{"name": "push", "params": [{"name": "val", "type": "int"}], "returns": "void"},
+                        {"name": "getMin", "returns": "int"}]}),
+        ),
+        sig(json!({"kind": "codec", "class": "Codec",
+            "encode": {"name": "serialize", "params": [{"name": "root", "type": "TreeNode"}], "returns": "string"},
+            "decode": {"name": "deserialize", "params": [{"name": "data", "type": "string"}], "returns": "TreeNode"}})),
+    ];
+    let inputs = [
+        json!([[1, 2], 3]),
+        json!([["MinStack", "push"], [[], [1]]]),
+        json!([[1]]),
+    ];
+    for (s, input) in sigs.iter().zip(inputs) {
+        let starter = Language::Rust.driver().starter_code(s);
+        let filled = starter.replace("{\n        \n    }", "{\n        todo!()\n    }");
+        let r = run(s, &filled, &[(input, json!(null))]);
+        assert_eq!(r.verdict, Verdict::RuntimeError, "{filled}\n{:?}", r.error);
+        assert!(r.error.unwrap().contains("not yet implemented"));
+    }
+}
