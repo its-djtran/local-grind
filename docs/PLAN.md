@@ -183,6 +183,67 @@ Remaining:
       filter the problem list by them, see their progress in Stats, export/import (merged by name)
 - Later: Java/Go drivers (deferred), UI polish driven by usage
 
+### Review backlog (repository review, 2026-10-07)
+A refinement pass (bugs, inefficiencies, cruft; no features) fixed the solve recording for
+untimed submissions, page-scoped shortcuts, the settings/theme sync, the shortcuts dialog,
+workspace races and cross-language undo. The items below were reported by that review but not
+yet addressed; verify each against the code before fixing.
+
+Bugs:
+- [ ] Python minimum is 3.8 (`lang/mod.rs`) but the harness prelude imports `math.lcm` (3.9+), so
+      a user-configured 3.8 interpreter fails every run; raise the minimum or guard the import
+- [ ] C++ driver never frees per-case objects (`new Solution()`, design/codec objects, input
+      structures in `cpp.rs` / `lg_driver.hpp`), inflating memory and risking false MLE on
+      long suites; hold them in `std::unique_ptr` released after encoding the result
+- [ ] `export_history` / `import_history` are sync Tauri commands (main thread) doing file I/O
+      and full submission loads; make them `async` + `blocking()` with I/O moved into `Service`
+- [ ] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,
+      so it is not least-recently-used (`runner.rs` `touch_entry` / `prune_cache`)
+- [ ] One invalid settings value makes `settings()` fall back to defaults silently (wiping
+      toolchain paths on the next save); imports of newer exports fail with a serde error
+      before the version check (`userdb.rs`, `portable.rs`)
+- [ ] Heatmap/streak/weekly buckets use today's UTC offset for all history, so days shift
+      across DST (`metrics.rs`; offset from `StatsPage.svelte`)
+- [ ] Foreign keys are never enabled, so `ON DELETE CASCADE` is inert; `delete_user_list`
+      compensates with two DELETEs outside a transaction (`userdb.rs`)
+- [ ] Import/export round-trip gaps: submissions re-keyed by id (exported slug unused),
+      `Solve.submission_id` dropped, draft/note `updated_at` reset, active solves not exported
+- [ ] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
+- [ ] Stats can show a stale result when window fields change quickly (`StatsPage.svelte`)
+- [ ] `ProblemList.deleteList` has no error handling
+- [ ] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
+      hand-rolled `tempfile_dir()` (`crates/content/src/lib.rs`)
+- [ ] Lists and `companies.json` silently drop unknown slugs; `ListFile` lacks
+      `deny_unknown_fields` and `check` never validates lists
+- [ ] `check.sh --no-coverage` silently skips the catalog gate (undocumented)
+
+Inefficiencies:
+- [ ] `lg-content judge` / `bench` run `build_problem`, which verifies every extra-language
+      reference first (~7x slower `judge`); split suite building from verification
+- [ ] `lg-content check` runs problems serially; reuse `build`'s worker pool
+- [ ] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
+- [ ] Opening a problem runs `problem_statuses()` over all submissions for one id
+- [ ] Recalibration re-inflates each problem's suite once per language under the catalog lock
+- [ ] Settings are re-read from the DB several times per run; toolchains detected twice at start
+- [ ] `PracticeNext` runs the full `get_stats` on every problem-list mount for 3 review items
+- [ ] Runner clones `args`/`expected` for every passing case even when they are discarded
+- [ ] Fonts import every subset in woff and woff2; the Safari 15 target needs latin woff2 only
+
+Cruft:
+- [ ] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
+- [ ] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
+      `list_solves`, `api.renameUserList` / `rename_user_list`
+- [ ] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
+- [ ] Misplaced/stale comments: `service.rs` `user_lists()` carries `reset_code`'s doc comment;
+      `runner.rs` progress doc; module docs of `portable.rs`, `userdb.rs`, `crates/content`
+- [ ] `Verdict::parse` formats every variant to compare strings; dead `.tok-function` CSS rule;
+      unused `_count`/`count()` in `lg_gen.py`; unused `Serialize` on `BuildReport`; unused
+      `status` variable in `scripts/smoke.sh`
+- [ ] Docs: ARCHITECTURE.md tables miss `smoke.sh`, `release.sh`, `fetch_python.sh`, `error.rs`,
+      `chart.ts`, `shortcuts.ts`, `smoke.ts`; CLAUDE.md/CONTENT.md omit `lg-content starter`
+      and `bench`; the stale unchecked M4 item above duplicates completed work; M8's "CI awaits a
+      git remote" is outdated now that `origin` exists (the workflow still needs a first run)
+
 ### M9 — More content: NeetCode 150 (not started)
 - [ ] The NeetCode 150 problems not already in Blind 75 ∪ Grind 75, with the same pipeline
       (statement, editorial, hints, generator, references in all four languages, benchmarks)
