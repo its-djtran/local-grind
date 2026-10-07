@@ -167,6 +167,7 @@ Remaining:
 ### M8 — Refinement
 - [x] "Use testcase": add a failed submission's input to the console (LeetCode parity)
 - [x] Personal notes per problem: Notes tab with autosave, kept in `user.db`, exported/imported
-- [ ] CI workflow (macOS) running `scripts/check.sh` and the smoke test for contributors
+- [~] CI workflow (`.github/workflows/ci.yml`, macOS) running `scripts/check.sh` and the smoke
+      test; written but not yet exercised on GitHub (the repository has no remote yet)
 - Later: additional problem sets (e.g. NeetCode 150), Java/Go drivers (deferred), custom user
   lists, UI polish driven by usage
