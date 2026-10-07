@@ -152,7 +152,9 @@ Remaining:
 - [x] App icon
 - [ ] Bundle a relocatable CPython (python-build-standalone) in the app so Python solutions and
       the Python fallback reference work without any installation
-- [ ] Evaluate a zero-install JavaScript path via macOS's built-in JavaScriptCore (`jsc`)
+- [x] Zero-install JavaScript: when Node.js is missing, solutions run on macOS's built-in
+      JavaScriptCore shell (`jsc`); all 111 JavaScript references pass under both runtimes and
+      the JavaScript e2e suite requires identical verdicts on both
 - [ ] First-run toolchain guidance: per-language status with one-line install instructions
       (C++ via `xcode-select --install`, Rust via rustup, Node via installer/Homebrew)
 - [ ] `.dmg` packaging and a release script

@@ -147,6 +147,9 @@ fn prune_cache(root: &Path, keep: usize) {
     }
 }
 
+/// Upper bound for the raised stack limit of judged processes (1 GiB).
+pub const MAX_STACK_BYTES: libc::rlim_t = 1 << 30;
+
 /// Nice value applied to low-priority judge processes.
 pub const LOW_PRIORITY_NICE: libc::c_int = 10;
 
@@ -466,15 +469,25 @@ pub fn execute(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .process_group(0);
-    if opts.low_priority {
-        // SAFETY: the hook only makes the async-signal-safe setpriority syscall on the child
-        // itself, which never needs extra privileges (lowering priority is always allowed).
-        unsafe {
-            command.pre_exec(|| {
+    let low_priority = opts.low_priority;
+    // SAFETY: the hook only makes async-signal-safe syscalls (getrlimit/setrlimit/setpriority)
+    // on the child itself, none of which need privileges: the stack soft limit is raised to the
+    // hard limit (so single-threaded runtimes such as JavaScriptCore get a deep main stack) and
+    // priority can always be lowered.
+    unsafe {
+        command.pre_exec(move || {
+            let mut limit: libc::rlimit = std::mem::zeroed();
+            if libc::getrlimit(libc::RLIMIT_STACK, &mut limit) == 0
+                && limit.rlim_cur < limit.rlim_max
+            {
+                limit.rlim_cur = limit.rlim_max.min(MAX_STACK_BYTES);
+                libc::setrlimit(libc::RLIMIT_STACK, &limit);
+            }
+            if low_priority {
                 libc::setpriority(libc::PRIO_PROCESS, 0, LOW_PRIORITY_NICE);
-                Ok(())
-            });
-        }
+            }
+            Ok(())
+        });
     }
     let mut child = command
         .spawn()
@@ -844,6 +857,32 @@ mod tests {
         assert_eq!(run(&shell(script), &cs, opts).verdict, Verdict::Accepted);
         let r = run(&shell(script), &cs, RunOptions::default());
         assert_eq!(r.verdict, Verdict::WrongAnswer);
+    }
+
+    #[test]
+    fn raises_the_stack_limit() {
+        let script = r#"n=$(ulimit -s); printf '\036LG {"i":0,"ns":1,"out":"%s"}\n' "$n""#;
+        let r = run(
+            &shell(script),
+            &[TestCase {
+                args: json!([0]),
+                expected: json!(""),
+            }],
+            RunOptions::default(),
+        );
+        let soft = r.failure.and_then(|f| f.output).unwrap();
+        let hard = std::process::Command::new("/bin/sh")
+            .args(["-c", "ulimit -Hs"])
+            .output()
+            .unwrap();
+        let hard = String::from_utf8_lossy(&hard.stdout).trim().to_string();
+        if hard != "unlimited" {
+            assert_eq!(
+                soft,
+                json!(hard),
+                "soft stack limit raised to the hard limit"
+            );
+        }
     }
 
     #[test]

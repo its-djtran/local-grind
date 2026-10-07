@@ -182,6 +182,16 @@ pub struct Toolchains {
     paths: BTreeMap<Language, PathBuf>,
 }
 
+/// JavaScriptCore's command-line shell, present on every macOS install. Used for JavaScript when
+/// Node.js is not installed.
+pub const JSC_PATH: &str =
+    "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc";
+
+/// Whether `exe` is the JavaScriptCore shell rather than Node.js.
+pub fn is_jsc(exe: &Path) -> bool {
+    exe.file_name().is_some_and(|n| n == "jsc")
+}
+
 /// Directories searched for toolchains in addition to `$PATH`. Apps launched from Finder get a
 /// minimal `PATH`, so Homebrew, rustup and other common prefixes are probed explicitly.
 pub const EXTRA_SEARCH_DIRS: &[&str] = &[
@@ -206,14 +216,21 @@ pub fn find_executable(name: &str, path_var: Option<&str>) -> Option<PathBuf> {
 }
 
 impl Toolchains {
-    /// Detects every toolchain from the environment.
+    /// Detects every toolchain from the environment. `LOCALGRIND_TOOLCHAIN_<LANG>` (e.g.
+    /// `LOCALGRIND_TOOLCHAIN_JAVASCRIPT`) overrides detection, for CI and testing.
     pub fn detect() -> Toolchains {
         let path = std::env::var("PATH").ok();
         let mut t = Toolchains::default();
         for &l in Language::ALL {
-            if let Some(p) = find_executable(l.executable_name(), path.as_deref()) {
+            let var = format!("LOCALGRIND_TOOLCHAIN_{}", l.id().to_ascii_uppercase());
+            if let Some(p) = std::env::var_os(var).filter(|p| !p.is_empty()) {
+                t.set(l, PathBuf::from(p));
+            } else if let Some(p) = find_executable(l.executable_name(), path.as_deref()) {
                 t.set(l, p);
             }
+        }
+        if !t.paths.contains_key(&Language::JavaScript) && Path::new(JSC_PATH).is_file() {
+            t.set(Language::JavaScript, PathBuf::from(JSC_PATH));
         }
         t
     }
@@ -277,6 +294,17 @@ pub fn parse_version(s: &str) -> Option<(u32, u32)> {
 pub fn probe(language: Language, tools: &Toolchains) -> ToolchainStatus {
     let exe = tools.path(language);
     let executable = exe.to_string_lossy().into_owned();
+    if language == Language::JavaScript && is_jsc(&exe) {
+        let ok = exe.is_file();
+        return ToolchainStatus {
+            language,
+            executable,
+            version: ok.then(|| "JavaScriptCore (built into macOS)".to_string()),
+            ok,
+            message: (!ok)
+                .then(|| format!("JavaScriptCore was not found. {}.", language.install_hint())),
+        };
+    }
     let output = std::process::Command::new(&exe)
         .arg("--version")
         .stdin(std::process::Stdio::null())
@@ -455,6 +483,37 @@ mod tests {
         assert!(weird.message.unwrap().contains("could not understand"));
         let broken = fake("broken", "echo nope >&2; exit 3");
         assert!(broken.message.unwrap().contains("failed: nope"));
+    }
+
+    #[test]
+    fn environment_overrides_detection() {
+        // SAFETY: tests touching this variable run in this test only.
+        unsafe { std::env::set_var("LOCALGRIND_TOOLCHAIN_RUST", "/opt/custom/rustc") };
+        let t = Toolchains::detect();
+        unsafe { std::env::remove_var("LOCALGRIND_TOOLCHAIN_RUST") };
+        assert_eq!(t.path(Language::Rust), PathBuf::from("/opt/custom/rustc"));
+    }
+
+    #[test]
+    fn javascriptcore_fallback() {
+        assert!(is_jsc(Path::new(JSC_PATH)));
+        assert!(!is_jsc(Path::new("/usr/bin/node")));
+        let status = probe(
+            Language::JavaScript,
+            &Toolchains::default().with(Language::JavaScript, JSC_PATH),
+        );
+        assert_eq!(status.ok, Path::new(JSC_PATH).is_file());
+        let missing = probe(
+            Language::JavaScript,
+            &Toolchains::default().with(Language::JavaScript, "/nope/jsc"),
+        );
+        assert!(
+            !missing.ok
+                && missing
+                    .message
+                    .unwrap()
+                    .contains("JavaScriptCore was not found")
+        );
     }
 
     #[test]

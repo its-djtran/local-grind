@@ -1,50 +1,123 @@
 // Local Grind JavaScript harness. Loads solution.js, decodes each test line from the input
 // file, calls the solution and streams results back to the judge (see crates/core/src/lang/mod.rs).
+// jsc exposes script arguments as a global `arguments`; capture it before entering the harness
+// scope (inside a function, `arguments` means something else).
+const __lgScriptArgs = typeof process === "undefined" && typeof arguments !== "undefined" ? Array.from(arguments) : [];
+
+// Everything lives in a function scope so harness helpers (decode, encode, ...) can never be
+// replaced by same-named globals in user code: jsc runs this file as a plain script.
+(function (scriptArgs) {
 "use strict";
-const fs = require("fs");
-const util = require("util");
-const vm = require("vm");
-const { Worker, isMainThread } = require("worker_threads");
 
 const SENTINEL = "\x1eLG ";
 const MAX_NODES = 1000000;
+const IS_NODE = typeof process !== "undefined" && typeof require === "function";
 
-if (isMainThread) {
-  // Run in a worker so deep recursion gets a large stack, like LeetCode's judge.
-  const worker = new Worker(__filename, {
-    argv: process.argv.slice(2),
-    resourceLimits: { stackSizeMb: 256 },
-    stdout: false,
-    stderr: false,
-  });
-  worker.on("error", (e) => {
-    fs.writeSync(2, String((e && e.stack) || e) + "\n");
-    process.exitCode = 1;
-  });
-  worker.on("exit", (code) => {
-    if (code !== 0 && !process.exitCode) process.exitCode = code;
-  });
-  return;
+// Runtime layer: Node.js, or JavaScriptCore's `jsc` shell (ships with macOS) when Node is not
+// installed. Everything below the runtime layer is shared.
+let RT = null;
+
+function nodeRuntime(fs, util, vm) {
+  // Pipes may be non-blocking, so writes loop over partial writes and retry on EAGAIN.
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  const write = (fd, text) => {
+    const buf = Buffer.from(text);
+    let off = 0;
+    while (off < buf.length) {
+      try {
+        off += fs.writeSync(fd, buf, off, buf.length - off);
+      } catch (e) {
+        if (e.code !== "EAGAIN") throw e;
+        Atomics.wait(pause, 0, 0, 1);
+      }
+    }
+  };
+  const rt = {
+    read: (path) => fs.readFileSync(path, "utf8"),
+    out: (text) => write(1, text),
+    err: (text) => write(2, text),
+    format: (...a) => util.format(...a),
+    inspect: (v) => util.inspect(v),
+    now: () => performance.now() * 1e6,
+    inputPath: () => process.argv[2],
+    load: (src) => {
+      let script;
+      try {
+        script = new vm.Script(src, { filename: "solution.js" });
+      } catch (e) {
+        return { syntax: `${String(e.stack || "").split("\n")[0]}\n${e.name}: ${e.message}` };
+      }
+      script.runInThisContext();
+      return {};
+    },
+    lookup: (name) => vm.runInThisContext(name),
+  };
+  process.stdout.write = (chunk) => (rt.out(String(chunk)), true);
+  return rt;
 }
 
-// Synchronous console so user output and result lines stay in order. Pipes may be
-// non-blocking, so writes loop over partial writes and retry on EAGAIN.
-const pause = new Int32Array(new SharedArrayBuffer(4));
-function write(fd, s) {
-  const buf = Buffer.from(s);
-  let off = 0;
-  while (off < buf.length) {
-    try {
-      off += fs.writeSync(fd, buf, off, buf.length - off);
-    } catch (e) {
-      if (e.code !== "EAGAIN") throw e;
-      Atomics.wait(pause, 0, 0, 1);
-    }
+if (IS_NODE) {
+  const fs = require("fs");
+  const util = require("util");
+  const vm = require("vm");
+  const { Worker, isMainThread } = require("worker_threads");
+  if (isMainThread) {
+    // Run in a worker so deep recursion gets a large stack, like LeetCode's judge.
+    const worker = new Worker(__filename, {
+      argv: process.argv.slice(2),
+      resourceLimits: { stackSizeMb: 256 },
+      stdout: false,
+      stderr: false,
+    });
+    worker.on("error", (e) => {
+      fs.writeSync(2, String((e && e.stack) || e) + "\n");
+      process.exitCode = 1;
+    });
+    worker.on("exit", (code) => {
+      if (code !== 0 && !process.exitCode) process.exitCode = code;
+    });
+  } else {
+    RT = nodeRuntime(fs, util, vm);
   }
 }
-console.log = console.info = console.debug = (...a) => write(1, util.format(...a) + "\n");
-console.error = console.warn = (...a) => write(2, util.format(...a) + "\n");
-process.stdout.write = (chunk) => (write(1, String(chunk)), true);
+if (!IS_NODE) {
+  const show = (v) => (typeof v === "string" ? v : RT.inspect(v));
+  RT = {
+    read: (path) => readFile(path),
+    out: (text) => {
+      // print() appends a newline; strip one so callers control line endings.
+      print(text.endsWith("\n") ? text.slice(0, -1) : text);
+    },
+    err: (text) => printErr(text.endsWith("\n") ? text.slice(0, -1) : text),
+    format: (...a) => a.map(show).join(" "),
+    inspect: (v) => {
+      try {
+        return typeof v === "string" ? JSON.stringify(v) : JSON.stringify(v) ?? String(v);
+      } catch {
+        return String(v);
+      }
+    },
+    now: () => preciseTime() * 1e9,
+    inputPath: () => scriptArgs[0],
+    load: (src) => {
+      try {
+        checkSyntax("solution.js");
+      } catch (e) {
+        return { syntax: `solution.js:${e.line ?? "?"}\n${e.name}: ${e.message}` };
+      }
+      load("solution.js");
+      return {};
+    },
+    lookup: (name) => (0, eval)(name),
+  };
+}
+
+// Synchronous console so user output and result lines stay in order.
+if (RT) {
+  if (typeof console === "undefined") globalThis.console = {};
+  console.log = console.info = console.debug = (...a) => RT.out(RT.format(...a) + "\n");
+  console.error = console.warn = (...a) => RT.err(RT.format(...a) + "\n");
+}
 
 function ListNode(val, next) {
   this.val = val === undefined ? 0 : val;
@@ -194,21 +267,23 @@ function reachable(node) {
 }
 
 function userStack(e) {
-  if (!(e instanceof Error)) return "Uncaught " + util.inspect(e);
-  const lines = String(e.stack || e).split("\n");
-  const keep = [lines[0]].concat(lines.slice(1).filter((l) => l.includes("solution.js")));
-  return keep.join("\n");
+  if (!(e instanceof Error)) return "Uncaught " + RT.inspect(e);
+  const frames = String(e.stack || "")
+    .split("\n")
+    .filter((l) => l.includes("solution.js"))
+    .map((l) => l.replace(/[^\s@(]*\/solution\.js/, "solution.js"));
+  return [`${e.name}: ${e.message}`].concat(frames).join("\n");
 }
 
 function lookup(name) {
   try {
-    return vm.runInThisContext(name);
+    return RT.lookup(name);
   } catch {
     throw new Error(`${name} is not defined`);
   }
 }
 
-const now = () => process.hrtime.bigint();
+const now = () => RT.now();
 
 function runFunction(sig, args) {
   const specs = sig.params;
@@ -260,7 +335,7 @@ function runDesign(sig, args) {
   const ctorTypes = (Array.isArray(sig.constructor) ? sig.constructor : []).map((p) => p.type);
   const Cls = lookup(sig.class);
   const out = [];
-  let elapsed = 0n;
+  let elapsed = 0;
   let obj = null;
   ops.forEach((op, k) => {
     if (k === 0) {
@@ -298,28 +373,23 @@ function runCodec(sig, args) {
 }
 
 function emit(obj) {
-  write(1, SENTINEL + JSON.stringify(obj) + "\n");
+  RT.out(SENTINEL + JSON.stringify(obj) + "\n");
 }
 
 function main() {
-  const sig = JSON.parse(fs.readFileSync("signature.json", "utf8"));
-  const src = fs.readFileSync("solution.js", "utf8");
-  let script;
+  const sig = JSON.parse(RT.read("signature.json"));
   try {
-    script = new vm.Script(src, { filename: "solution.js" });
-  } catch (e) {
-    const where = String(e.stack || "").split("\n")[0];
-    emit({ compile_error: `${where}\n${e.name}: ${e.message}` });
-    return;
-  }
-  try {
-    script.runInThisContext();
+    const loaded = RT.load(RT.read("solution.js"));
+    if (loaded.syntax) {
+      emit({ compile_error: loaded.syntax });
+      return;
+    }
   } catch (e) {
     emit({ i: 0, error: userStack(e) });
     return;
   }
   const run = sig.kind === "design" ? runDesign : sig.kind === "codec" ? runCodec : runFunction;
-  const lines = fs.readFileSync(process.argv[2], "utf8").split("\n");
+  const lines = RT.read(RT.inputPath()).split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
@@ -332,8 +402,10 @@ function main() {
       emit({ i, error: userStack(e) });
       return;
     }
-    write(1, `${SENTINEL}{"i":${i},"ns":${elapsed},"out":${out}}\n`);
+    RT.out(`${SENTINEL}{"i":${i},"ns":${Math.max(0, Math.round(elapsed))},"out":${out}}\n`);
   }
 }
 
-main();
+// In Node's main thread RT stays null: the worker started above does the judging.
+if (RT) main();
+})(__lgScriptArgs);

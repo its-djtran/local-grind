@@ -1,6 +1,6 @@
 //! Runs real JavaScript solutions through the generated harness and the runner.
 
-use localgrind_core::lang::{Language, Toolchains};
+use localgrind_core::lang::{Language, Toolchains, JSC_PATH};
 use localgrind_core::runner::{execute, RunOptions, RunReport, TestCase, Verdict};
 use localgrind_core::types::{Comparator, Signature};
 use serde_json::{json, Value};
@@ -9,6 +9,16 @@ fn sig(v: Value) -> Signature {
     serde_json::from_value(v).unwrap()
 }
 
+/// Node.js plus, when present, the JavaScriptCore shell used when Node is not installed.
+fn runtimes() -> Vec<Toolchains> {
+    let mut out = vec![Toolchains::detect()];
+    if std::path::Path::new(JSC_PATH).is_file() {
+        out.push(Toolchains::detect().with(Language::JavaScript, JSC_PATH));
+    }
+    out
+}
+
+/// Runs on every runtime, requires identical verdicts, and returns the first runtime's report.
 fn run_opts(
     sig: &Signature,
     code: &str,
@@ -16,9 +26,6 @@ fn run_opts(
     cmp: Comparator,
     opts: RunOptions,
 ) -> RunReport {
-    let program = Language::JavaScript
-        .driver()
-        .program(sig, code, &Toolchains::detect());
     let cases: Vec<TestCase> = cases
         .iter()
         .map(|(a, e)| TestCase {
@@ -26,7 +33,23 @@ fn run_opts(
             expected: e.clone(),
         })
         .collect();
-    execute(&program, &cases, &cmp, &opts, &mut |_, _| {}).unwrap()
+    let reports: Vec<RunReport> = runtimes()
+        .iter()
+        .map(|tools| {
+            let program = Language::JavaScript.driver().program(sig, code, tools);
+            execute(&program, &cases, &cmp, &opts, &mut |_, _| {}).unwrap()
+        })
+        .collect();
+    for r in &reports[1..] {
+        assert_eq!(
+            (r.verdict, r.passed),
+            (reports[0].verdict, reports[0].passed),
+            "runtimes disagree:\n{:#?}\n{:#?}",
+            reports[0],
+            r
+        );
+    }
+    reports.into_iter().next().unwrap()
 }
 
 fn run(sig: &Signature, code: &str, cases: &[(Value, Value)]) -> RunReport {

@@ -68,6 +68,10 @@ group when done. The watchdog also samples the child's resident memory every 20 
 comes from `wait4`'s `ru_maxrss`. With low-priority judging enabled the child lowers its own
 priority (nice 10) before exec.
 
+The runner raises each child's stack soft limit to its hard limit before exec, so
+single-threaded runtimes (JavaScriptCore) can recurse deeply too. `LOCALGRIND_TOOLCHAIN_<LANG>`
+overrides toolchain detection (used to test the JavaScriptCore path).
+
 `lang::probe` checks each toolchain (`python3 --version`, minimum 3.8); the UI shows the
 result in Settings and a banner when nothing usable is installed. GUI apps launched from Finder
 get a minimal `PATH`, so detection also searches Homebrew and other common prefixes.
@@ -84,7 +88,7 @@ arguments and encodes results — never reimplementing judging.
 | Language | Toolchain | How user code runs |
 |---|---|---|
 | Python | `python3` ≥ 3.8 | `lg_harness.py` execs `solution.py` with a LeetCode-style prelude, on a thread with a 512 MB stack |
-| JavaScript | `node` ≥ 16 | `lg_harness.js` runs `solution.js` via `vm` inside a Worker with a 256 MB stack; synchronous stdout |
+| JavaScript | `node` ≥ 16, else macOS's `jsc` | `lg_harness.js` runs `solution.js` via `vm` inside a Worker with a 256 MB stack (Node), or via `load()` on a deep main-thread stack (JavaScriptCore); synchronous stdout |
 | C++ | `clang++` (C++20, `-O2`) | `solution.cpp` = prelude + `#line 1` user code + driver + generated `lg_case.inc`; runs on a 512 MB-stack thread |
 | Rust | `rustc` (edition 2021, `-O`, overflow checks) | `lg_main.rs` `include!`s the user's `solution.rs` and generated `lg_case.rs` into one module |
 

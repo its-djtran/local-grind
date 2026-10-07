@@ -170,6 +170,19 @@ impl Driver for JavaScriptDriver {
     }
 
     fn program(&self, sig: &Signature, user_code: &str, tools: &Toolchains) -> Program {
+        let exe = tools.path(Language::JavaScript);
+        let mut run = vec![exe.to_string_lossy().into_owned()];
+        if super::is_jsc(&exe) {
+            // Let JavaScriptCore use the deep main-thread stack the runner provides, and pass
+            // the input file after `--` (jsc's script-argument separator).
+            run.extend([
+                "--maxPerThreadStackUsage=60000000".into(),
+                "lg_harness.js".into(),
+                "--".into(),
+            ]);
+        } else {
+            run.push("lg_harness.js".into());
+        }
         Program {
             files: vec![
                 ("solution.js".into(), user_code.to_string()),
@@ -181,13 +194,7 @@ impl Driver for JavaScriptDriver {
             ],
             compile: None,
             artifacts: vec![],
-            run: vec![
-                tools
-                    .path(Language::JavaScript)
-                    .to_string_lossy()
-                    .into_owned(),
-                "lg_harness.js".into(),
-            ],
+            run,
         }
     }
 }
@@ -268,5 +275,8 @@ mod tests {
         let p = JavaScriptDriver.program(&s, "code", &Toolchains::default());
         assert_eq!(p.files[0], ("solution.js".into(), "code".into()));
         assert_eq!(p.run, vec!["node".to_string(), "lg_harness.js".into()]);
+        let jsc = Toolchains::default().with(Language::JavaScript, super::super::JSC_PATH);
+        let p = JavaScriptDriver.program(&s, "code", &jsc);
+        assert_eq!(p.run[2..], ["lg_harness.js".to_string(), "--".into()]);
     }
 }
