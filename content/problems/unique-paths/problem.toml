@@ -1,0 +1,30 @@
+id = 62
+title = "Unique Paths"
+difficulty = "Medium"
+topics = ["Math", "Dynamic Programming", "Combinatorics"]
+time_limit_ms = 1000
+hints = [
+  "The robot can only arrive at a cell from the cell above it or the cell to its left.",
+  "So paths(r, c) = paths(r - 1, c) + paths(r, c - 1). Every cell in the top row or left column has exactly one path.",
+  "Filling the grid row by row only ever needs the previous row, so a single array of length n is enough.",
+  "Every path is a sequence of m - 1 down moves and n - 1 right moves in some order. How many such orderings are there?",
+]
+
+[signature]
+kind = "function"
+name = "uniquePaths"
+params = [{ name = "m", type = "int" }, { name = "n", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+3
+7"""
+output = "28"
+
+[[examples]]
+input = """
+3
+2"""
+output = "3"
+explanation = "From the top-left corner the three routes are right-down-down, down-right-down and down-down-right."

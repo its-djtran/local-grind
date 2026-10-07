@@ -1,0 +1,26 @@
+id = 55
+title = "Jump Game"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming", "Greedy"]
+time_limit_ms = 1000
+hints = [
+  "If you can stand on index i, you can also stand on every index between i and i + nums[i]. The set of reachable indices is always a prefix of the array.",
+  "So you never need to remember which indices are reachable, only the farthest one so far.",
+  "Scan left to right, extending the farthest reachable index with i + nums[i]. If you ever arrive at an index beyond that frontier, you are stuck.",
+]
+
+[signature]
+kind = "function"
+name = "canJump"
+params = [{ name = "nums", type = "int[]" }]
+returns = "bool"
+
+[[examples]]
+input = "[2,3,1,1,4]"
+output = "true"
+explanation = "Jump 1 step from index 0 to index 1, then 3 steps to the last index."
+
+[[examples]]
+input = "[3,2,1,0,4]"
+output = "false"
+explanation = "Every route lands on index 3, whose value 0 allows no further movement, so index 4 is out of reach."

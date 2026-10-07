@@ -1,0 +1,27 @@
+id = 416
+title = "Partition Equal Subset Sum"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming"]
+time_limit_ms = 2000
+hints = [
+  "If the two groups have equal sums, each one sums to exactly half of the total. What does that tell you when the total is odd?",
+  "The question becomes: is there a subset of nums whose sum is total / 2? This is the classic subset-sum problem.",
+  "Track the set of sums reachable using the first k numbers. Adding the next number x turns each reachable sum s into s and s + x.",
+  "A boolean array indexed by sum (updated from high to low so each number is used once) works. A big integer used as a bitset does the same update with one shift and one OR.",
+]
+
+[signature]
+kind = "function"
+name = "canPartition"
+params = [{ name = "nums", type = "int[]" }]
+returns = "bool"
+
+[[examples]]
+input = "[1,5,11,5]"
+output = "true"
+explanation = "[1, 5, 5] and [11] both add up to 11."
+
+[[examples]]
+input = "[1,2,3,5]"
+output = "false"
+explanation = "The total is 11, which is odd, so two equal halves are impossible."

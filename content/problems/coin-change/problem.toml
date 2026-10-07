@@ -1,0 +1,38 @@
+id = 322
+title = "Coin Change"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming", "Breadth-First Search"]
+time_limit_ms = 2000
+hints = [
+  "Always grabbing the largest coin that fits is not safe: with coins [1, 3, 4] and amount 6 it uses three coins, but two suffice.",
+  "Suppose the last coin you use is c. Then the rest of the coins must form amount - c as cheaply as possible.",
+  "Let best[x] be the fewest coins that make x. Compute it for every x from 0 up to amount, using best[0] = 0.",
+  "Use a sentinel larger than any real answer (such as amount + 1) for amounts that cannot be formed, and translate it to -1 at the end.",
+]
+
+[signature]
+kind = "function"
+name = "coinChange"
+params = [{ name = "coins", type = "int[]" }, { name = "amount", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = """
+[1,2,5]
+11"""
+output = "3"
+explanation = "Two 5s and one 1 add up to 11, and no pair of coins does."
+
+[[examples]]
+input = """
+[2]
+3"""
+output = "-1"
+explanation = "Only even totals can be built from 2s."
+
+[[examples]]
+input = """
+[1]
+0"""
+output = "0"
+explanation = "An amount of 0 needs no coins at all."

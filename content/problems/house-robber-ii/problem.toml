@@ -1,0 +1,31 @@
+id = 213
+title = "House Robber II"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming"]
+time_limit_ms = 1000
+hints = [
+  "If the houses were in a straight line, this would be the original House Robber problem. What extra conflict does the circle add?",
+  "The only new restriction is that the first and last houses cannot both be robbed. So at least one of them is skipped in any valid plan.",
+  "Solve the straight-line problem twice: once without the last house and once without the first house. Take the better result.",
+  "Watch out for a single house: dropping either end leaves nothing, but you can still rob it.",
+]
+
+[signature]
+kind = "function"
+name = "rob"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[2,3,2]"
+output = "3"
+explanation = "Houses 1 and 3 are neighbors on the circle, so they cannot both be robbed. Robbing house 2 alone gives 3."
+
+[[examples]]
+input = "[1,2,3,1]"
+output = "4"
+explanation = "Rob houses 1 and 3 for 1 + 3 = 4."
+
+[[examples]]
+input = "[1,2,3]"
+output = "3"

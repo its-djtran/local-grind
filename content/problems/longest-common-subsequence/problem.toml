@@ -1,0 +1,38 @@
+id = 1143
+title = "Longest Common Subsequence"
+difficulty = "Medium"
+topics = ["String", "Dynamic Programming"]
+time_limit_ms = 4000
+hints = [
+  "Compare the last characters of the two strings. What can you conclude when they match, and what are your options when they do not?",
+  "Let L(i, j) be the answer for the first i characters of text1 and the first j characters of text2. If the characters at i - 1 and j - 1 match, L(i, j) = L(i - 1, j - 1) + 1; otherwise it is the larger of L(i - 1, j) and L(i, j - 1).",
+  "Fill an (m + 1) x (n + 1) table row by row, with row 0 and column 0 equal to 0.",
+  "Each row only depends on the previous row, so two rows (or one row plus a saved diagonal value) are enough.",
+]
+
+[signature]
+kind = "function"
+name = "longestCommonSubsequence"
+params = [{ name = "text1", type = "string" }, { name = "text2", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '''
+"abcde"
+"ace"'''
+output = "3"
+explanation = "\"ace\" can be read out of both strings in order, and no longer common subsequence exists."
+
+[[examples]]
+input = '''
+"abc"
+"abc"'''
+output = "3"
+explanation = "The strings are identical, so the whole string is common."
+
+[[examples]]
+input = '''
+"abc"
+"def"'''
+output = "0"
+explanation = "The strings share no characters."

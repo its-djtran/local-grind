@@ -1,0 +1,31 @@
+id = 300
+title = "Longest Increasing Subsequence"
+difficulty = "Medium"
+topics = ["Array", "Binary Search", "Dynamic Programming"]
+time_limit_ms = 2000
+hints = [
+  "Let best[i] be the length of the longest strictly increasing subsequence that ends exactly at index i. How does best[i] relate to earlier entries?",
+  "best[i] = 1 + max(best[j]) over all j < i with nums[j] < nums[i]. That already gives an O(n^2) solution.",
+  "For O(n log n): for every possible length L, keep the smallest value that can end an increasing subsequence of length L. That list is always sorted.",
+  "For each new number, binary-search the first kept value that is >= it and overwrite it, or append the number if it is larger than everything kept.",
+]
+
+[signature]
+kind = "function"
+name = "lengthOfLIS"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[10,9,2,5,3,7,101,18]"
+output = "4"
+explanation = "One longest strictly increasing subsequence is [2,3,7,101], which has 4 elements."
+
+[[examples]]
+input = "[0,1,0,3,2,3]"
+output = "4"
+
+[[examples]]
+input = "[7,7,7,7,7,7,7]"
+output = "1"
+explanation = "Equal values never form an increasing pair, so any single element is the best you can do."

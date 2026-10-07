@@ -1,0 +1,27 @@
+id = 198
+title = "House Robber"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming"]
+time_limit_ms = 1000
+hints = [
+  "Taking every other house is not always best: for [2, 1, 1, 2] the answer is 4, skipping two houses in the middle.",
+  "Consider the last house. Either you rob it (and then not the one before it), or you skip it.",
+  "Let best(i) be the most money from the first i houses. Then best(i) = max(best(i - 1), best(i - 2) + nums[i - 1]).",
+  "Only the two most recent values of best are ever needed, so the extra array can be replaced by two variables.",
+]
+
+[signature]
+kind = "function"
+name = "rob"
+params = [{ name = "nums", type = "int[]" }]
+returns = "int"
+
+[[examples]]
+input = "[1,2,3,1]"
+output = "4"
+explanation = "Rob the first house (1) and the third house (3) for a total of 4."
+
+[[examples]]
+input = "[2,7,9,3,1]"
+output = "12"
+explanation = "Rob houses 1, 3 and 5 (amounts 2, 9 and 1) for a total of 12."

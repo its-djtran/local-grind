@@ -1,0 +1,38 @@
+id = 139
+title = "Word Break"
+difficulty = "Medium"
+topics = ["Array", "Hash Table", "String", "Dynamic Programming", "Trie", "Memoization"]
+time_limit_ms = 2000
+hints = [
+  "Greedily taking the longest (or shortest) dictionary word at each step can paint you into a corner. You may need to reconsider earlier choices.",
+  "Ask a smaller question: can the prefix s[:i] be split into dictionary words? The full string is the prefix of length len(s).",
+  "s[:i] is splittable if, for some j < i, s[:j] is splittable and s[j:i] is a dictionary word. The empty prefix is splittable.",
+  "Dictionary words are at most 20 characters long, so for each i you only need to look back that far, and a hash set makes each lookup fast.",
+]
+
+[signature]
+kind = "function"
+name = "wordBreak"
+params = [{ name = "s", type = "string" }, { name = "wordDict", type = "string[]" }]
+returns = "bool"
+
+[[examples]]
+input = '''
+"leetcode"
+["leet","code"]'''
+output = "true"
+explanation = "The string reads as \"leet\" followed by \"code\"."
+
+[[examples]]
+input = '''
+"applepenapple"
+["apple","pen"]'''
+output = "true"
+explanation = "It splits into \"apple\", \"pen\", \"apple\"; a word may be used more than once."
+
+[[examples]]
+input = '''
+"catsandog"
+["cats","dog","sand","and","cat"]'''
+output = "false"
+explanation = "Both \"cats\" + \"and\" and \"cat\" + \"sand\" leave the tail \"og\", which cannot be formed."

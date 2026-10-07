@@ -1,0 +1,32 @@
+id = 91
+title = "Decode Ways"
+difficulty = "Medium"
+topics = ["String", "Dynamic Programming"]
+time_limit_ms = 1000
+hints = [
+  "Each letter becomes either one digit (1-9) or two digits (10-26). Think about the last letter of a decoding: does it use one digit or two?",
+  "Let ways(i) be the number of decodings of the first i digits. A valid single digit at the end contributes ways(i - 1); a valid two-digit code at the end contributes ways(i - 2).",
+  "Zeros are the tricky part: '0' on its own is never valid, and a two-digit code may not start with '0' (so '06' is not 6).",
+  "ways(0) = 1 for the empty prefix, and only the last two values are needed at any time.",
+]
+
+[signature]
+kind = "function"
+name = "numDecodings"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"12"'
+output = "2"
+explanation = "\"12\" can be read as \"AB\" (1, 2) or as \"L\" (12)."
+
+[[examples]]
+input = '"226"'
+output = "3"
+explanation = "The groupings are (2, 26) = \"BZ\", (22, 6) = \"VF\" and (2, 2, 6) = \"BBF\"."
+
+[[examples]]
+input = '"06"'
+output = "0"
+explanation = "The leading \"0\" cannot stand alone, and \"06\" is not the same code as \"6\", so nothing decodes."

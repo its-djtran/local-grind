@@ -1,0 +1,27 @@
+id = 70
+title = "Climbing Stairs"
+difficulty = "Easy"
+topics = ["Math", "Dynamic Programming", "Memoization"]
+time_limit_ms = 1000
+hints = [
+  "Think about the very last move you make. Where could you have been standing just before reaching step n?",
+  "If ways(k) is the number of ways to reach step k, then ways(n) can be written in terms of ways(n - 1) and ways(n - 2).",
+  "A plain recursion recomputes the same values over and over. Cache them, or build the answers upward from the bottom.",
+  "You only ever need the previous two values, so two variables are enough.",
+]
+
+[signature]
+kind = "function"
+name = "climbStairs"
+params = [{ name = "n", type = "int" }]
+returns = "int"
+
+[[examples]]
+input = "2"
+output = "2"
+explanation = "Either take two single steps (1 + 1) or one double step (2)."
+
+[[examples]]
+input = "3"
+output = "3"
+explanation = "The three orders are 1 + 1 + 1, 1 + 2, and 2 + 1."
