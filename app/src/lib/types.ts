@@ -182,6 +182,14 @@ export interface LanguageInfo {
   executable: string;
 }
 
+export interface ToolchainStatus {
+  language: LanguageId;
+  executable: string;
+  version: string | null;
+  ok: boolean;
+  message: string | null;
+}
+
 export interface Bootstrap {
   problems: ProblemListing[];
   lists: ProblemList[];

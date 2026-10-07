@@ -63,7 +63,14 @@ user's output, attributed to the following test.
 The runner judges each line as it arrives (so a submission stops at the first wrong answer),
 sums the harness-measured solution time (interpreter start-up and parsing are excluded) against
 the problem's time limit, keeps a wall-clock watchdog for hangs, and kills the whole process
-group when done. Peak memory comes from `wait4`'s `ru_maxrss`.
+group when done. The watchdog also samples the child's resident memory every 20 ms
+(`proc_pidinfo` on macOS, `/proc` on Linux) and kills it past the memory limit. Peak memory
+comes from `wait4`'s `ru_maxrss`. With low-priority judging enabled the child lowers its own
+priority (nice 10) before exec.
+
+`lang::probe` checks each toolchain (`python3 --version`, minimum 3.8); the UI shows the
+result in Settings and a banner when nothing usable is installed. GUI apps launched from Finder
+get a minimal `PATH`, so detection also searches Homebrew and other common prefixes.
 
 All comparison happens in Rust, so adding a language means writing a harness that decodes
 arguments and encodes results — never reimplementing judging.

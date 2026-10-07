@@ -14,7 +14,12 @@ import time
 import traceback
 from bisect import bisect_left, bisect_right, insort
 from collections import Counter, OrderedDict, defaultdict, deque
-from functools import cache, cmp_to_key, lru_cache, reduce
+from functools import cmp_to_key, lru_cache, reduce
+
+try:
+    from functools import cache
+except ImportError:  # Python 3.8
+    cache = lru_cache(maxsize=None)
 from heapq import heapify, heappop, heappush, heappushpop, heapreplace, nlargest, nsmallest
 from itertools import accumulate, combinations, permutations, product
 from math import ceil, floor, gcd, inf, isqrt, log, log2, sqrt

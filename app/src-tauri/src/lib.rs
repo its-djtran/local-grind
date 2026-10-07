@@ -166,6 +166,12 @@ fn clear_history(svc: Svc) -> Result<()> {
 }
 
 #[tauri::command]
+async fn check_toolchains(svc: Svc<'_>) -> Result<Vec<localgrind_core::lang::ToolchainStatus>> {
+    let svc = svc.inner().clone();
+    blocking(move || Ok(svc.check_toolchains())).await
+}
+
+#[tauri::command]
 fn reference_solution(svc: Svc, id: i64, language: Language) -> Result<Option<String>> {
     svc.reference_solution(id, language)
 }
@@ -220,6 +226,7 @@ pub fn run() {
             import_history,
             clear_history,
             reference_solution,
+            check_toolchains,
             smoke_mode,
             smoke_finish,
         ])

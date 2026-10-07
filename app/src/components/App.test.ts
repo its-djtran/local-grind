@@ -5,6 +5,10 @@ import { installBackend } from "../test/backend";
 import { router } from "../lib/router.svelte";
 
 async function boot(hash = "#/problems") {
+  return boot_(hash);
+}
+
+async function boot_(hash: string) {
   location.hash = hash;
   router.sync();
   render(App);
@@ -177,6 +181,32 @@ describe("App", () => {
     await screen.findByRole("heading", { name: "Settings" });
     await fireEvent.click(screen.getByText("Export history…"));
     await screen.findByText("permission denied");
+  });
+
+  it("warns when no toolchain is available and shows probe results", async () => {
+    const backend = installBackend((cmd) => {
+      if (cmd === "check_toolchains") {
+        return [{ language: "python", executable: "/nope/python3", version: null, ok: false, message: "python3 was not found" }];
+      }
+    });
+    const boot = backend.handle;
+    backend.handle = async (cmd, args) => {
+      const r = (await boot(cmd, args)) as Record<string, unknown>;
+      if (cmd === "bootstrap") r.languages = [{ id: "python", name: "Python3", available: false, executable: "python3" }];
+      return r;
+    };
+    await boot_("#/settings");
+    expect(await screen.findByRole("alert")).toHaveTextContent("No language toolchain was found");
+    expect(await screen.findByText("python3 was not found")).toBeInTheDocument();
+  });
+
+  it("reports toolchain probe failures", async () => {
+    installBackend((cmd) => {
+      if (cmd === "check_toolchains") throw "probe crashed";
+    });
+    await boot_("#/settings");
+    expect(await screen.findByText("probe crashed")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("toggles the theme from the top bar", async () => {

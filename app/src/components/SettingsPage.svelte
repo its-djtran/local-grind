@@ -2,15 +2,27 @@
   import { open, save, ask } from "@tauri-apps/plugin-dialog";
   import { api, errorMessage } from "../lib/api";
   import { app } from "../lib/state.svelte";
-  import type { Settings } from "../lib/types";
+  import type { Settings, ToolchainStatus } from "../lib/types";
+  import { onMount } from "svelte";
 
   let draft = $state<Settings>(structuredClone($state.snapshot(app.settings!)));
   let applySettingsOnImport = $state(false);
   let message = $state<string | null>(null);
+  let toolchains = $state<ToolchainStatus[] | null>(null);
+
+  async function probe() {
+    toolchains = null;
+    toolchains = await api.checkToolchains().catch((e) => [
+      { language: "python" as const, executable: "", version: null, ok: false, message: errorMessage(e) },
+    ]);
+  }
+
+  onMount(probe);
 
   async function commit() {
     await app.saveSettings($state.snapshot(draft));
     draft = structuredClone($state.snapshot(app.settings!));
+    await probe();
   }
 
   async function exportData() {
@@ -118,10 +130,18 @@
     <label class="row">Python interpreter
       <input type="text" placeholder="auto-detect" bind:value={draft.eval.python_path} onchange={commit} aria-label="Python interpreter" />
     </label>
-    <ul class="langs">
-      {#each app.boot?.languages ?? [] as l (l.id)}
-        <li><span class={l.available ? "ok" : "bad"}>{l.available ? "✓" : "✗"}</span> {l.name} <span class="muted">{l.executable}</span></li>
-      {/each}
+    <ul class="langs" aria-label="Toolchains">
+      {#if toolchains === null}
+        <li class="muted">Checking toolchains…</li>
+      {:else}
+        {#each toolchains as t (t.language)}
+          <li>
+            <span class={t.ok ? "ok" : "bad"}>{t.ok ? "✓" : "✗"}</span>
+            {t.version ?? t.language} <span class="muted">{t.executable}</span>
+            {#if t.message}<div class="bad small">{t.message}</div>{/if}
+          </li>
+        {/each}
+      {/if}
     </ul>
   </section>
 

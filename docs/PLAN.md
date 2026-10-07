@@ -70,11 +70,12 @@ Pulled forward while building M1 (done):
 - [x] Author tooling: `lg-content check` and `lg-content judge`
 
 Remaining:
-- [~] Evaluation settings: time-limit multiplier, memory limit and interpreter path are wired;
-      `max_parallel_jobs` is stored but nothing uses it yet (wire it into M6 recalibration or
-      remove it)
-- [ ] Live memory-limit enforcement (today MLE is only detected after the run from peak RSS)
-- [ ] Toolchain detection surfaced clearly when Python is missing (first-run guidance)
+- [x] Evaluation settings: time-limit multiplier, memory limit, interpreter path, max parallel
+      judge processes (Run executes user + reference side by side only when > 1), low-priority
+      judging (nice 10)
+- [x] Live memory-limit enforcement (watchdog samples RSS every 20 ms)
+- [x] Toolchain probing (`python3 --version`, minimum 3.8) shown in Settings, plus an app-wide
+      banner with install guidance when no toolchain is usable
 - Moved to M4: additional languages (see decisions log)
 
 ### M3 — Content: Blind 75 ∪ Grind 75 (111 problems)

@@ -12,6 +12,7 @@
   });
 
   const theme = $derived(app.settings?.theme);
+  const noToolchain = $derived(!!app.boot && !app.boot.languages.some((l) => l.available));
 </script>
 
 <div class="shell">
@@ -29,6 +30,12 @@
       ◐
     </button>
   </header>
+  {#if noToolchain}
+    <div class="banner" role="alert">
+      No language toolchain was found, so code cannot be run yet. Install Python 3 (for example
+      <code>brew install python</code>) or point Local Grind at it in <a href="#/settings">Settings → Evaluation</a>.
+    </div>
+  {/if}
   <main>
     {#if app.error}
       <div class="center">
@@ -114,6 +121,14 @@
   }
   .error {
     max-width: 560px;
+  }
+  .banner {
+    background: color-mix(in srgb, var(--warn) 18%, var(--panel));
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+  }
+  .banner a {
+    text-decoration: underline;
   }
   .toast {
     position: fixed;

@@ -228,6 +228,15 @@ impl Service {
             .collect()
     }
 
+    /// Probes every language toolchain (spawns processes; call off the UI thread).
+    pub fn check_toolchains(&self) -> Vec<crate::lang::ToolchainStatus> {
+        let tools = self.toolchains.lock().unwrap().clone();
+        Language::ALL
+            .iter()
+            .map(|&l| crate::lang::probe(l, &tools))
+            .collect()
+    }
+
     pub fn bootstrap(&self) -> Result<Bootstrap> {
         let statuses = self.statuses()?;
         let topics: BTreeSet<String> = self
@@ -688,6 +697,12 @@ mod tests {
         let limits = limits_for(&problem, &saved);
         assert_eq!(limits.time_limit_ms, 4000);
         assert_eq!(limits.memory_limit_kb, 1024 * 1024);
+    }
+
+    #[test]
+    fn toolchain_checks() {
+        let svc = service();
+        assert!(svc.check_toolchains().iter().all(|t| t.ok));
     }
 
     #[test]

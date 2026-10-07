@@ -342,6 +342,8 @@ export function createBackend(): Backend {
         return null;
       case "reference_solution":
         return id === 1 ? "class Solution: ..." : null;
+      case "check_toolchains":
+        return [{ language: "python", executable: "/opt/homebrew/bin/python3", version: "Python 3.14.6", ok: true, message: null }];
       case "smoke_mode":
         return false;
       case "smoke_finish":

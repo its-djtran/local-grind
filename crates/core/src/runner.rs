@@ -256,7 +256,7 @@ pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
             &mut info as *mut _ as *mut libc::c_void,
             size,
         );
-        (n == size).then(|| info.pti_resident_size / 1024)
+        (n == size).then_some(info.pti_resident_size / 1024)
     }
 }
 

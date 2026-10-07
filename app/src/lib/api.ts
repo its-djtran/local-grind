@@ -13,6 +13,7 @@ import type {
   Stats,
   Submission,
   SubmitOutcome,
+  ToolchainStatus,
 } from "./types";
 
 export const api = {
@@ -38,6 +39,7 @@ export const api = {
   importHistory: (path: string, applySettings: boolean) =>
     invoke<ImportSummary>("import_history", { path, applySettings }),
   clearHistory: () => invoke<void>("clear_history"),
+  checkToolchains: () => invoke<ToolchainStatus[]>("check_toolchains"),
   referenceSolution: (id: number, language: LanguageId) =>
     invoke<string | null>("reference_solution", { id, language }),
   onSubmitProgress: (cb: (p: Progress) => void): Promise<UnlistenFn> =>
