@@ -49,6 +49,8 @@ export class Workspace {
 
   private timer: SolveTimer;
   private solveId: number | null = null;
+  /** Bumped on reset so a pending solve start knows its attempt was discarded. */
+  private resets = 0;
   private draftTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingDraft: string | null = null;
   private lastPersist = 0;
@@ -180,11 +182,23 @@ export class Workspace {
       // Start the clock immediately; the solve record is created in the background.
       this.timer.start();
       this.syncTimer();
+      const resets = this.resets;
       try {
         const solve = await this.api.startSolve(this.id);
+        // Reset meanwhile: the user discarded this attempt, so drop its solve.
+        if (resets !== this.resets) {
+          await this.api.discardSolve(solve.id).catch(() => {});
+          return;
+        }
         this.solveId = solve.id;
-        if (solve.elapsed_ms > 0) this.timer.reset(solve.elapsed_ms + this.timer.elapsed());
-        if (!this.timer.running) this.timer.start();
+        // Continuing an existing solve: add its time, keeping the clock as the user left it
+        // (running, or paused meanwhile).
+        if (solve.elapsed_ms > 0) {
+          const running = this.timer.running;
+          this.timer.reset(solve.elapsed_ms + this.timer.elapsed());
+          if (running) this.timer.start();
+        }
+        if (!this.timer.running) await this.persistTimer(true);
       } catch (e) {
         this.hooks.notify(`Could not start timer: ${errorMessage(e)}`);
       }
@@ -205,6 +219,7 @@ export class Workspace {
   }
 
   async resetTimer(): Promise<void> {
+    this.resets++;
     const id = this.solveId;
     this.timer.reset(0);
     this.solveId = null;
@@ -229,10 +244,14 @@ export class Workspace {
   async changeLanguage(language: LanguageId): Promise<void> {
     if (language === this.language) return;
     await this.flushDraft();
-    const view = await this.api.problem(this.id, language);
-    this.language = view.language;
-    this.code = view.code;
-    this.view = view;
+    try {
+      const view = await this.api.problem(this.id, language);
+      this.language = view.language;
+      this.code = view.code;
+      this.view = view;
+    } catch (e) {
+      this.hooks.notify(`Could not switch language: ${errorMessage(e)}`);
+    }
   }
 
   async resetCode(): Promise<void> {

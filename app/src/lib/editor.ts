@@ -68,6 +68,16 @@ export class Compartments {
   language = new Compartment();
   keymap = new Compartment();
   indent = new Compartment();
+  history = new Compartment();
+}
+
+/**
+ * Replaces the whole document from outside (language switch, reset) and starts a fresh undo
+ * history, so undo cannot bring back another language's code.
+ */
+export function replaceDocument(view: EditorView, c: Compartments, text: string): void {
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, effects: c.history.reconfigure([]) });
+  view.dispatch({ effects: c.history.reconfigure(history()) });
 }
 
 /** Base extensions; language and keymap compartments start empty and are filled once loaded. */
@@ -83,7 +93,7 @@ export function createExtensions(c: Compartments, opts: { tabSize: number }, h: 
     lineNumbers(),
     highlightActiveLineGutter(),
     foldGutter(),
-    history(),
+    c.history.of(history()),
     drawSelection(),
     indentOnInput(),
     bracketMatching(),

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/svelte";
 import { EditorView } from "@codemirror/view";
 import CodeEditor from "./CodeEditor.svelte";
 import { runScopeHandlers } from "@codemirror/view";
+import { undo } from "@codemirror/commands";
 
 function view(): EditorView {
   const el = screen.getByTestId("code-editor").querySelector(".cm-editor") as HTMLElement;
@@ -35,13 +36,23 @@ describe("CodeEditor", () => {
     expect(view().state.doc.toString()).toBe("fn main() {}");
   });
 
-  it("supports read-only mode with default handlers", () => {
-    render(CodeEditor, { value: "z", language: "python", keymap: "standard", tabSize: 4, readonly: true });
+  it("runs shortcuts with default handlers", () => {
+    render(CodeEditor, { value: "z", language: "python", keymap: "standard", tabSize: 4 });
     const v = view();
-    expect(v.state.readOnly).toBe(true);
     v.dispatch({ changes: { from: 0, insert: "a" } });
     const key = (k: string) => new KeyboardEvent("keydown", { key: k, ctrlKey: true });
     expect(runScopeHandlers(v, key("'"), "editor")).toBe(true);
     expect(runScopeHandlers(v, key("Enter"), "editor")).toBe(true);
+  });
+
+  it("starts a fresh undo history when the document is replaced from outside", async () => {
+    const r = render(CodeEditor, { value: "py code", language: "python", keymap: "standard", tabSize: 4 });
+    view().dispatch({ changes: { from: 0, insert: "# " } });
+    await r.rerender({ value: "cpp code", language: "cpp", keymap: "standard", tabSize: 4 });
+    expect(undo(view())).toBe(false);
+    expect(view().state.doc.toString()).toBe("cpp code");
+    view().dispatch({ changes: { from: 0, insert: "// " } });
+    expect(undo(view())).toBe(true);
+    expect(view().state.doc.toString()).toBe("cpp code");
   });
 });

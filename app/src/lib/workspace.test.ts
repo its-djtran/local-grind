@@ -95,6 +95,63 @@ describe("Workspace", () => {
     await ws.resetTimer();
   });
 
+  it("continues a solve started elsewhere without stopping the clock", async () => {
+    let now = 0;
+    const backend = installBackend();
+    const { ws } = make(1, { now: () => now });
+    await ws.load();
+    // Another window started a solve after this one loaded.
+    const solve = await api.startSolve(1);
+    await api.updateSolve(solve.id, 60_000);
+    await ws.startTimer();
+    expect(ws.timerRunning).toBe(true);
+    now += 1000;
+    ws.tick();
+    expect(ws.elapsed).toBe(61_000);
+    expect(backend.state.solves).toHaveLength(1);
+  });
+
+  it("keeps a pause or reset made while the solve is still starting", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const backend = installBackend((cmd, a) => {
+      if (cmd === "start_solve") return gate.then(() => backend.handle(cmd, a));
+    });
+    const { ws } = make();
+    await ws.load();
+    const paused = ws.startTimer();
+    await ws.toggleTimer();
+    release();
+    await paused;
+    expect(ws.timerRunning).toBe(false);
+    expect(backend.state.solves).toHaveLength(1);
+    // Resuming continues the same solve.
+    await ws.toggleTimer();
+    expect(ws.timerRunning).toBe(true);
+    expect(backend.state.solves).toHaveLength(1);
+
+    backend.state.solves.length = 0;
+    const { ws: other } = make();
+    await other.load();
+    const reset = other.startTimer();
+    await other.resetTimer();
+    await reset;
+    expect(other.timerRunning).toBe(false);
+    // The reset attempt's solve is discarded rather than left active.
+    expect(backend.state.solves).toHaveLength(0);
+  });
+
+  it("reports a failed language switch", async () => {
+    installBackend((cmd, a) => {
+      if (cmd === "get_problem" && a.language === "cpp") throw "toolchain probe failed";
+    });
+    const { ws, notes } = make();
+    await ws.load();
+    await ws.changeLanguage("cpp");
+    expect(ws.language).toBe("python");
+    expect(notes).toEqual(["Could not switch language: toolchain probe failed"]);
+  });
+
   it("handles timer start failures", async () => {
     installBackend((cmd) => {
       if (cmd === "start_solve") throw "db locked";

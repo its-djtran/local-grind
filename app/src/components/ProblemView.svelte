@@ -30,6 +30,7 @@
   let showCompanies = $state(false);
   let ticker: ReturnType<typeof setInterval>;
   let unlisten: (() => void) | undefined;
+  let destroyed = false;
   let offShortcuts: (() => void) | undefined;
 
   const settings = $derived(app.settings);
@@ -43,7 +44,8 @@
     ticker = setInterval(() => ws.tick(), 1000);
     api
       .onSubmitProgress((p) => ws.onProgress(p.problem_id, p.done, p.total))
-      .then((u) => (unlisten = u))
+      // Stepping through problems quickly can unmount the view before listen() resolves.
+      .then((u) => (destroyed ? u() : (unlisten = u)))
       .catch(() => {});
     window.addEventListener("beforeunload", persist);
     offShortcuts = onShortcut((action) => {
@@ -59,6 +61,7 @@
   }
 
   onDestroy(() => {
+    destroyed = true;
     clearInterval(ticker);
     unlisten?.();
     offShortcuts?.();
@@ -186,7 +189,11 @@
                 <select
                   aria-label="Language"
                   value={ws.language}
-                  onchange={(e) => ws.changeLanguage(e.currentTarget.value as LanguageId)}
+                  onchange={async (e) => {
+                    const select = e.currentTarget;
+                    await ws.changeLanguage(select.value as LanguageId);
+                    select.value = ws.language; // reverts the picker if the switch failed
+                  }}
                 >
                   {#each (app.boot?.languages ?? []).filter((l) => view.languages.includes(l.id)) as l (l.id)}
                     <option value={l.id}>{l.name}{l.available ? "" : " (not found)"}</option>
