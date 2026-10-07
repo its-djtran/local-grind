@@ -320,6 +320,7 @@ fn reference_limits() -> RunOptions {
         },
         stop_on_failure: false,
         keep_all_cases: true,
+        low_priority: false,
     }
 }
 
@@ -580,6 +581,7 @@ pub fn judge_file(src: &Source, code: &str, tools: &Toolchains) -> Result<String
         },
         stop_on_failure: true,
         keep_all_cases: false,
+        low_priority: false,
     };
     let r = runner::execute(
         &program,

@@ -26,8 +26,12 @@ pub struct EvalSettings {
     /// Multiplies every problem's time limit (slow machines may want > 1).
     pub time_limit_multiplier: f64,
     pub memory_limit_mb: u64,
-    /// Maximum concurrent judge processes (benchmark calibration, batch runs).
+    /// Maximum concurrent judge processes. With 1, "Run" executes your code and the reference
+    /// solution one after the other instead of side by side.
     pub max_parallel_jobs: usize,
+    /// Run judged programs at a lower scheduling priority so the rest of the machine stays
+    /// responsive (timings may vary more under load).
+    pub low_priority: bool,
     /// Explicit interpreter/compiler paths; empty means auto-detect.
     pub python_path: String,
 }
@@ -40,6 +44,7 @@ impl Default for EvalSettings {
             max_parallel_jobs: std::thread::available_parallelism()
                 .map(|n| (n.get() / 2).max(1))
                 .unwrap_or(1),
+            low_priority: false,
             python_path: String::new(),
         }
     }

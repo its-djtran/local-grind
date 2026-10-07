@@ -141,6 +141,7 @@ export interface EvalSettings {
   time_limit_multiplier: number;
   memory_limit_mb: number;
   max_parallel_jobs: number;
+  low_priority: boolean;
   python_path: string;
 }
 

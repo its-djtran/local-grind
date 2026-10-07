@@ -112,6 +112,9 @@
     <label class="row">Max parallel judge processes
       <input type="number" min="1" max="64" bind:value={draft.eval.max_parallel_jobs} onchange={commit} aria-label="Max parallel jobs" />
     </label>
+    <label class="row">Judge at low priority (keeps the machine responsive; timings vary more)
+      <input type="checkbox" bind:checked={draft.eval.low_priority} onchange={commit} aria-label="Low priority judging" />
+    </label>
     <label class="row">Python interpreter
       <input type="text" placeholder="auto-detect" bind:value={draft.eval.python_path} onchange={commit} aria-label="Python interpreter" />
     </label>

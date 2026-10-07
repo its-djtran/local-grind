@@ -94,7 +94,12 @@ pub struct RunOptions {
     pub stop_on_failure: bool,
     /// Record every case result, not just the first failure.
     pub keep_all_cases: bool,
+    /// Run the program at a lower scheduling priority so judging yields to other work.
+    pub low_priority: bool,
 }
+
+/// Nice value applied to low-priority judge processes.
+pub const LOW_PRIORITY_NICE: libc::c_int = 10;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseResult {
@@ -223,7 +228,7 @@ fn run_to_completion(cmd: &[String], dir: &Path, timeout: Duration) -> Result<(b
         let _ = stderr.read_to_string(&mut s);
         s
     });
-    let watchdog = Watchdog::arm(pid, timeout);
+    let watchdog = Watchdog::arm(pid, timeout, None);
     let mut out = String::new();
     let _ = stdout.read_to_string(&mut out);
     let exit = wait_child(pid, || {
@@ -237,41 +242,99 @@ fn run_to_completion(cmd: &[String], dir: &Path, timeout: Duration) -> Result<(b
     Ok((exit.code == Some(0) && !watchdog.fired(), out))
 }
 
+/// Resident memory of a live process in KB, if it can be read.
+#[cfg(target_os = "macos")]
+pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
+    // SAFETY: proc_pidinfo writes at most `size` bytes into a zeroed proc_taskinfo.
+    unsafe {
+        let mut info: libc::proc_taskinfo = std::mem::zeroed();
+        let size = std::mem::size_of::<libc::proc_taskinfo>() as libc::c_int;
+        let n = libc::proc_pidinfo(
+            pid,
+            libc::PROC_PIDTASKINFO,
+            0,
+            &mut info as *mut _ as *mut libc::c_void,
+            size,
+        );
+        (n == size).then(|| info.pti_resident_size / 1024)
+    }
+}
+
+/// Resident memory of a live process in KB, if it can be read.
+#[cfg(not(target_os = "macos"))]
+pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
+    let statm = std::fs::read_to_string(format!("/proc/{pid}/statm")).ok()?;
+    let pages: u64 = statm.split_whitespace().nth(1)?.parse().ok()?;
+    // SAFETY: sysconf has no preconditions.
+    let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
+    Some(pages * page / 1024)
+}
+
+const MEMORY_POLL: Duration = Duration::from_millis(20);
+
+/// Kills the child's process group when it outlives `timeout` or its resident memory exceeds
+/// `memory_limit_kb`. Disarming happens under a lock while the child's pid is still held by its
+/// zombie, so the watchdog can never signal a recycled pid.
 struct Watchdog {
-    state: Arc<Mutex<bool>>, // true once disarmed
-    fired: Arc<AtomicBool>,
+    disarmed: Arc<Mutex<bool>>,
+    timed_out: Arc<AtomicBool>,
+    out_of_memory: Arc<AtomicBool>,
     cancel: mpsc::Sender<()>,
 }
 
 impl Watchdog {
-    fn arm(pid: libc::pid_t, timeout: Duration) -> Watchdog {
-        let state = Arc::new(Mutex::new(false));
-        let fired = Arc::new(AtomicBool::new(false));
+    fn arm(pid: libc::pid_t, timeout: Duration, memory_limit_kb: Option<u64>) -> Watchdog {
+        let disarmed = Arc::new(Mutex::new(false));
+        let timed_out = Arc::new(AtomicBool::new(false));
+        let out_of_memory = Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::channel::<()>();
-        let (s, f) = (state.clone(), fired.clone());
-        thread::spawn(move || {
-            if rx.recv_timeout(timeout) == Err(mpsc::RecvTimeoutError::Timeout) {
-                let disarmed = s.lock().unwrap();
-                if !*disarmed {
-                    f.store(true, Ordering::SeqCst);
+        let (d, t, m) = (disarmed.clone(), timed_out.clone(), out_of_memory.clone());
+        let deadline = Instant::now() + timeout;
+        thread::spawn(move || loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let wait = if memory_limit_kb.is_some() {
+                remaining.min(MEMORY_POLL)
+            } else {
+                remaining
+            };
+            if rx.recv_timeout(wait) != Err(mpsc::RecvTimeoutError::Timeout) {
+                return;
+            }
+            let over_time = Instant::now() >= deadline;
+            let over_memory =
+                memory_limit_kb.is_some_and(|limit| rss_kb(pid).is_some_and(|rss| rss > limit));
+            if over_time || over_memory {
+                let guard = d.lock().unwrap();
+                if !*guard {
+                    if over_memory {
+                        m.store(true, Ordering::SeqCst);
+                    } else {
+                        t.store(true, Ordering::SeqCst);
+                    }
                     kill_group(pid);
                 }
+                return;
             }
         });
         Watchdog {
-            state,
-            fired,
+            disarmed,
+            timed_out,
+            out_of_memory,
             cancel: tx,
         }
     }
 
     fn disarm(&self) {
-        *self.state.lock().unwrap() = true;
+        *self.disarmed.lock().unwrap() = true;
         let _ = self.cancel.send(());
     }
 
     fn fired(&self) -> bool {
-        self.fired.load(Ordering::SeqCst)
+        self.timed_out.load(Ordering::SeqCst)
+    }
+
+    fn out_of_memory(&self) -> bool {
+        self.out_of_memory.load(Ordering::SeqCst)
     }
 }
 
@@ -316,14 +379,26 @@ pub fn execute(
     }
     std::fs::write(&input_path, input)?;
 
-    let mut child = Command::new(&program.run[0])
+    let mut command = Command::new(&program.run[0]);
+    command
         .args(&program.run[1..])
         .arg(&input_path)
         .current_dir(dir.path())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .process_group(0)
+        .process_group(0);
+    if opts.low_priority {
+        // SAFETY: the hook only makes the async-signal-safe setpriority syscall on the child
+        // itself, which never needs extra privileges (lowering priority is always allowed).
+        unsafe {
+            command.pre_exec(|| {
+                libc::setpriority(libc::PRIO_PROCESS, 0, LOW_PRIORITY_NICE);
+                Ok(())
+            });
+        }
+    }
+    let mut child = command
         .spawn()
         .map_err(|e| Error::Toolchain(format!("{}: {e}", program.run[0])))?;
     let pid = child.id() as libc::pid_t;
@@ -339,7 +414,11 @@ pub fn execute(
         String::from_utf8_lossy(&buf).into_owned()
     });
     let started = Instant::now();
-    let watchdog = Watchdog::arm(pid, Duration::from_millis(opts.limits.wall_limit_ms));
+    let watchdog = Watchdog::arm(
+        pid,
+        Duration::from_millis(opts.limits.wall_limit_ms),
+        Some(opts.limits.memory_limit_kb),
+    );
 
     let mut total_ns: u64 = 0;
     let mut pending_stdout = String::new();
@@ -445,7 +524,11 @@ pub fn execute(
             wall.as_secs_f64()
         ));
         Verdict::TimeLimitExceeded
-    } else if exit.max_rss_kb > opts.limits.memory_limit_kb {
+    } else if watchdog.out_of_memory() || exit.max_rss_kb > opts.limits.memory_limit_kb {
+        report.error = Some(format!(
+            "Memory limit of {} MB exceeded.",
+            opts.limits.memory_limit_kb / 1024
+        ));
         Verdict::MemoryLimitExceeded
     } else if report.passed < cases.len() || (exit.code != Some(0) && !killed_by_us) {
         let reason = match (exit.signal, exit.code) {
@@ -625,6 +708,54 @@ mod tests {
         };
         let r = run(&shell(ECHO_ALL), &cases(1), opts);
         assert_eq!(r.verdict, Verdict::MemoryLimitExceeded);
+    }
+
+    #[test]
+    fn memory_hog_is_killed_live() {
+        let program = Program {
+            files: vec![],
+            compile: None,
+            run: vec![
+                crate::lang::Toolchains::detect().python.to_string_lossy().into_owned(),
+                "-c".into(),
+                "import time\nblocks = []\nwhile True:\n    blocks.append(bytearray(8 * 1024 * 1024))\n    time.sleep(0.005)\n".into(),
+            ],
+        };
+        let opts = RunOptions {
+            limits: Limits {
+                memory_limit_kb: 64 * 1024,
+                wall_limit_ms: 20_000,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let start = Instant::now();
+        let r = run(&program, &cases(1), opts);
+        assert_eq!(r.verdict, Verdict::MemoryLimitExceeded, "{r:?}");
+        assert!(r.error.unwrap().contains("64 MB"));
+        assert!(start.elapsed() < Duration::from_secs(10));
+    }
+
+    #[test]
+    fn low_priority_lowers_niceness() {
+        let script = r#"sleep 0.3; n=$(ps -o nice= -p $$ | tr -d ' '); printf '\036LG {"i":0,"ns":1,"out":%s}\n' "$n""#;
+        let cs = [TestCase {
+            args: json!([0]),
+            expected: json!(LOW_PRIORITY_NICE),
+        }];
+        let opts = RunOptions {
+            low_priority: true,
+            ..Default::default()
+        };
+        assert_eq!(run(&shell(script), &cs, opts).verdict, Verdict::Accepted);
+        let r = run(&shell(script), &cs, RunOptions::default());
+        assert_eq!(r.verdict, Verdict::WrongAnswer);
+    }
+
+    #[test]
+    fn reads_resident_memory() {
+        assert!(rss_kb(std::process::id() as libc::pid_t).unwrap() > 100);
+        assert_eq!(rss_kb(-5), None);
     }
 
     #[test]

@@ -321,6 +321,7 @@ impl Service {
             limits: limits_for(problem, &settings),
             stop_on_failure,
             keep_all_cases: !stop_on_failure,
+            low_priority: settings.eval.low_priority,
         })
     }
 
@@ -364,18 +365,24 @@ impl Service {
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
         let opts = self.run_options(&problem, false)?;
-        let (expected, user_report) = std::thread::scope(|s| {
-            let reference = s.spawn(|| self.reference_outputs(&problem, &args));
-            let cases: Vec<TestCase> = args
-                .iter()
-                .map(|a| TestCase {
-                    args: a.clone(),
-                    expected: Value::Null,
-                })
-                .collect();
-            let user = runner::execute(&program, &cases, &Comparator::Exact, &opts, &mut |_, _| {});
-            (reference.join().expect("reference thread"), user)
-        });
+        let cases: Vec<TestCase> = args
+            .iter()
+            .map(|a| TestCase {
+                args: a.clone(),
+                expected: Value::Null,
+            })
+            .collect();
+        let run_user =
+            || runner::execute(&program, &cases, &Comparator::Exact, &opts, &mut |_, _| {});
+        let (expected, user_report) = if self.settings()?.eval.max_parallel_jobs > 1 {
+            std::thread::scope(|s| {
+                let reference = s.spawn(|| self.reference_outputs(&problem, &args));
+                let user = run_user();
+                (reference.join().expect("reference thread"), user)
+            })
+        } else {
+            (self.reference_outputs(&problem, &args), run_user())
+        };
         let mut report = user_report?;
         let expected = expected.ok().flatten();
         let expected_available = expected.is_some();
@@ -600,6 +607,14 @@ mod tests {
         assert_eq!(none.report.cases[0].output, Some(json!([0, 1])));
 
         assert!(svc.run(1, Language::Python, GOOD, "[1]").is_err());
+
+        // One judge process at a time, at low priority, gives the same answers.
+        let mut s = svc.settings().unwrap();
+        s.eval.max_parallel_jobs = 1;
+        s.eval.low_priority = true;
+        svc.save_settings(&s).unwrap();
+        let seq = svc.run(1, Language::Python, GOOD, "[3,2,4]\n6").unwrap();
+        assert_eq!(seq.report.verdict, Verdict::Accepted);
     }
 
     #[test]

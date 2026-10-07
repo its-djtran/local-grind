@@ -147,6 +147,8 @@ describe("App", () => {
     await waitFor(() => expect(backend.state.settings.theme).toBe("light"));
     await fireEvent.change(screen.getByLabelText("Key bindings"), { target: { value: "vim" } });
     await waitFor(() => expect(backend.state.settings.keymap).toBe("vim"));
+    await fireEvent.click(screen.getByLabelText("Low priority judging"));
+    await waitFor(() => expect(backend.state.settings.eval.low_priority).toBe(true));
 
     await fireEvent.click(screen.getByText("Export history…"));
     await screen.findByText("Exported to /tmp/localgrind-history.json");
