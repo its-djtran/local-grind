@@ -1,0 +1,26 @@
+id = 981
+title = "Time Based Key-Value Store"
+difficulty = "Medium"
+topics = ["Hash Table", "String", "Binary Search", "Design"]
+time_limit_ms = 1000
+hints = [
+  "Group the history by key: each key needs its own list of (timestamp, value) pairs.",
+  "Timestamps passed to set only ever increase, so appending keeps every key's list sorted by time for free.",
+  "A get asks for the last entry whose timestamp is at most the given one. In a sorted list, binary search finds it in O(log n).",
+]
+
+[signature]
+kind = "design"
+class = "TimeMap"
+constructor = []
+methods = [
+  { name = "set", params = [{ name = "key", type = "string" }, { name = "value", type = "string" }, { name = "timestamp", type = "int" }], returns = "void" },
+  { name = "get", params = [{ name = "key", type = "string" }, { name = "timestamp", type = "int" }], returns = "string" },
+]
+
+[[examples]]
+input = """
+["TimeMap","set","get","get","set","get","get"]
+[[],["foo","bar",1],["foo",1],["foo",3],["foo","bar2",4],["foo",4],["foo",5]]"""
+output = '[null,null,"bar","bar",null,"bar2","bar2"]'
+explanation = """At time 1, "foo" is set to "bar". Reading at time 1 or 3 returns "bar", the latest value written at or before those times. After "foo" is set to "bar2" at time 4, reads at times 4 and 5 return "bar2"."""

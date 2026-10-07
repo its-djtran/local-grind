@@ -1,0 +1,31 @@
+id = 125
+title = "Valid Palindrome"
+difficulty = "Easy"
+topics = ["Two Pointers", "String"]
+time_limit_ms = 2000
+hints = [
+  "First decide which characters matter: letters and digits only, with upper and lower case treated as the same letter.",
+  "Building a cleaned copy of the string and comparing it with its reverse works, but costs extra memory.",
+  "Use two indices that start at opposite ends, skip over characters that do not count, and compare the remaining ones case-insensitively as the indices move toward each other.",
+]
+
+[signature]
+kind = "function"
+name = "isPalindrome"
+params = [{ name = "s", type = "string" }]
+returns = "bool"
+
+[[examples]]
+input = '"A man, a plan, a canal: Panama"'
+output = "true"
+explanation = "Keeping only letters and digits and lowercasing them gives \"amanaplanacanalpanama\", which reads the same in both directions."
+
+[[examples]]
+input = '"race a car"'
+output = "false"
+explanation = "The cleaned string is \"raceacar\", whose reverse is \"racaecar\"."
+
+[[examples]]
+input = '" "'
+output = "true"
+explanation = "After removing everything that is not a letter or digit, the string is empty, and an empty string is a palindrome."

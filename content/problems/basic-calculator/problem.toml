@@ -1,0 +1,30 @@
+id = 224
+title = "Basic Calculator"
+difficulty = "Hard"
+topics = ["Math", "String", "Stack", "Recursion"]
+time_limit_ms = 1500
+hints = [
+  "Without parentheses, the answer is just a running sum: each number is added with the sign of the operator in front of it.",
+  "A '(' starts a fresh running sum, and the matching ')' folds that sum back into the outer one, multiplied by the sign that stood before the '('.",
+  "Keep a stack: on '(' push the current total and the pending sign, then reset; on ')' pop them and combine. A unary minus behaves exactly like a binary minus applied to an implicit 0.",
+  "Inputs can be nested tens of thousands of levels deep, so repeatedly rewriting the string, or relying on eval, will not work.",
+]
+
+[signature]
+kind = "function"
+name = "calculate"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"1 + 1"'
+output = "2"
+
+[[examples]]
+input = '" 2-1 + 2 "'
+output = "3"
+
+[[examples]]
+input = '"(1+(4+5+2)-3)+(6+8)"'
+output = "23"
+explanation = "The inner group 4+5+2 is 11, so the first group is 1+11-3 = 9, the second is 14, and 9+14 = 23."

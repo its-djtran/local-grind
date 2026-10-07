@@ -1,0 +1,26 @@
+id = 647
+title = "Palindromic Substrings"
+difficulty = "Medium"
+topics = ["Two Pointers", "String", "Dynamic Programming"]
+time_limit_ms = 1000
+hints = [
+  "Testing all O(n^2) substrings one by one costs O(n) each. Can you count palindromes without re-reading their characters?",
+  "If s[i..j] is a palindrome, then so is s[i+1..j-1]. Palindromes grow outward from a center.",
+  "There are 2n - 1 centers (each character and each gap between neighbours). From each one, expand while the two ends match; every successful step is one more palindrome.",
+]
+
+[signature]
+kind = "function"
+name = "countSubstrings"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"abc"'
+output = "3"
+explanation = "Only the single letters \"a\", \"b\" and \"c\" are palindromes."
+
+[[examples]]
+input = '"aaa"'
+output = "6"
+explanation = "\"a\" appears at three positions, \"aa\" at two, and \"aaa\" once: 3 + 2 + 1 = 6."

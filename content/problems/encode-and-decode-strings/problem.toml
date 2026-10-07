@@ -1,0 +1,26 @@
+id = 271
+title = "Encode and Decode Strings"
+difficulty = "Medium"
+topics = ["Array", "String", "Design"]
+time_limit_ms = 2000
+hints = [
+  "Joining the strings with a separator such as ',' or '#' breaks as soon as a string contains that separator. Any of the 256 characters may appear.",
+  "One fix is escaping: double every occurrence of a special character inside the data, so a lone special character can only be a separator.",
+  "A simpler fix: write each string's length before its contents, followed by a marker that ends the length. The decoder reads the number, then copies exactly that many characters without looking at them.",
+]
+
+[signature]
+kind = "codec"
+class = "Codec"
+encode = { name = "encode", params = [{ name = "strs", type = "string[]" }], returns = "string" }
+decode = { name = "decode", params = [{ name = "s", type = "string" }], returns = "string[]" }
+
+[[examples]]
+input = '["Hello","World"]'
+output = '["Hello","World"]'
+explanation = "One possible encoding is \"5#Hello5#World\". Decoding it must give back the original two strings."
+
+[[examples]]
+input = '[""]'
+output = '[""]'
+explanation = "A list holding one empty string must decode to a list holding one empty string, not to an empty list."

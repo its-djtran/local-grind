@@ -1,0 +1,41 @@
+id = 8
+title = "String to Integer (atoi)"
+difficulty = "Medium"
+topics = ["String"]
+time_limit_ms = 2000
+hints = [
+  "Handle the input in stages, in order: leading spaces, then at most one sign character, then digits. Stop at the first character that does not fit the current stage.",
+  "A second sign (as in \"+-12\") or any character other than a digit right after the sign means no digits are read, so the answer is 0.",
+  "Clamp the result to [-2^31, 2^31 - 1]. In a language with fixed-width integers you would check for overflow before multiplying by 10; in Python you can clamp at the end, or stop early once the value is out of range.",
+]
+
+[signature]
+kind = "function"
+name = "myAtoi"
+params = [{ name = "s", type = "string" }]
+returns = "int"
+
+[[examples]]
+input = '"42"'
+output = "42"
+explanation = "There are no spaces or sign; the digits \"42\" are read to the end of the string."
+
+[[examples]]
+input = '"   -042"'
+output = "-42"
+explanation = "The three spaces are skipped, '-' makes the number negative, and the digits \"042\" give 42 (the leading zero has no effect)."
+
+[[examples]]
+input = '"1337c0d3"'
+output = "1337"
+explanation = "Reading stops at 'c', the first character that is not a digit."
+
+[[examples]]
+input = '"0-1"'
+output = "0"
+explanation = "The digit 0 is read, then '-' stops the reading. A sign is only accepted before the first digit."
+
+[[examples]]
+input = '"words and 987"'
+output = "0"
+explanation = "The first character is 'w', which is neither a space, a sign nor a digit, so no digits are read."

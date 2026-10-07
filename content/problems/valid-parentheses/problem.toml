@@ -1,0 +1,38 @@
+id = 20
+title = "Valid Parentheses"
+difficulty = "Easy"
+topics = ["String", "Stack"]
+time_limit_ms = 2000
+hints = [
+  "When you read a closing bracket, which opening bracket must it be matched with?",
+  "The most recently opened bracket that is still unmatched is the only one a closer may close. Which data structure gives you the most recent item first?",
+  "Push openers onto a stack; on a closer, the stack must be non-empty and its top must be the matching opener. At the end the stack must be empty.",
+]
+
+[signature]
+kind = "function"
+name = "isValid"
+params = [{ name = "s", type = "string" }]
+returns = "bool"
+
+[[examples]]
+input = '"()"'
+output = "true"
+
+[[examples]]
+input = '"()[]{}"'
+output = "true"
+
+[[examples]]
+input = '"(]"'
+output = "false"
+explanation = "The round bracket opened at index 0 is closed by a square bracket."
+
+[[examples]]
+input = '"([])"'
+output = "true"
+
+[[examples]]
+input = '"([)]"'
+output = "false"
+explanation = "The square bracket is still open when the round bracket tries to close, so the brackets cross instead of nesting."

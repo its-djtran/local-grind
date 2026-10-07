@@ -1,0 +1,26 @@
+id = 5
+title = "Longest Palindromic Substring"
+difficulty = "Medium"
+topics = ["Two Pointers", "String", "Dynamic Programming"]
+time_limit_ms = 1000
+hints = [
+  "Checking every substring separately repeats a lot of work. How is a palindrome related to the slightly shorter palindrome inside it?",
+  "Every palindrome has a center: a single character when its length is odd, or the gap between two characters when its length is even. There are only 2n - 1 centers.",
+  "From each center, grow outward while the characters on both sides match, and remember the widest palindrome found.",
+  "For a linear-time solution, look up Manacher's algorithm: it reuses the radius of a mirrored center inside a palindrome that is already known.",
+]
+
+[signature]
+kind = "function"
+name = "longestPalindrome"
+params = [{ name = "s", type = "string" }]
+returns = "string"
+
+[[examples]]
+input = '"babadada"'
+output = '"adada"'
+explanation = "\"bab\" and \"aba\" are palindromes of length 3, but \"adada\" (indices 3 to 7) is longer, and no other palindromic substring has length 5 or more."
+
+[[examples]]
+input = '"cbbd"'
+output = '"bb"'
