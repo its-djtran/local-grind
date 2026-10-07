@@ -1,0 +1,30 @@
+id = 323
+title = "Number of Connected Components in an Undirected Graph"
+difficulty = "Medium"
+topics = ["Depth-First Search", "Breadth-First Search", "Union Find", "Graph"]
+time_limit_ms = 300
+hints = [
+  "Every node starts out as its own component. What happens to the count when an edge joins two different components?",
+  "A traversal (DFS or BFS) started from an unvisited node marks exactly one whole component.",
+  "With union-find, decrement the count each time an edge unites two different roots. Path compression keeps every find fast.",
+]
+
+[signature]
+kind = "function"
+name = "countComponents"
+params = [{ name = "n", type = "int" }, { name = "edges", type = "int[][]" }]
+returns = "int"
+
+[[examples]]
+input = """
+5
+[[0,1],[1,2],[3,4]]"""
+output = "2"
+explanation = "Nodes {0, 1, 2} form one component and nodes {3, 4} form another."
+
+[[examples]]
+input = """
+5
+[[0,1],[1,2],[2,3],[3,4]]"""
+output = "1"
+explanation = "A single path links all five nodes."

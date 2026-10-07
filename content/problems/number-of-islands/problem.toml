@@ -1,0 +1,26 @@
+id = 200
+title = "Number of Islands"
+difficulty = "Medium"
+topics = ["Array", "Depth-First Search", "Breadth-First Search", "Union Find", "Matrix"]
+time_limit_ms = 2000
+hints = [
+  "Scan the grid. When you meet a land cell that does not belong to any island counted so far, you have found a new island.",
+  "From that cell, explore every land cell connected to it (up, down, left, right) and mark them so they are never counted again.",
+  "Marking can be done in place by overwriting visited land with '0'. Use an explicit stack or queue to avoid deep recursion on huge islands.",
+]
+
+[signature]
+kind = "function"
+name = "numIslands"
+params = [{ name = "grid", type = "char[][]" }]
+returns = "int"
+
+[[examples]]
+input = """[["1","1","1","1","0"],["1","1","0","1","0"],["1","1","0","0","0"],["0","0","0","0","0"]]"""
+output = "1"
+explanation = "All land cells are joined into a single island."
+
+[[examples]]
+input = """[["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]"""
+output = "3"
+explanation = "The 2x2 block in the top-left, the lone cell in the middle, and the pair in the bottom-right are three separate islands. Diagonal contact does not connect cells."

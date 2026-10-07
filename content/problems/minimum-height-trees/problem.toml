@@ -1,0 +1,34 @@
+id = 310
+title = "Minimum Height Trees"
+difficulty = "Medium"
+topics = ["Depth-First Search", "Breadth-First Search", "Graph", "Topological Sort"]
+time_limit_ms = 2000
+hints = [
+  "Trying every node as the root and measuring the height works, but costs O(n) per root. Which nodes can never be the best root?",
+  "A leaf is never a better root than its neighbor (unless n <= 2). What happens if you remove all current leaves at once?",
+  "Keep peeling off layers of leaves, like topological sort on degrees, until at most two nodes remain. Those are the centers of the tree.",
+  "Equivalently, the answer is the middle one or two nodes of any longest path (diameter) of the tree.",
+]
+
+[signature]
+kind = "function"
+name = "findMinHeightTrees"
+params = [{ name = "n", type = "int" }, { name = "edges", type = "int[][]" }]
+returns = "int[]"
+
+[judge]
+mode = "unordered"
+
+[[examples]]
+input = """
+4
+[[1,0],[1,2],[1,3]]"""
+output = "[1]"
+explanation = "Rooted at node 1, every other node is one edge away, giving height 1. Any other root gives height 2."
+
+[[examples]]
+input = """
+6
+[[3,0],[3,1],[3,2],[3,4],[5,4]]"""
+output = "[3,4]"
+explanation = "Rooting at node 3 or node 4 gives height 2; every other choice gives height 3 or more."

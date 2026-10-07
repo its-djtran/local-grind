@@ -1,0 +1,39 @@
+id = 733
+title = "Flood Fill"
+difficulty = "Easy"
+topics = ["Array", "Depth-First Search", "Breadth-First Search", "Matrix"]
+time_limit_ms = 2000
+hints = [
+  "Remember the starting pixel's original color: only pixels with exactly that color can be repainted.",
+  "From the start, visit up/down/left/right neighbors that still have the original color, repainting as you go (DFS or BFS).",
+  "What happens if the new color equals the original color? Make sure your search still terminates.",
+]
+
+[signature]
+kind = "function"
+name = "floodFill"
+params = [
+  { name = "image", type = "int[][]" },
+  { name = "sr", type = "int" },
+  { name = "sc", type = "int" },
+  { name = "color", type = "int" },
+]
+returns = "int[][]"
+
+[[examples]]
+input = """
+[[1,1,1],[1,1,0],[1,0,1]]
+1
+1
+2"""
+output = "[[2,2,2],[2,2,0],[2,0,1]]"
+explanation = "The start pixel (1, 1) has color 1. Every 1 connected to it through up/down/left/right moves becomes 2. The 1 in the bottom-right corner touches the region only diagonally, so it keeps its color."
+
+[[examples]]
+input = """
+[[0,0,0],[0,0,0]]
+0
+0
+0"""
+output = "[[0,0,0],[0,0,0]]"
+explanation = "The new color equals the original color, so the image does not change."

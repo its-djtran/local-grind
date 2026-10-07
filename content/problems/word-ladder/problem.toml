@@ -1,0 +1,37 @@
+id = 127
+title = "Word Ladder"
+difficulty = "Hard"
+topics = ["Hash Table", "String", "Breadth-First Search"]
+time_limit_ms = 2000
+hints = [
+  "Treat each word as a node, with an edge between two words that differ in exactly one position. You want the shortest path, so which traversal fits?",
+  "Comparing every pair of words to find edges is too slow for 5000 words. Can you generate a word's neighbors directly instead?",
+  "Either try all 26 letters at every position and look the result up in a set, or bucket words by patterns such as \"h*t\" so that all words in a bucket are neighbors.",
+  "Remove words from the set (or mark them visited) as soon as they are enqueued, so each word is processed only once.",
+]
+
+[signature]
+kind = "function"
+name = "ladderLength"
+params = [
+  { name = "beginWord", type = "string" },
+  { name = "endWord", type = "string" },
+  { name = "wordList", type = "string[]" },
+]
+returns = "int"
+
+[[examples]]
+input = """
+"hit"
+"cog"
+["hot","dot","dog","lot","log","cog"]"""
+output = "5"
+explanation = "One shortest ladder is hit -> hot -> dot -> dog -> cog, which contains 5 words."
+
+[[examples]]
+input = """
+"hit"
+"cog"
+["hot","dot","dog","lot","log"]"""
+output = "0"
+explanation = "\"cog\" is not in the word list, so no ladder can end there."

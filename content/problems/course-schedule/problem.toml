@@ -1,0 +1,31 @@
+id = 207
+title = "Course Schedule"
+difficulty = "Medium"
+topics = ["Depth-First Search", "Breadth-First Search", "Graph", "Topological Sort"]
+time_limit_ms = 1000
+hints = [
+  "Model the courses as a directed graph with an edge from each prerequisite to the course that needs it.",
+  "Every course can be completed exactly when this graph has no directed cycle.",
+  "Repeatedly take a course whose prerequisites are all done (in-degree 0). If you run out of such courses before taking them all, there is a cycle.",
+  "Alternatively, run a DFS that colors nodes as unvisited / in progress / done; meeting an in-progress node means a cycle. Never re-explore a finished node.",
+]
+
+[signature]
+kind = "function"
+name = "canFinish"
+params = [{ name = "numCourses", type = "int" }, { name = "prerequisites", type = "int[][]" }]
+returns = "bool"
+
+[[examples]]
+input = """
+2
+[[1,0]]"""
+output = "true"
+explanation = "Take course 0 first, then course 1."
+
+[[examples]]
+input = """
+2
+[[1,0],[0,1]]"""
+output = "false"
+explanation = "Course 1 requires course 0 and course 0 requires course 1, so neither can ever be started."

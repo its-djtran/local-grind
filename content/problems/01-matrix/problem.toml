@@ -1,0 +1,26 @@
+id = 542
+title = "01 Matrix"
+difficulty = "Medium"
+topics = ["Array", "Dynamic Programming", "Breadth-First Search", "Matrix"]
+time_limit_ms = 1500
+hints = [
+  "Running a separate search from every 1 repeats a lot of work. Can the zeros do the searching instead?",
+  "Start a single breadth-first search from all zeros at once. The first time the search reaches a cell, it has traveled the shortest possible distance.",
+  "There is also a two-pass dynamic programming solution: one sweep from the top-left using the up and left neighbors, then one from the bottom-right using the down and right neighbors.",
+]
+
+[signature]
+kind = "function"
+name = "updateMatrix"
+params = [{ name = "mat", type = "int[][]" }]
+returns = "int[][]"
+
+[[examples]]
+input = "[[0,0,0],[0,1,0],[0,0,0]]"
+output = "[[0,0,0],[0,1,0],[0,0,0]]"
+explanation = "The only 1 is directly next to a 0."
+
+[[examples]]
+input = "[[0,0,0],[0,1,0],[1,1,1]]"
+output = "[[0,0,0],[0,1,0],[1,2,1]]"
+explanation = "The middle cell of the bottom row needs two steps to reach a 0: up to the center, then up again (or sideways then up)."

@@ -1,0 +1,35 @@
+id = 269
+title = "Alien Dictionary"
+difficulty = "Hard"
+topics = ["Array", "String", "Depth-First Search", "Breadth-First Search", "Graph", "Topological Sort"]
+time_limit_ms = 2000
+hints = [
+  "Only neighboring words in the list carry information. What does the first position where two neighbors differ tell you?",
+  "Each such position gives one rule 'letter x comes before letter y'. Collect these rules as edges of a directed graph over the letters.",
+  "Watch for a word that is followed by its own proper prefix (like \"abc\" before \"ab\"): no alphabet can make that sorted.",
+  "Any topological order of the letter graph is a valid alphabet; if the graph has a cycle, there is none. Remember letters that appear in no rule.",
+]
+
+[signature]
+kind = "function"
+name = "alienOrder"
+params = [{ name = "words", type = "string[]" }]
+returns = "string"
+
+[judge]
+mode = "validator"
+name = "alien_order"
+
+[[examples]]
+input = """["wrt","wrf","er","ett","rftt"]"""
+output = "\"wertf\""
+explanation = "Comparing neighbors gives t before f (wrt, wrf), w before e (wrf, er), r before t (er, ett) and e before r (ett, rftt). Chaining these rules yields w, e, r, t, f."
+
+[[examples]]
+input = """["z","x"]"""
+output = "\"zx\""
+
+[[examples]]
+input = """["z","x","z"]"""
+output = "\"\""
+explanation = "The first pair needs z before x and the second needs x before z, which is impossible."

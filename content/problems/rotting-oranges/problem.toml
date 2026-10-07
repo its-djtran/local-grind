@@ -1,0 +1,31 @@
+id = 994
+title = "Rotting Oranges"
+difficulty = "Medium"
+topics = ["Array", "Breadth-First Search", "Matrix"]
+time_limit_ms = 2000
+hints = [
+  "Rot spreads from every rotten orange at the same time, one step per minute. Which traversal naturally moves outward one layer at a time?",
+  "Put all initially rotten oranges into the queue before starting, and process the queue level by level; each level is one minute.",
+  "Count the fresh oranges first. If some are still fresh when the search ends, return -1. If there were none to begin with, the answer is 0.",
+]
+
+[signature]
+kind = "function"
+name = "orangesRotting"
+params = [{ name = "grid", type = "int[][]" }]
+returns = "int"
+
+[[examples]]
+input = "[[2,1,1],[1,1,0],[0,1,1]]"
+output = "4"
+explanation = "The rot spreads from the top-left corner and reaches the bottom-right orange after four minutes."
+
+[[examples]]
+input = "[[2,1,1],[0,1,1],[1,0,1]]"
+output = "-1"
+explanation = "The orange in the bottom-left corner has no fresh or rotten orange above, below, left or right of it, so it never rots."
+
+[[examples]]
+input = "[[0,2]]"
+output = "0"
+explanation = "There are no fresh oranges, so no time needs to pass."
