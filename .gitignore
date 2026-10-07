@@ -1,10 +1,25 @@
+# Build outputs (cargo, vite): includes the release .app and .dmg under target/release/bundle/
 target/
-node_modules/
 app/dist/
-coverage/
+*.dmg
+
+# Dependencies
+node_modules/
+
+# scripts/release.sh and scripts/fetch_python.sh
+/app/src-tauri/resources/python/
 /assets/problems.db
+
+# Tauri-generated
+/app/src-tauri/gen/schemas
+
+# Coverage (scripts/check.sh, or tarpaulin/vitest run directly)
+coverage/
+cobertura.xml
+tarpaulin-report.*
+lcov.info
 *.profraw
+
+# Local tooling
 .DS_Store
 .claude/
-/app/src-tauri/gen/schemas
-/app/src-tauri/resources/python/
