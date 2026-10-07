@@ -27,9 +27,12 @@
     "active": true,
     "targets": ["app", "dmg"],
     "category": "DeveloperTool",
-    "copyright": "Local Grind contributors",
+    "copyright": "Copyright © 2026 David Tran and the Local Grind contributors. Licensed under MIT OR Apache-2.0.",
     "resources": {
-      "../../assets/problems.db": "problems.db"
+      "../../assets/problems.db": "problems.db",
+      "../../LICENSE-MIT": "LICENSE-MIT",
+      "../../LICENSE-APACHE": "LICENSE-APACHE",
+      "../../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md"
     },
     "icon": [
       "icons/32x32.png",

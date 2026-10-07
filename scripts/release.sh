@@ -23,7 +23,7 @@ if [[ "${1:-}" != "--skip-checks" ]]; then
 fi
 
 step "tauri build"
-RESOURCES='{"bundle":{"resources":{"../../assets/problems.db":"problems.db","resources/python/":"python/"}}}'
+RESOURCES='{"bundle":{"resources":{"../../assets/problems.db":"problems.db","../../LICENSE-MIT":"LICENSE-MIT","../../LICENSE-APACHE":"LICENSE-APACHE","../../THIRD-PARTY-NOTICES.md":"THIRD-PARTY-NOTICES.md","resources/python/":"python/"}}}'
 (cd app && npx tauri build --bundles app,dmg --config "$RESOURCES")
 
 BUNDLE=target/release/bundle

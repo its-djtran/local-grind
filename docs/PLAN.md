@@ -48,6 +48,10 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
 - **Known judge limits.** Codec problems use separate instances for encode/decode, but state
   stored on the class itself is not prevented. "Do not use library sort" style rules (Sort
   Colors) and API-call budgets (First Bad Version) are stated, not enforced.
+- **License** (per user, 2026-10-07): the most open-source-friendly option, dual MIT OR
+  Apache-2.0 (Rust ecosystem convention: permissive, explicit patent grant, GPLv2-compatible via
+  MIT). Covers code and original content; third-party components are listed in
+  `THIRD-PARTY-NOTICES.md` and the license files ship inside the app bundle.
 - **Toolchains at distribution** (2026-10-07). Python is bundled with the app (it is also the
   fallback reference for custom testcases). Compilers are not bundled: C++ and Rust are detected
   (Homebrew, rustup and system paths, since Finder-launched apps get a minimal `PATH`) with

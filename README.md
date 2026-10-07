@@ -40,6 +40,17 @@ catalog, runs every check, builds the .app and .dmg, and smoke-tests the built a
 See `CLAUDE.md` for all commands, `docs/ARCHITECTURE.md` for how the pieces fit together,
 `docs/CONTENT.md` to add problems, and `docs/PLAN.md` for the roadmap.
 
-Problem statements and editorials in this repository are original writing describing
-well-known interview problems. Company tags are derived from
-[liquidslr/leetcode-company-wise-problems](https://github.com/liquidslr/leetcode-company-wise-problems).
+## License
+
+Local Grind is dual-licensed under either of
+
+- [Apache License, Version 2.0](LICENSE-APACHE)
+- [MIT license](LICENSE-MIT)
+
+at your option. This covers the code and the problem content (statements, editorials, tests and
+reference solutions are original writing describing well-known interview problems). Bundled
+third-party components keep their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+Local Grind by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.

@@ -32,6 +32,8 @@ least 30 tests.
 
 ## Writing style and licensing
 
+Content is contributed under the project's MIT OR Apache-2.0 dual license (see `README.md`).
+
 Statements and editorials are **original writing**. Describe the same problem (same function,
 same examples, same constraints and edge cases) in your own words; never paste text from
 LeetCode or other sites. Keep LeetCode's problem number as `id` and its URL slug as the
