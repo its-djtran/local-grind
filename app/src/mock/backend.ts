@@ -238,6 +238,7 @@ export function createBackend(): Backend {
           languages: [
             { id: "python", name: "Python3", available: true, executable: "/opt/homebrew/bin/python3" },
             { id: "javascript", name: "JavaScript", available: true, executable: "/opt/homebrew/bin/node" },
+            { id: "cpp", name: "C++", available: true, executable: "/usr/bin/clang++" },
           ],
           catalog_built_at: "2026-10-07T12:00:00.000Z",
         } satisfies Bootstrap;

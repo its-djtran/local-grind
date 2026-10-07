@@ -20,6 +20,7 @@ use std::str::FromStr;
 use crate::error::{Error, Result};
 use crate::types::Signature;
 
+pub mod cpp;
 pub mod javascript;
 pub mod python;
 
@@ -30,15 +31,17 @@ pub const RESULT_SENTINEL: &str = "\x1eLG ";
 pub enum Language {
     Python,
     JavaScript,
+    Cpp,
 }
 
 impl Language {
-    pub const ALL: &'static [Language] = &[Language::Python, Language::JavaScript];
+    pub const ALL: &'static [Language] = &[Language::Python, Language::JavaScript, Language::Cpp];
 
     pub fn id(self) -> &'static str {
         match self {
             Language::Python => "python",
             Language::JavaScript => "javascript",
+            Language::Cpp => "cpp",
         }
     }
 
@@ -46,6 +49,7 @@ impl Language {
         match self {
             Language::Python => "Python3",
             Language::JavaScript => "JavaScript",
+            Language::Cpp => "C++",
         }
     }
 
@@ -53,6 +57,7 @@ impl Language {
         match self {
             Language::Python => &python::PythonDriver,
             Language::JavaScript => &javascript::JavaScriptDriver,
+            Language::Cpp => &cpp::CppDriver,
         }
     }
 
@@ -61,6 +66,7 @@ impl Language {
         match self {
             Language::Python => "python3",
             Language::JavaScript => "node",
+            Language::Cpp => "clang++",
         }
     }
 
@@ -69,6 +75,7 @@ impl Language {
         match self {
             Language::Python => (3, 8),
             Language::JavaScript => (16, 0),
+            Language::Cpp => (10, 0),
         }
     }
 
@@ -76,6 +83,7 @@ impl Language {
         match self {
             Language::Python => "Install Python 3 (for example `brew install python`)",
             Language::JavaScript => "Install Node.js (for example `brew install node`)",
+            Language::Cpp => "Install the Xcode Command Line Tools (`xcode-select --install`)",
         }
     }
 }

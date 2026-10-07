@@ -193,6 +193,23 @@ fn split_line(line: &str) -> (&str, Option<&str>) {
     }
 }
 
+/// Human-readable meaning of a fatal signal, as shown in Runtime Error messages.
+pub fn signal_name(sig: i32) -> &'static str {
+    match sig {
+        libc::SIGSEGV => {
+            "segmentation fault: invalid memory access, e.g. a null pointer or out-of-bounds index"
+        }
+        libc::SIGBUS => "bus error: invalid memory access",
+        libc::SIGFPE => "floating point exception, e.g. integer division by zero",
+        libc::SIGABRT => "aborted, e.g. a failed assertion",
+        libc::SIGILL | libc::SIGTRAP => {
+            "trap: the program hit undefined behaviour, e.g. a null pointer dereference"
+        }
+        libc::SIGKILL => "killed",
+        _ => "terminated",
+    }
+}
+
 fn push_capped(buf: &mut String, s: &str) {
     if buf.len() < MAX_CAPTURE {
         let room = MAX_CAPTURE - buf.len();
@@ -593,7 +610,7 @@ pub fn execute(
         Verdict::MemoryLimitExceeded
     } else if report.passed < cases.len() || (exit.code != Some(0) && !killed_by_us) {
         let reason = match (exit.signal, exit.code) {
-            (Some(sig), _) => format!("Process terminated by signal {sig}."),
+            (Some(sig), _) => format!("Process terminated by signal {sig} ({}).", signal_name(sig)),
             (None, Some(code)) if code != 0 => format!("Process exited with code {code}."),
             _ => "Process exited before all tests completed.".into(),
         };
@@ -717,7 +734,18 @@ mod tests {
         );
 
         let r = run(&shell("kill -SEGV $$"), &cases(1), RunOptions::default());
-        assert!(r.error.unwrap().contains("signal 11"));
+        assert!(r.error.unwrap().contains("signal 11 (segmentation fault"));
+        for sig in [
+            libc::SIGBUS,
+            libc::SIGFPE,
+            libc::SIGABRT,
+            libc::SIGILL,
+            libc::SIGTRAP,
+            libc::SIGKILL,
+            libc::SIGTERM,
+        ] {
+            assert!(!signal_name(sig).is_empty());
+        }
 
         let r = run(&shell("exit 0"), &cases(1), RunOptions::default());
         assert!(r.error.unwrap().contains("before all tests"));
