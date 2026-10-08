@@ -1711,7 +1711,7 @@ dependencies = [
 
 [[package]]
 name = "lg-content"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "localgrind-core",
  "pulldown-cmark",
@@ -1805,7 +1805,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "localgrind"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "localgrind-core",
  "serde",
@@ -1816,7 +1816,7 @@ dependencies = [
 
 [[package]]
 name = "localgrind-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libc",
  "miniz_oxide 0.8.9",

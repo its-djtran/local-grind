@@ -8,6 +8,8 @@ the [Unreleased] section into the new version's entry.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-08
+
 ### Added
 - Versioning: the app follows SemVer with the workspace `Cargo.toml` as the single source of the
   version; `scripts/bump_version.sh` cuts a release (commit and `vX.Y.Z` tag); Settings shows
