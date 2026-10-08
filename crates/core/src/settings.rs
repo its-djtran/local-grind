@@ -92,6 +92,10 @@ impl Settings {
     /// option from a newer or older app, a hand edit) falls back to its default instead of
     /// discarding every other setting. The result is sanitized.
     pub fn from_value_lenient(stored: &Value) -> Settings {
+        // Fast path: missing fields already take their defaults (`#[serde(default)]`).
+        if let Ok(s) = Settings::deserialize(stored) {
+            return s.sanitized();
+        }
         let mut merged = serde_json::to_value(Settings::default()).expect("settings serialize");
         if let Value::Object(fields) = stored {
             for (key, value) in fields {
