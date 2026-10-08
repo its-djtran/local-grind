@@ -168,8 +168,9 @@ driven by settings. Inconsolata is bundled via `@fontsource` (no network access 
   requires Accepted, so harness changes cannot silently break content.
 - Frontend tests run under Vitest + jsdom. Components are tested against the mock backend via
   Tauri's `mockIPC`, so the UI is exercised through the same command interface as production.
-- `scripts/check.sh` is the gate: formatting, clippy, svelte-check, all tests, and a 90%
-  coverage floor for both halves.
+- `scripts/check.sh` is the gate: formatting, clippy, svelte-check, all tests, the catalog
+  build with `catalog_e2e`, and a 90% coverage floor for both halves (`--no-coverage` runs the
+  same steps without the coverage floors).
 - `scripts/smoke.sh` is the end-to-end test of the real app: it builds the desktop binary and
   launches it with `LOCALGRIND_SMOKE=1` and a throwaway `LOCALGRIND_DATA_DIR`; `lib/smoke.ts`
   drives the real UI through the core flows and the app exits with the result.

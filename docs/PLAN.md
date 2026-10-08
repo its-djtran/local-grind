@@ -222,13 +222,13 @@ Bugs:
 - [x] Lists and `companies.json` silently drop unknown slugs; `ListFile` lacks
       `deny_unknown_fields` and `check` never validates lists (`build` now fails on unknown
       slugs and fields; `check.sh` runs `build`)
-- [ ] `check.sh --no-coverage` silently skips the catalog gate (undocumented)
+- [x] `check.sh --no-coverage` silently skips the catalog gate (undocumented)
 
 Inefficiencies:
 - [ ] `lg-content judge` / `bench` run `build_problem`, which verifies every extra-language
       reference first (~7x slower `judge`); split suite building from verification
 - [ ] `lg-content check` runs problems serially; reuse `build`'s worker pool
-- [ ] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
+- [x] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
 - [ ] Opening a problem runs `problem_statuses()` over all submissions for one id
 - [ ] Recalibration re-inflates each problem's suite once per language under the catalog lock
 - [ ] Settings are re-read from the DB several times per run; toolchains detected twice at start

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Builds the distributable macOS app and .dmg:
-#   1. fetch the bundled CPython, 2. build the problem catalog, 3. run the full gate,
-#   4. tauri build (.app + .dmg) with the catalog and Python as resources,
-#   5. smoke-test the built app bundle itself.
+#   1. fetch the bundled CPython, 2. run the full gate (which builds the problem catalog;
+#   with --skip-checks only the catalog is built), 3. tauri build (.app + .dmg) with the catalog
+#   and Python as resources,
+#   4. smoke-test the built app bundle itself.
 # Usage: scripts/release.sh [--skip-checks]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -14,11 +15,11 @@ step() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 step "bundled Python"
 scripts/fetch_python.sh
 
-step "problem catalog"
-cargo run -q --release -p lg-content -- build
-
-if [[ "${1:-}" != "--skip-checks" ]]; then
-  step "checks"
+if [[ "${1:-}" == "--skip-checks" ]]; then
+  step "problem catalog"
+  cargo run -q --release -p lg-content -- build
+else
+  step "checks (including the catalog build)"
   scripts/check.sh
 fi
 

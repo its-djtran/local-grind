@@ -9,7 +9,7 @@ checkboxes truthful and work milestone by milestone. Architecture is in `docs/AR
 Rust tooling lives in `~/.cargo/bin` (add it to `PATH`).
 
 ```sh
-scripts/check.sh                                  # full gate: fmt, clippy, svelte-check, tests, coverage >= 90%
+scripts/check.sh [--no-coverage]                  # full gate: fmt, clippy, svelte-check, tests, catalog, coverage >= 90%
 cargo test --workspace                            # Rust tests
 cargo run -q -p lg-content -- build               # content/ -> assets/problems.db
 cargo run -q -p lg-content -- check <slug>...     # validate problems without writing the DB
