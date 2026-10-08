@@ -62,6 +62,7 @@ pub struct ProblemFile {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListFile {
     pub id: String,
     pub name: String,
@@ -614,35 +615,50 @@ pub fn load_lists(content: &Path, slugs: &HashMap<String, i64>) -> Result<Vec<Pr
     if !dir.is_dir() {
         return Ok(Vec::new());
     }
-    let mut files: Vec<ListFile> = Vec::new();
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|x| x == "toml"))
         .collect();
     paths.sort();
+    let mut lists: Vec<(usize, ProblemList)> = Vec::new();
     for p in paths {
-        files.push(toml::from_str(&read(&p)?).map_err(|e| format!("{}: {e}", p.display()))?);
+        let f: ListFile =
+            toml::from_str(&read(&p)?).map_err(|e| format!("{}: {e}", p.display()))?;
+        // A typo would otherwise silently drop a problem from the list.
+        let unknown: Vec<&str> = f
+            .items
+            .iter()
+            .filter(|(_, slug)| !slugs.contains_key(slug))
+            .map(|(_, slug)| slug.as_str())
+            .collect();
+        if !unknown.is_empty() {
+            return Err(format!(
+                "{}: unknown problem slugs: {}",
+                p.display(),
+                unknown.join(", ")
+            ));
+        }
+        let items = f
+            .items
+            .iter()
+            .map(|(group, slug)| ListItem {
+                problem_id: slugs[slug],
+                group: group.clone(),
+            })
+            .collect();
+        lists.push((
+            f.position,
+            ProblemList {
+                id: f.id,
+                name: f.name,
+                description: f.description,
+                items,
+            },
+        ));
     }
-    files.sort_by_key(|f| f.position);
-    Ok(files
-        .into_iter()
-        .map(|f| ProblemList {
-            items: f
-                .items
-                .iter()
-                .filter_map(|(group, slug)| {
-                    slugs.get(slug).map(|&id| ListItem {
-                        problem_id: id,
-                        group: group.clone(),
-                    })
-                })
-                .collect(),
-            id: f.id,
-            name: f.name,
-            description: f.description,
-        })
-        .collect())
+    lists.sort_by_key(|(position, _)| *position);
+    Ok(lists.into_iter().map(|(_, l)| l).collect())
 }
 
 /// `content/companies.json`: `{ "<slug>": [{company, frequency, recency}, ...] }`.
@@ -727,12 +743,22 @@ pub fn build(
         w.add_list(l, i).map_err(|e| e.to_string())?;
     }
     report.lists = lists.len();
-    for (slug, tags) in load_companies(content)? {
-        if let Some(&id) = slugs.get(&slug) {
-            for t in &tags {
-                w.add_company(id, t).map_err(|e| e.to_string())?;
-                report.company_tags += 1;
-            }
+    let companies = load_companies(content)?;
+    let unknown: Vec<&str> = companies
+        .keys()
+        .filter(|slug| !slugs.contains_key(*slug))
+        .map(String::as_str)
+        .collect();
+    if !unknown.is_empty() {
+        return Err(format!(
+            "companies.json: unknown problem slugs: {}",
+            unknown.join(", ")
+        ));
+    }
+    for (slug, tags) in &companies {
+        for t in tags {
+            w.add_company(slugs[slug], t).map_err(|e| e.to_string())?;
+            report.company_tags += 1;
         }
     }
     w.finish().map_err(|e| e.to_string())?;

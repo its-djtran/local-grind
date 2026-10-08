@@ -90,6 +90,20 @@ fn builds_catalog_from_content() {
     )
     .unwrap();
     let out = root.join("out/problems.db");
+    // Unknown slugs (typos) fail the build instead of silently dropping entries.
+    let err = build(root, &out, &tools(), 2, "now").unwrap_err();
+    assert!(err.contains("unknown problem slugs: missing"), "{err}");
+    edit(&root.join("lists/a.toml"), r#", ["X", "missing"]"#, "");
+    let err = build(root, &out, &tools(), 2, "now").unwrap_err();
+    assert!(
+        err.contains("companies.json: unknown problem slugs: nope"),
+        "{err}"
+    );
+    edit(
+        &root.join("companies.json"),
+        r#", "nope": [{"company": "X", "frequency": 1, "recency": "all"}]"#,
+        "",
+    );
     let report = build(root, &out, &tools(), 2, "2026-10-07T00:00:00.000Z").unwrap();
     assert_eq!(
         (report.problems, report.lists, report.company_tags),
@@ -322,6 +336,13 @@ fn optional_inputs_absent() {
     fs::create_dir_all(dir.path().join("lists")).unwrap();
     fs::write(dir.path().join("lists/bad.toml"), "id = 3").unwrap();
     assert!(load_lists(dir.path(), &HashMap::new()).is_err());
+    fs::write(
+        dir.path().join("lists/bad.toml"),
+        "id = \"l\"\nname = \"L\"\ndescription = \"\"\nposition = 1\nitems = []\nitmes = []\n",
+    )
+    .unwrap();
+    let err = load_lists(dir.path(), &HashMap::new()).unwrap_err();
+    assert!(err.contains("unknown field"), "{err}");
 }
 
 #[test]

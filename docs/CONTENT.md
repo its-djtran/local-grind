@@ -193,5 +193,8 @@ position = 1
 items = [["Array", "two-sum"], ["Array", "best-time-to-buy-and-sell-stock"]]  # [group, slug]
 ```
 
+Every slug in a list and in `companies.json` must name a problem in `content/problems/`;
+`build` fails otherwise, so add a problem before referencing it.
+
 `content/companies.json` maps slugs to `[{company, frequency, recency}]` and is regenerated from
 the liquidslr/leetcode-company-wise-problems dataset by `scripts/import_companies.py`.
