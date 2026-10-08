@@ -3,8 +3,9 @@
 //! Layout of one problem directory (`content/problems/<slug>/`):
 //! * `problem.toml`   — metadata, signature, judge mode, examples, hints
 //! * `description.md` — statement; `<!-- examples -->` marks where examples are rendered
-//! * `editorial.md`   — explanation of the optimal approach
+//! * `editorial.md`   — approaches from brute force to optimal, with complexity
 //! * `solution.py`    — reference solution; produces every expected output
+//! * `solution.{js,cpp,rs}` — optional references in other languages (verified, benchmarked)
 //! * `gen.py`         — prints one JSON argument array per line (generated tests)
 //! * `benchmark.json` — optional; reference runtime/memory written by `lg-content bench`
 
@@ -17,7 +18,7 @@ use localgrind_core::runner::{self, Limits, RunOptions, TestCase, Verdict};
 use localgrind_core::timeutil::{now_ms, to_iso};
 use localgrind_core::types::{Comparator, Difficulty, Signature};
 use pulldown_cmark::{html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Read;
@@ -678,7 +679,7 @@ pub fn load_companies(content: &Path) -> Result<BTreeMap<String, Vec<CompanyTag>
     serde_json::from_str(&read(&path)?).map_err(|e| format!("companies.json: {e}"))
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default)]
 pub struct BuildReport {
     pub problems: usize,
     pub tests: usize,

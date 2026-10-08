@@ -325,8 +325,7 @@ pre {
   color: var(--tok-comment);
   font-style: italic;
 }
-.tok-variableName.tok-definition,
-.tok-function {
+.tok-variableName.tok-definition {
   color: var(--tok-function);
 }
 .tok-typeName,

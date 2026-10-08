@@ -1,4 +1,5 @@
-//! Portable user data: a single JSON document holding settings, submissions, solves and drafts.
+//! Portable user data: a single JSON document holding settings, submissions, solves, drafts,
+//! notes and personal lists.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

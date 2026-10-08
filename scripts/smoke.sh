@@ -14,6 +14,6 @@ cargo build -q -p localgrind --features custom-protocol
 
 data=$(mktemp -d)
 trap 'rm -rf "$data"' EXIT
-out=$(LOCALGRIND_SMOKE=1 LOCALGRIND_DATA_DIR="$data" with_timeout 180 target/debug/localgrind 2>/dev/null) || status=$?
+out=$(LOCALGRIND_SMOKE=1 LOCALGRIND_DATA_DIR="$data" with_timeout 180 target/debug/localgrind 2>/dev/null) || true
 echo "$out" | grep -E '^(ok|FAIL|SMOKE)' || true
 [[ "$out" == *"SMOKE PASS"* ]]

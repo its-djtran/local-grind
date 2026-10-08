@@ -7,8 +7,6 @@ import json
 import random
 import sys
 
-_count = 0
-
 
 def rng(seed=0):
     return random.Random(seed)
@@ -16,13 +14,7 @@ def rng(seed=0):
 
 def emit(*args):
     """Writes one test case (the positional arguments of the solution call)."""
-    global _count
     sys.stdout.write(json.dumps(list(args), separators=(",", ":")) + "\n")
-    _count += 1
-
-
-def count():
-    return _count
 
 
 def int_array(r, n, lo, hi):

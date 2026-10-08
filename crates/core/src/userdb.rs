@@ -1,4 +1,5 @@
-//! Per-user, writable state: submissions, drafts, solve timers and settings.
+//! Per-user, writable state: submissions, drafts, solve timers, settings, notes, personal lists
+//! and locally measured benchmarks.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};

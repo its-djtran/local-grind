@@ -410,7 +410,6 @@ impl Service {
             .save_draft(id, language.id(), code)
     }
 
-    /// Discards the draft and returns the starter code.
     pub fn user_lists(&self) -> Result<Vec<UserList>> {
         self.user.lock().unwrap().user_lists()
     }
@@ -450,6 +449,7 @@ impl Service {
         self.user.lock().unwrap().save_note(id, body)
     }
 
+    /// Discards the draft and returns the starter code.
     pub fn reset_code(&self, id: i64, language: Language) -> Result<String> {
         let sig = self.catalog.lock().unwrap().problem(id)?.signature;
         self.user.lock().unwrap().delete_draft(id, language.id())?;

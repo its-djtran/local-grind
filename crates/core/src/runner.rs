@@ -580,8 +580,9 @@ fn read_line_capped(
     }
 }
 
-/// Compiles (if needed) and runs `program` over `cases`. `progress(done, total)` is invoked
-/// after each judged case.
+/// Compiles (if needed) and runs `program` over `cases`. `progress(passed, total)` is invoked
+/// after each judged case with the number passed so far (with `stop_on_failure`, as Submit
+/// uses, that is also the number judged).
 pub fn execute(
     program: &Program,
     cases: &[TestCase],
