@@ -190,14 +190,19 @@ fn list_solves(svc: Svc) -> Result<Vec<Solve>> {
 }
 
 #[tauri::command]
-fn export_history(svc: Svc, path: String) -> Result<()> {
-    std::fs::write(path, svc.export_json()?)?;
-    Ok(())
+async fn export_history(svc: Svc<'_>, path: PathBuf) -> Result<()> {
+    let svc = svc.inner().clone();
+    blocking(move || svc.export_to(&path)).await
 }
 
 #[tauri::command]
-fn import_history(svc: Svc, path: String, apply_settings: bool) -> Result<ImportSummary> {
-    svc.import_json(&std::fs::read_to_string(path)?, apply_settings)
+async fn import_history(
+    svc: Svc<'_>,
+    path: PathBuf,
+    apply_settings: bool,
+) -> Result<ImportSummary> {
+    let svc = svc.inner().clone();
+    blocking(move || svc.import_from(&path, apply_settings)).await
 }
 
 #[tauri::command]

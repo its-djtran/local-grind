@@ -839,13 +839,17 @@ impl Service {
         self.user.lock().unwrap().completed_solves()
     }
 
-    pub fn export_json(&self) -> Result<String> {
+    /// Writes the portable history file (see [`portable`]) to `path`.
+    pub fn export_to(&self, path: &Path) -> Result<()> {
         let data = portable::export(&self.user.lock().unwrap(), &self.summaries)?;
-        Ok(serde_json::to_string_pretty(&data)?)
+        std::fs::write(path, serde_json::to_string_pretty(&data)?)?;
+        Ok(())
     }
 
-    pub fn import_json(&self, json: &str, apply_settings: bool) -> Result<ImportSummary> {
-        let summary = portable::import(&self.user.lock().unwrap(), json, apply_settings)?;
+    /// Merges a portable history file into the user database.
+    pub fn import_from(&self, path: &Path, apply_settings: bool) -> Result<ImportSummary> {
+        let json = std::fs::read_to_string(path)?;
+        let summary = portable::import(&self.user.lock().unwrap(), &json, apply_settings)?;
         if summary.settings_applied {
             *self.toolchains.lock().unwrap() = toolchains_for(&self.settings()?, &self.bundled);
         }
@@ -994,12 +998,18 @@ mod tests {
         assert_eq!(stats.totals.solved, 1);
         assert_eq!(stats.totals.submissions, 2);
 
-        let exported = svc.export_json().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("history.json");
+        svc.export_to(&file).unwrap();
         svc.clear_history().unwrap();
         assert!(svc.submissions(1).unwrap().is_empty());
-        let summary = svc.import_json(&exported, true).unwrap();
+        let summary = svc.import_from(&file, true).unwrap();
         assert_eq!(summary.submissions_added, 2);
         assert_eq!(svc.submissions(1).unwrap().len(), 2);
+        assert!(svc
+            .import_from(&dir.path().join("missing.json"), false)
+            .is_err());
+        assert!(svc.export_to(&dir.path().join("no/such/dir.json")).is_err());
     }
 
     #[test]

@@ -198,7 +198,7 @@ Bugs:
       long suites; hold them in `std::unique_ptr` released after encoding the result
       (Solution/design/codec objects are now freed per case; decoded inputs deliberately are
       not, since solutions may `delete` nodes they remove, as on LeetCode)
-- [ ] `export_history` / `import_history` are sync Tauri commands (main thread) doing file I/O
+- [x] `export_history` / `import_history` are sync Tauri commands (main thread) doing file I/O
       and full submission loads; make them `async` + `blocking()` with I/O moved into `Service`
 - [ ] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,
       so it is not least-recently-used (`runner.rs` `touch_entry` / `prune_cache`)
