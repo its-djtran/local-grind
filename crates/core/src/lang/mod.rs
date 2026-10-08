@@ -84,7 +84,7 @@ impl Language {
     /// Oldest toolchain version the harness supports.
     pub fn min_version(self) -> (u32, u32) {
         match self {
-            Language::Python => (3, 8),
+            Language::Python => (3, 9),
             Language::JavaScript => (16, 0),
             Language::Cpp => (10, 0),
             Language::Rust => (1, 70),

@@ -190,8 +190,9 @@ workspace races and cross-language undo. The items below were reported by that r
 yet addressed; verify each against the code before fixing.
 
 Bugs:
-- [ ] Python minimum is 3.8 (`lang/mod.rs`) but the harness prelude imports `math.lcm` (3.9+), so
+- [x] Python minimum is 3.8 (`lang/mod.rs`) but the harness prelude imports `math.lcm` (3.9+), so
       a user-configured 3.8 interpreter fails every run; raise the minimum or guard the import
+      (raised to 3.9, the version macOS's Command Line Tools ship; e2e suite verified on 3.9.6)
 - [ ] C++ driver never frees per-case objects (`new Solution()`, design/codec objects, input
       structures in `cpp.rs` / `lg_driver.hpp`), inflating memory and risking false MLE on
       long suites; hold them in `std::unique_ptr` released after encoding the result
