@@ -2,6 +2,26 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// The system timezone's UTC offset at `ms`, in minutes east of UTC. Historical offsets follow
+/// the timezone database, so each timestamp gets the daylight-saving state it was made in.
+pub fn local_utc_offset_minutes(ms: i64) -> i32 {
+    extern "C" {
+        fn tzset(); // POSIX; not exposed by the libc crate on Unix
+    }
+    static INIT: std::sync::Once = std::sync::Once::new();
+    // SAFETY: tzset only initialises libc's timezone state.
+    INIT.call_once(|| unsafe { tzset() });
+    let t = ms.div_euclid(1000) as libc::time_t;
+    // SAFETY: localtime_r only writes the tm it is given.
+    unsafe {
+        let mut tm: libc::tm = std::mem::zeroed();
+        if libc::localtime_r(&t, &mut tm).is_null() {
+            return 0;
+        }
+        (tm.tm_gmtoff / 60) as i32
+    }
+}
+
 pub fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -136,5 +156,30 @@ mod tests {
         ] {
             assert_eq!(parse_iso(bad), None, "{bad}");
         }
+    }
+
+    #[test]
+    fn local_offsets_follow_daylight_saving() {
+        // The only test that changes TZ; everything else uses fixed offsets.
+        let previous = std::env::var_os("TZ");
+        let set_tz = |tz: Option<&std::ffi::OsStr>| {
+            // SAFETY: no other test reads or writes TZ.
+            unsafe {
+                match tz {
+                    Some(v) => std::env::set_var("TZ", v),
+                    None => std::env::remove_var("TZ"),
+                }
+            }
+            extern "C" {
+                fn tzset();
+            }
+            // SAFETY: re-reads TZ into libc's timezone state.
+            unsafe { tzset() };
+        };
+        set_tz(Some("America/New_York".as_ref()));
+        let winter = local_utc_offset_minutes(days_from_civil(2026, 1, 15) * 86_400_000);
+        let summer = local_utc_offset_minutes(days_from_civil(2026, 7, 4) * 86_400_000);
+        set_tz(previous.as_deref());
+        assert_eq!((winter, summer), (-300, -240));
     }
 }

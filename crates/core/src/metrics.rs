@@ -159,12 +159,30 @@ pub struct StatsInput<'a> {
     pub recent_n: usize,
     /// Problems solved more recently than this are left out of the review queue.
     pub review_min_days: f64,
-    /// Local timezone offset applied when bucketing activity into days.
-    pub utc_offset_minutes: i32,
+    /// Timezone used to bucket activity into days.
+    pub zone: Zone,
 }
 
-fn day_key(ms: i64, offset_min: i32) -> i64 {
-    (ms + offset_min as i64 * 60_000).div_euclid(MS_PER_DAY)
+/// How timestamps map to local calendar days.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Zone {
+    /// A constant offset in minutes east of UTC.
+    Fixed(i32),
+    /// The system timezone, with each timestamp's own (daylight-saving aware) offset.
+    Local,
+}
+
+impl Zone {
+    fn offset_minutes(self, ms: i64) -> i32 {
+        match self {
+            Zone::Fixed(m) => m,
+            Zone::Local => crate::timeutil::local_utc_offset_minutes(ms),
+        }
+    }
+}
+
+fn day_key(ms: i64, zone: Zone) -> i64 {
+    (ms + zone.offset_minutes(ms) as i64 * 60_000).div_euclid(MS_PER_DAY)
 }
 
 fn day_string(day: i64) -> String {
@@ -212,7 +230,7 @@ fn week_start(day: i64) -> i64 {
     day - (day + 3).rem_euclid(7)
 }
 
-fn weekly_trend(solves: &[&Solve], today: i64, offset_min: i32) -> Vec<WeekPoint> {
+fn weekly_trend(solves: &[&Solve], today: i64, zone: Zone) -> Vec<WeekPoint> {
     let current = week_start(today);
     let first = current - (TREND_WEEKS - 1) * 7;
     let mut buckets: BTreeMap<i64, Vec<&Solve>> = (0..TREND_WEEKS)
@@ -220,7 +238,7 @@ fn weekly_trend(solves: &[&Solve], today: i64, offset_min: i32) -> Vec<WeekPoint
         .collect();
     for s in solves {
         if let Some(c) = s.completed_at {
-            let w = week_start(day_key(c, offset_min));
+            let w = week_start(day_key(c, zone));
             if let Some(b) = buckets.get_mut(&w) {
                 b.push(s);
             }
@@ -370,8 +388,8 @@ fn review_queue(solves: &[Solve], now: i64, min_days: f64) -> Vec<ReviewItem> {
 }
 
 pub fn compute(input: &StatsInput) -> Stats {
-    let offset = input.utc_offset_minutes;
-    let today = day_key(input.now_ms, offset);
+    let zone = input.zone;
+    let today = day_key(input.now_ms, zone);
 
     let mut solved_ids: HashSet<i64> = HashSet::new();
     let mut attempted_ids: HashSet<i64> = HashSet::new();
@@ -380,7 +398,7 @@ pub fn compute(input: &StatsInput) -> Stats {
     let mut accepted_submissions = 0;
     for s in input.submissions {
         attempted_ids.insert(s.problem_id);
-        let day = day_key(s.created_at, offset);
+        let day = day_key(s.created_at, zone);
         let entry = per_day.entry(day).or_insert_with(|| DayCount {
             date: day_string(day),
             submissions: 0,
@@ -397,7 +415,7 @@ pub fn compute(input: &StatsInput) -> Stats {
     // Solves count as activity too (imported solves may have no matching submission).
     for s in input.solves {
         if let Some(c) = s.completed_at {
-            accepted_days.insert(day_key(c, offset));
+            accepted_days.insert(day_key(c, zone));
             if let Some(id) = s.problem_id {
                 solved_ids.insert(id);
                 attempted_ids.insert(id);
@@ -501,7 +519,7 @@ pub fn compute(input: &StatsInput) -> Stats {
         topics,
         lists,
         heatmap,
-        weekly: weekly_trend(&ordered, today, offset),
+        weekly: weekly_trend(&ordered, today, zone),
         review: review_queue(input.solves, input.now_ms, input.review_min_days),
     }
 }
@@ -622,7 +640,7 @@ mod tests {
             now_ms: 101 * MS_PER_DAY + 10_000,
             recent_n: 2,
             review_min_days: 0.0,
-            utc_offset_minutes: 0,
+            zone: Zone::Fixed(0),
         });
         let t = &stats.totals;
         assert_eq!((t.solved, t.attempted, t.available), (2, 3, 3));
@@ -687,7 +705,7 @@ mod tests {
             solve(4, "d", Difficulty::Easy, -500, 20, 0),
         ];
         let refs: Vec<&Solve> = solves.iter().collect();
-        let w = weekly_trend(&refs, today, 0);
+        let w = weekly_trend(&refs, today, Zone::Fixed(0));
         assert_eq!(w.len(), TREND_WEEKS as usize);
         let last = w.last().unwrap();
         assert_eq!(last.week_start, day_string(95));
@@ -706,8 +724,19 @@ mod tests {
     fn day_helpers() {
         assert_eq!(parse_day(&day_string(20_000)), Some(20_000));
         assert_eq!(parse_day("nope"), None);
-        assert_eq!(day_key(0, -60), -1);
         assert_eq!(clamp01(f64::NAN), 0.0);
         assert_eq!(clamp01(3.0), 1.0);
+    }
+
+    #[test]
+    fn days_follow_the_zone() {
+        // 23:30 UTC is the next day at UTC+1 and the same day at UTC-1.
+        let ms = 100 * MS_PER_DAY + 23 * 3_600_000 + 30 * 60_000;
+        assert_eq!(day_key(ms, Zone::Fixed(0)), 100);
+        assert_eq!(day_key(ms, Zone::Fixed(60)), 101);
+        assert_eq!(day_key(ms, Zone::Fixed(-60)), 100);
+        assert_eq!(day_key(0, Zone::Fixed(-60)), -1);
+        // Zone::Local's per-timestamp offsets are tested in timeutil (it is the only test that
+        // changes TZ, so nothing else here depends on the local zone).
     }
 }

@@ -2,7 +2,7 @@
 //! submissions, 10k solves) must stay well under interactive latency, database read included.
 
 use localgrind_core::catalog::{ProblemList, ProblemSummary};
-use localgrind_core::metrics::{compute, StatsInput};
+use localgrind_core::metrics::{compute, StatsInput, Zone};
 use localgrind_core::runner::{RunReport, Verdict};
 use localgrind_core::types::Difficulty;
 use localgrind_core::userdb::{Solve, UserDb};
@@ -76,7 +76,7 @@ fn stats_stay_fast_with_a_large_history() {
         now_ms: now,
         recent_n: 20,
         review_min_days: 7.0,
-        utc_offset_minutes: 0,
+        zone: Zone::Local,
     });
     let elapsed = start.elapsed();
     println!(

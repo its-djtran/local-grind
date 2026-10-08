@@ -13,7 +13,7 @@ use crate::catalog::{
 };
 use crate::error::{Error, Result};
 use crate::lang::{Language, Toolchains};
-use crate::metrics::{self, Stats, StatsInput};
+use crate::metrics::{self, Stats, StatsInput, Zone};
 use crate::portable::{self, ImportSummary};
 use crate::runner::{self, Limits, RunOptions, RunReport, TestCase};
 use crate::settings::Settings;
@@ -792,12 +792,8 @@ impl Service {
         Ok(saved)
     }
 
-    pub fn stats(
-        &self,
-        recent_n: usize,
-        review_min_days: f64,
-        utc_offset_minutes: i32,
-    ) -> Result<Stats> {
+    /// Statistics with activity bucketed into days of `zone` (the app uses [`Zone::Local`]).
+    pub fn stats(&self, recent_n: usize, review_min_days: f64, zone: Zone) -> Result<Stats> {
         let (submissions, solves, user_lists) = {
             let u = self.user.lock().unwrap();
             (u.activity()?, u.completed_solves()?, u.user_lists()?)
@@ -831,7 +827,7 @@ impl Service {
             now_ms: now_ms(),
             recent_n: recent_n.max(1),
             review_min_days: review_min_days.max(0.0),
-            utc_offset_minutes,
+            zone,
         }))
     }
 
@@ -994,7 +990,7 @@ mod tests {
         assert_eq!(svc.problem(1, None).unwrap().status, Status::Solved);
         assert_eq!(svc.solves().unwrap().len(), 1);
 
-        let stats = svc.stats(5, 0.0, 0).unwrap();
+        let stats = svc.stats(5, 0.0, Zone::Fixed(0)).unwrap();
         assert_eq!(stats.totals.solved, 1);
         assert_eq!(stats.totals.submissions, 2);
 
@@ -1268,7 +1264,7 @@ mod tests {
         assert_eq!(svc.bootstrap().unwrap().user_lists.len(), 1);
         svc.submit(1, Language::Python, GOOD, 0, &mut |_, _| {})
             .unwrap();
-        let stats = svc.stats(5, 0.0, 0).unwrap();
+        let stats = svc.stats(5, 0.0, Zone::Fixed(0)).unwrap();
         let fav = stats.lists.iter().find(|l| l.name == "Favorites").unwrap();
         assert_eq!((fav.solved, fav.total), (1, 1));
         assert_eq!(svc.rename_user_list(id, "Saved").unwrap()[0].name, "Saved");

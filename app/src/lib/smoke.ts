@@ -104,7 +104,7 @@ export async function runSmoke(deps: SmokeDeps = defaultDeps()): Promise<{ ok: b
       router.go({ name: "stats" });
       await waitFor(() => text(deps.root, "h2", "By difficulty"), deps, "stats");
       const timing = withinBudget("the stats page", deps.now() - t0, BUDGET_MS.stats);
-      const stats = await api.stats(10, 0, 0);
+      const stats = await api.stats(10, 0);
       if (stats.totals.solved < 1) throw new Error("solve not counted");
       return timing;
     });

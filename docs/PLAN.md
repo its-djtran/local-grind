@@ -205,7 +205,7 @@ Bugs:
 - [x] One invalid settings value makes `settings()` fall back to defaults silently (wiping
       toolchain paths on the next save); imports of newer exports fail with a serde error
       before the version check (`userdb.rs`, `portable.rs`)
-- [ ] Heatmap/streak/weekly buckets use today's UTC offset for all history, so days shift
+- [x] Heatmap/streak/weekly buckets use today's UTC offset for all history, so days shift
       across DST (`metrics.rs`; offset from `StatsPage.svelte`)
 - [ ] Foreign keys are never enabled, so `ON DELETE CASCADE` is inert; `delete_user_list`
       compensates with two DELETEs outside a transaction (`userdb.rs`)

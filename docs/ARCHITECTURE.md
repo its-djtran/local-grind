@@ -46,7 +46,7 @@ read-only SQLite catalog.
 | `judge` | Output comparison modes and problem-specific validators |
 | `catalog` | Read API over `problems.db` and `CatalogWriter` used by `lg-content` |
 | `userdb` | Migrations and CRUD for submissions, drafts, solves (timers) and settings |
-| `metrics` | One-pass statistics and the review queue |
+| `metrics` | One-pass statistics and the review queue; days follow the system timezone per timestamp (DST-aware) |
 | `portable` | JSON export/import of all user data |
 | `settings` | User preferences with sanitizing |
 | `service` | The facade the shell calls: bootstrap, problem views, run, submit, stats, ... |

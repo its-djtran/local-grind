@@ -17,7 +17,7 @@
   async function load() {
     loading = true;
     try {
-      stats = await api.stats(Math.max(1, recentN || 1), Math.max(0, minDays || 0), -new Date().getTimezoneOffset());
+      stats = await api.stats(Math.max(1, recentN || 1), Math.max(0, minDays || 0));
       error = null;
     } catch (e) {
       error = errorMessage(e);

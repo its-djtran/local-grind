@@ -41,8 +41,7 @@ export const api = {
   discardSolve: (solveId: number) => invoke<void>("discard_solve", { solveId }),
   settings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
-  stats: (recentN: number, reviewMinDays: number, utcOffsetMinutes: number) =>
-    invoke<Stats>("get_stats", { recentN, reviewMinDays, utcOffsetMinutes }),
+  stats: (recentN: number, reviewMinDays: number) => invoke<Stats>("get_stats", { recentN, reviewMinDays }),
   solves: () => invoke<Solve[]>("list_solves"),
   exportHistory: (path: string) => invoke<void>("export_history", { path }),
   importHistory: (path: string, applySettings: boolean) =>

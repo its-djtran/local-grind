@@ -12,7 +12,7 @@
 
   onMount(async () => {
     try {
-      const stats = await api.stats(10, 7, -new Date().getTimezoneOffset());
+      const stats = await api.stats(10, 7);
       review = stats.review.filter((r) => r.problem_id !== null).slice(0, 3);
     } catch {
       review = [];
