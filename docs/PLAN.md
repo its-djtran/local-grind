@@ -193,9 +193,11 @@ Bugs:
 - [x] Python minimum is 3.8 (`lang/mod.rs`) but the harness prelude imports `math.lcm` (3.9+), so
       a user-configured 3.8 interpreter fails every run; raise the minimum or guard the import
       (raised to 3.9, the version macOS's Command Line Tools ship; e2e suite verified on 3.9.6)
-- [ ] C++ driver never frees per-case objects (`new Solution()`, design/codec objects, input
+- [x] C++ driver never frees per-case objects (`new Solution()`, design/codec objects, input
       structures in `cpp.rs` / `lg_driver.hpp`), inflating memory and risking false MLE on
       long suites; hold them in `std::unique_ptr` released after encoding the result
+      (Solution/design/codec objects are now freed per case; decoded inputs deliberately are
+      not, since solutions may `delete` nodes they remove, as on LeetCode)
 - [ ] `export_history` / `import_history` are sync Tauri commands (main thread) doing file I/O
       and full submission loads; make them `async` + `blocking()` with I/O moved into `Service`
 - [ ] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,

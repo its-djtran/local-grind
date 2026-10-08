@@ -154,7 +154,12 @@ pub fn case_source(sig: &Signature) -> String {
                 _ => {}
             }
             let call = format!("sol->{name}({})", call_args(ps, "a"));
-            out.push_str("    Solution* sol = new Solution();\n    auto t0 = lg::clock::now();\n");
+            // Owned per case (freed after the result is encoded, as LeetCode's stack-allocated
+            // Solution is) so member state such as memo tables does not pile up across cases.
+            // Input structures are not freed: solutions may delete nodes they remove.
+            out.push_str(
+                "    std::unique_ptr<Solution> sol(new Solution());\n    auto t0 = lg::clock::now();\n",
+            );
             if *returns == ValueType::Void {
                 out.push_str(&format!("    {call};\n"));
             } else {
@@ -183,7 +188,7 @@ pub fn case_source(sig: &Signature) -> String {
                 "long long lg_case(const lg::J& args, std::string& out) {{\n\
                  \x20   const auto& ops = args.items[0].items;\n\
                  \x20   const auto& opargs = args.items[1].items;\n\
-                 \x20   long long total = 0;\n    {class}* obj = nullptr;\n    out += '[';\n\
+                 \x20   long long total = 0;\n    std::unique_ptr<{class}> obj;\n    out += '[';\n\
                  \x20   for (size_t k = 0; k < ops.size(); k++) {{\n\
                  \x20       if (k) out += ',';\n\
                  \x20       const std::string& op = ops[k].text;\n\
@@ -192,7 +197,7 @@ pub fn case_source(sig: &Signature) -> String {
             ));
             out.push_str(&indent(&decode_params(constructor, "a", "c"), 8));
             out.push_str(&format!(
-                "            auto t0 = lg::clock::now();\n            obj = new {class}({});\n\
+                "            auto t0 = lg::clock::now();\n            obj.reset(new {class}({}));\n\
                  \x20           total += lg::ns(t0, lg::clock::now());\n            out += \"null\";\n        }}",
                 call_args(constructor, "c")
             ));
@@ -225,7 +230,8 @@ pub fn case_source(sig: &Signature) -> String {
             out.push_str(&format!(
                 "long long lg_case(const lg::J& args, std::string& out) {{\n\
                  \x20   auto v = lg::Dec<{}>::get(args.items[0]);\n\
-                 \x20   {class}* ser = new {class}();\n    {class}* deser = new {class}();\n\
+                 \x20   std::unique_ptr<{class}> ser(new {class}());\n\
+                 \x20   std::unique_ptr<{class}> deser(new {class}());\n\
                  \x20   auto t0 = lg::clock::now();\n    auto data = ser->{}(v);\n\
                  \x20   auto res = deser->{}(data);\n    auto t1 = lg::clock::now();\n\
                  \x20   lg::enc(out, res);\n    return lg::ns(t0, t1);\n}}\n",
@@ -444,7 +450,7 @@ mod tests {
         assert!(code.starts_with("class LRUCache {\npublic:\n    LRUCache(int capacity) {"));
         assert!(code.contains(" * int param_1 = obj->get(key);\n * obj->put(key,value);\n"));
         let src = case_source(&d);
-        assert!(src.contains("obj = new LRUCache(c0);"));
+        assert!(src.contains("obj.reset(new LRUCache(c0));"));
         assert!(src.contains("else if (op == \"put\")"));
 
         let c = sig(json!({"kind": "codec", "class": "Codec",

@@ -254,6 +254,44 @@ public:
 }
 
 #[test]
+fn per_case_objects_are_freed() {
+    // Each case gets a fresh Solution / design object, destroyed after its result is encoded,
+    // so member state does not accumulate across cases (LeetCode's Solution is stack-allocated).
+    let count = sig(json!({"kind": "function", "name": "live",
+        "params": [{"name": "x", "type": "int"}], "returns": "int"}));
+    let code = "
+static int instances = 0;
+class Solution {
+    vector<int> memo = vector<int>(1 << 20);
+public:
+    Solution() { instances++; }
+    ~Solution() { instances--; }
+    int live(int x) { return instances; }
+};
+";
+    let cases: Vec<_> = (0..5).map(|i| (json!([i]), json!(1))).collect();
+    let r = run(&count, code, &cases);
+    assert_eq!(r.verdict, Verdict::Accepted, "{r:#?}");
+
+    let counter = sig(
+        json!({"kind": "design", "class": "Counter", "constructor": [],
+        "methods": [{"name": "live", "params": [], "returns": "int"}]}),
+    );
+    let code = "
+static int counters = 0;
+class Counter {
+public:
+    Counter() { counters++; }
+    ~Counter() { counters--; }
+    int live() { return counters; }
+};
+";
+    let case = (json!([["Counter", "live"], [[], []]]), json!([null, 1]));
+    let r = run(&counter, code, &[case.clone(), case.clone(), case]);
+    assert_eq!(r.verdict, Verdict::Accepted, "{r:#?}");
+}
+
+#[test]
 fn in_place_design_and_codec() {
     let sort = sig(json!({"kind": "function", "name": "sortColors",
         "params": [{"name": "nums", "type": "int[]"}], "returns": "void", "output_param": "nums"}));
