@@ -12,8 +12,6 @@ describe("api", () => {
 
   it("wraps every command", async () => {
     installBackend();
-    expect((await api.settings()).theme).toBe("dark");
-    expect(await api.solves()).toEqual([]);
     expect(await api.referenceSolution(1, "python")).toContain("Solution");
     expect(await api.referenceSolution(2, "python")).toBeNull();
     const seen: number[] = [];

@@ -865,10 +865,6 @@ impl Service {
         )
     }
 
-    pub fn solves(&self) -> Result<Vec<Solve>> {
-        self.user.lock().unwrap().completed_solves()
-    }
-
     /// Writes the portable history file (see [`portable`]) to `path`.
     pub fn export_to(&self, path: &Path) -> Result<()> {
         let data = portable::export(&self.user.lock().unwrap(), &self.summaries)?;
@@ -1022,7 +1018,6 @@ mod tests {
         assert_eq!(svc.submissions(1).unwrap().len(), 2);
         assert_eq!(svc.bootstrap().unwrap().problems[0].status, Status::Solved);
         assert_eq!(svc.problem(1, None).unwrap().status, Status::Solved);
-        assert_eq!(svc.solves().unwrap().len(), 1);
 
         let stats = svc.stats(5, 0.0, Zone::Fixed(0)).unwrap();
         assert_eq!(stats.totals.solved, 1);

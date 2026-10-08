@@ -40,12 +40,10 @@ export const api = {
   startSolve: (id: number) => invoke<Solve>("start_solve", { id }),
   updateSolve: (solveId: number, elapsedMs: number) => invoke<void>("update_solve", { solveId, elapsedMs }),
   discardSolve: (solveId: number) => invoke<void>("discard_solve", { solveId }),
-  settings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   stats: (recentN: number, reviewMinDays: number) => invoke<Stats>("get_stats", { recentN, reviewMinDays }),
   reviewQueue: (reviewMinDays: number, limit: number) =>
     invoke<ReviewItem[]>("get_review_queue", { reviewMinDays, limit }),
-  solves: () => invoke<Solve[]>("list_solves"),
   exportHistory: (path: string) => invoke<void>("export_history", { path }),
   importHistory: (path: string, applySettings: boolean) =>
     invoke<ImportSummary>("import_history", { path, applySettings }),

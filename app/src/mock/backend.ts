@@ -380,8 +380,6 @@ export function createBackend(): Backend {
       case "discard_solve":
         state.solves = state.solves.filter((x) => !(x.id === a.solveId && x.completed_at === null));
         return null;
-      case "get_settings":
-        return state.settings;
       case "save_settings":
         state.settings = { ...(a.settings as Settings), font_size: Math.min(32, Math.max(10, (a.settings as Settings).font_size)) };
         return state.settings;
@@ -391,8 +389,6 @@ export function createBackend(): Backend {
         return stats()
           .review.filter((r) => r.problem_id !== null)
           .slice(0, a.limit as number);
-      case "list_solves":
-        return state.solves.filter((s) => s.completed_at !== null);
       case "export_history":
         state.files.set(a.path as string, JSON.stringify({ format: "localgrind-export", submissions: state.submissions }));
         return null;

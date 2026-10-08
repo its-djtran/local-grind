@@ -179,7 +179,8 @@ Remaining:
 - [x] Personal notes per problem: Notes tab with autosave, kept in `user.db`, exported/imported
 - [~] CI workflow (`.github/workflows/ci.yml`, macOS) running `scripts/check.sh` and the smoke
       test; written but not yet exercised on GitHub (the repository has no remote yet)
-- [x] Personal lists: create/rename/delete lists, save problems from the workspace (★ Save),
+- [x] Personal lists: create/delete lists (rename exists in the backend only; see the review
+      backlog), save problems from the workspace (★ Save),
       filter the problem list by them, see their progress in Stats, export/import (merged by name)
 - Later: Java/Go drivers (deferred), UI polish driven by usage
 
@@ -245,8 +246,9 @@ Inefficiencies:
 
 Cruft:
 - [x] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
-- [ ] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
-      `list_solves`, `api.renameUserList` / `rename_user_list`
+- [~] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
+      `list_solves`, `api.renameUserList` / `rename_user_list` (the first two are removed;
+      renaming has backend support but no UI: add a rename control or drop it, owner's call)
 - [ ] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
 - [ ] Misplaced/stale comments: `service.rs` `user_lists()` carries `reset_code`'s doc comment;
       `runner.rs` progress doc; module docs of `portable.rs`, `userdb.rs`, `crates/content`

@@ -164,11 +164,6 @@ fn discard_solve(svc: Svc, solve_id: i64) -> Result<()> {
 }
 
 #[tauri::command]
-fn get_settings(svc: Svc) -> Result<Settings> {
-    svc.settings()
-}
-
-#[tauri::command]
 fn save_settings(svc: Svc, settings: Settings) -> Result<Settings> {
     svc.save_settings(&settings)
 }
@@ -187,11 +182,6 @@ async fn get_review_queue(
 ) -> Result<Vec<ReviewItem>> {
     let svc = svc.inner().clone();
     blocking(move || svc.review_queue(review_min_days, limit)).await
-}
-
-#[tauri::command]
-fn list_solves(svc: Svc) -> Result<Vec<Solve>> {
-    svc.solves()
 }
 
 #[tauri::command]
@@ -314,11 +304,9 @@ pub fn run() {
             start_solve,
             update_solve,
             discard_solve,
-            get_settings,
             save_settings,
             get_stats,
             get_review_queue,
-            list_solves,
             export_history,
             import_history,
             clear_history,
