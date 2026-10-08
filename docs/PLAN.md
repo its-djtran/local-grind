@@ -217,6 +217,8 @@ Bugs:
 - [x] `ProblemList.deleteList` has no error handling
 - [ ] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
       hand-rolled `tempfile_dir()` (`crates/content/src/lib.rs`)
+- [x] `gen.py` ran without a timeout, so a hung generator stalled the build forever (found
+      2026-10-08: an orphaned generator from an earlier experiment had run for 22 h); 120 s limit
 - [ ] Lists and `companies.json` silently drop unknown slugs; `ListFile` lacks
       `deny_unknown_fields` and `check` never validates lists
 - [ ] `check.sh --no-coverage` silently skips the catalog gate (undocumented)

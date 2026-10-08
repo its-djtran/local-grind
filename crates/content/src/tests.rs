@@ -228,6 +228,17 @@ fn rejects_bad_examples_and_generators() {
         .unwrap();
     assert!(err.contains("reference solution failed"), "{err}");
 
+    fs::write(p.join("gen.py"), "import time\ntime.sleep(30)\n").unwrap();
+    let started = Instant::now();
+    let err = generated_args_within(
+        &load_problem(&p).unwrap(),
+        &tools(),
+        Duration::from_millis(300),
+    )
+    .unwrap_err();
+    assert!(err.contains("did not finish"), "{err}");
+    assert!(started.elapsed() < Duration::from_secs(10));
+
     let mut broken = tools();
     broken.set(Language::Python, PathBuf::from("/nonexistent/python"));
     let err = build_problem(&load_problem(&p).unwrap(), &broken)

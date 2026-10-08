@@ -20,9 +20,11 @@ use pulldown_cmark::{html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 pub mod highlight;
 
@@ -330,15 +332,29 @@ pub fn example_args(src: &Source) -> Result<Vec<Value>> {
         .collect()
 }
 
+/// How long a generator may run; a hung `gen.py` fails the build instead of stalling it.
+const GENERATOR_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// Runs `gen.py` and returns its argument arrays.
 pub fn generated_args(src: &Source, tools: &Toolchains) -> Result<Vec<Value>> {
-    let out = Command::new(tools.path(Language::Python))
-        .arg("gen.py")
-        // Pin set/dict iteration order so builds are reproducible.
-        .env("PYTHONHASHSEED", "0")
-        .current_dir(&src.dir)
-        .output()
-        .map_err(|e| format!("{}: running gen.py: {e}", src.slug))?;
+    generated_args_within(src, tools, GENERATOR_TIMEOUT)
+}
+
+fn generated_args_within(
+    src: &Source,
+    tools: &Toolchains,
+    timeout: Duration,
+) -> Result<Vec<Value>> {
+    let out = run_with_timeout(
+        Command::new(tools.path(Language::Python))
+            .arg("gen.py")
+            // Pin set/dict iteration order so builds are reproducible.
+            .env("PYTHONHASHSEED", "0")
+            .current_dir(&src.dir),
+        timeout,
+    )
+    .map_err(|e| format!("{}: running gen.py: {e}", src.slug))?
+    .ok_or_else(|| format!("{}: gen.py did not finish within {timeout:?}", src.slug))?;
     if !out.status.success() {
         return Err(format!(
             "{}: gen.py failed:\n{}",
@@ -360,6 +376,41 @@ pub fn generated_args(src: &Source, tools: &Toolchains) -> Result<Vec<Value>> {
             Ok(v)
         })
         .collect()
+}
+
+/// Runs `cmd` like [`Command::output`], killing it after `timeout` (then `Ok(None)`).
+fn run_with_timeout(cmd: &mut Command, timeout: Duration) -> std::io::Result<Option<Output>> {
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let drain = |mut pipe: Box<dyn Read + Send>| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = pipe.read_to_end(&mut buf);
+            buf
+        })
+    };
+    let stdout = drain(Box::new(child.stdout.take().expect("piped")));
+    let stderr = drain(Box::new(child.stderr.take().expect("piped")));
+    let deadline = Instant::now() + timeout;
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ok(None);
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    Ok(Some(Output {
+        status,
+        stdout: stdout.join().unwrap_or_default(),
+        stderr: stderr.join().unwrap_or_default(),
+    }))
 }
 
 fn reference_limits() -> RunOptions {
