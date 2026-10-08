@@ -244,7 +244,7 @@ Inefficiencies:
       accented characters in Inconsolata)
 
 Cruft:
-- [ ] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
+- [x] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
 - [ ] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
       `list_solves`, `api.renameUserList` / `rename_user_list`
 - [ ] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
