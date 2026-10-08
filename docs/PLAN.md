@@ -25,7 +25,9 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
 
 - **Original problem text.** Statements and editorials are written for Local Grind (same problem,
   signature, examples and constraints) rather than copied, so the repository can be
-  redistributed as open source. See `docs/CONTENT.md`.
+  redistributed as open source. See `docs/CONTENT.md`. Confirmed by the owner on 2026-10-08:
+  REQS now asks for "the same (or very similar!) descriptions": the same problem in its spirit,
+  not copied text.
 - **Expected outputs are generated.** Each problem's reference solution, run through the app's
   own judge, produces every expected output; examples are cross-checked at build time.
 - **Benchmarks.** The REQS asks for the optimal solution's time/memory (average of 10 runs).

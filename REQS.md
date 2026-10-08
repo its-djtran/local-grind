@@ -2,7 +2,7 @@ KEEP THIS FILE HUMAN AUTHORED ONLY. AGENTS MUST PLAN SEPARATELY.
 
 # Overview
 
-Local Grind is meant to be a complete offline LeetCode substitute. Exact same experience, nothing hidden by paywalls. Problems have the same descriptions, editorials explaining the optimal solution, and suitably similar extensive test harnesses. Users see a similar split interface, can run tests, and can submit their solutions. Submission history is preserved, with each run demonstrating the amount of memory used and the amount of time required to complete all of the tests. For benchmark comparison, the optimal solution's memory and time required will be shown (using the average of 10 submission evaluations).
+Local Grind is meant to be a complete offline LeetCode substitute. Exact same experience, nothing hidden by paywalls. Problems have the same (or very similar!) descriptions, editorials explaining the optimal solution, and suitably similar extensive test harnesses. Users see a similar split interface, can run tests, and can submit their solutions. Submission history is preserved, with each run demonstrating the amount of memory used and the amount of time required to complete all of the tests. For benchmark comparison, the optimal solution's memory and time required will be shown (using the average of 10 submission evaluations).
 
 Local Grind must also have added utility as a review tool. You can use the metrics built into djtran/Yet-Another-LeetCode-Timer on github as a starting reference.
 
