@@ -10,7 +10,7 @@ const PRELUDE: &str = include_str!("../../drivers/rust/lg_prelude.rs");
 pub struct RustDriver;
 
 /// `twoSum` -> `two_sum`, as LeetCode names Rust methods and parameters.
-pub fn snake(name: &str) -> String {
+fn snake(name: &str) -> String {
     let mut out = String::new();
     for (i, c) in name.chars().enumerate() {
         if c.is_ascii_uppercase() {
@@ -131,7 +131,7 @@ fn call_args(ps: &[Param], prefix: &str, output_param: Option<&str>) -> String {
 }
 
 /// Generated `lg_case`: decodes one test, calls the solution, encodes the result.
-pub fn case_source(sig: &Signature) -> String {
+fn case_source(sig: &Signature) -> String {
     let mut out = String::new();
     match sig {
         Signature::Function {

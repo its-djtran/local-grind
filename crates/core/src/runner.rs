@@ -116,12 +116,12 @@ pub struct RunOptions {
 }
 
 /// Longest single stdout line the runner will buffer (a harness result for a huge output).
-pub const MAX_LINE_BYTES: usize = 64 << 20;
+const MAX_LINE_BYTES: usize = 64 << 20;
 /// Total stdout a judged program may write before it is stopped.
-pub const MAX_OUTPUT_BYTES: u64 = 256 << 20;
+const MAX_OUTPUT_BYTES: u64 = 256 << 20;
 
 /// Compiled programs kept in the cache; older entries are pruned.
-pub const CACHE_ENTRIES: usize = 64;
+const CACHE_ENTRIES: usize = 64;
 
 fn cache_lookup(program: &Program, cache_dir: Option<&Path>) -> Option<PathBuf> {
     if program.artifacts.is_empty() {
@@ -191,10 +191,10 @@ fn prune_cache(root: &Path, keep: usize) {
 }
 
 /// Upper bound for the raised stack limit of judged processes (1 GiB).
-pub const MAX_STACK_BYTES: libc::rlim_t = 1 << 30;
+const MAX_STACK_BYTES: libc::rlim_t = 1 << 30;
 
 /// Nice value applied to low-priority judge processes.
-pub const LOW_PRIORITY_NICE: libc::c_int = 10;
+const LOW_PRIORITY_NICE: libc::c_int = 10;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseResult {
@@ -240,7 +240,7 @@ fn split_line(line: &str) -> (&str, Option<&str>) {
 }
 
 /// Human-readable meaning of a fatal signal, as shown in Runtime Error messages.
-pub fn signal_name(sig: i32) -> &'static str {
+fn signal_name(sig: i32) -> &'static str {
     match sig {
         libc::SIGSEGV => {
             "segmentation fault: invalid memory access, e.g. a null pointer or out-of-bounds index"

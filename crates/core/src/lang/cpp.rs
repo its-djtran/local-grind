@@ -121,7 +121,7 @@ fn api_header(sig: &Signature) -> String {
 }
 
 /// Generated `lg_case`: decodes one test, calls the solution, encodes the result.
-pub fn case_source(sig: &Signature) -> String {
+fn case_source(sig: &Signature) -> String {
     let mut out = String::new();
     match sig {
         Signature::Function {

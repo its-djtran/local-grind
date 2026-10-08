@@ -98,7 +98,7 @@ pub mod validators {
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
 
-    pub const NAMES: &[&str] = &["alien_order", "longest_palindrome"];
+    const NAMES: &[&str] = &["alien_order", "longest_palindrome"];
 
     pub fn exists(name: &str) -> bool {
         NAMES.contains(&name)

@@ -119,6 +119,7 @@ pub struct Activity {
     pub created_at: i64,
 }
 
+#[cfg(test)]
 impl From<&Submission> for Activity {
     fn from(s: &Submission) -> Activity {
         Activity {

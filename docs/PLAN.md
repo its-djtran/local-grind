@@ -249,7 +249,7 @@ Cruft:
 - [~] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
       `list_solves`, `api.renameUserList` / `rename_user_list` (the first two are removed;
       renaming has backend support but no UI: add a rename control or drop it, owner's call)
-- [ ] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
+- [x] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
 - [x] Misplaced/stale comments: `service.rs` `user_lists()` carries `reset_code`'s doc comment;
       `runner.rs` progress doc; module docs of `portable.rs`, `userdb.rs`, `crates/content`
 - [x] `Verdict::parse` formats every variant to compare strings; dead `.tok-function` CSS rule;

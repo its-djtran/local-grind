@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::catalog::{ProblemList, ProblemSummary};
 use crate::runner::Verdict;
-use crate::timeutil::{civil_from_days, days_from_civil};
+use crate::timeutil::civil_from_days;
 use crate::types::Difficulty;
 use crate::userdb::{Activity, Solve};
 
@@ -191,12 +191,13 @@ fn day_string(day: i64) -> String {
 }
 
 /// Day number for a `YYYY-MM-DD` string, the inverse of the heatmap's date keys.
-pub fn parse_day(s: &str) -> Option<i64> {
+#[cfg(test)]
+fn parse_day(s: &str) -> Option<i64> {
     let mut it = s.splitn(3, '-');
     let y = it.next()?.parse().ok()?;
     let m = it.next()?.parse().ok()?;
     let d = it.next()?.parse().ok()?;
-    Some(days_from_civil(y, m, d))
+    Some(crate::timeutil::days_from_civil(y, m, d))
 }
 
 fn streaks(days: &HashSet<i64>, today: i64) -> (usize, usize) {

@@ -188,13 +188,13 @@ pub const JSC_PATH: &str =
     "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc";
 
 /// Whether `exe` is the JavaScriptCore shell rather than Node.js.
-pub fn is_jsc(exe: &Path) -> bool {
+pub(crate) fn is_jsc(exe: &Path) -> bool {
     exe.file_name().is_some_and(|n| n == "jsc")
 }
 
 /// Directories searched for toolchains in addition to `$PATH`. Apps launched from Finder get a
 /// minimal `PATH`, so Homebrew, rustup and other common prefixes are probed explicitly.
-pub const EXTRA_SEARCH_DIRS: &[&str] = &[
+const EXTRA_SEARCH_DIRS: &[&str] = &[
     "/opt/homebrew/bin",
     "/usr/local/bin",
     "/usr/bin",
@@ -266,7 +266,7 @@ pub struct ToolchainStatus {
 
 /// Extracts the first `major.minor` pair from version output such as `Python 3.12.1`,
 /// `v20.1.0`, `rustc 1.79.0 (...)` or `Apple clang version 15.0.0`.
-pub fn parse_version(s: &str) -> Option<(u32, u32)> {
+fn parse_version(s: &str) -> Option<(u32, u32)> {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
