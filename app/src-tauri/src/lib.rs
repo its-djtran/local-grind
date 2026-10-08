@@ -2,7 +2,7 @@
 //! All behaviour lives in `localgrind-core`; commands here only adapt types and threads.
 
 use localgrind_core::lang::Language;
-use localgrind_core::metrics::{Stats, Zone};
+use localgrind_core::metrics::{ReviewItem, Stats, Zone};
 use localgrind_core::portable::ImportSummary;
 use localgrind_core::service::{
     Bootstrap, CalibrationStatus, CalibrationSummary, ProblemView, RunOutcome, Service,
@@ -180,6 +180,16 @@ async fn get_stats(svc: Svc<'_>, recent_n: usize, review_min_days: f64) -> Resul
 }
 
 #[tauri::command]
+async fn get_review_queue(
+    svc: Svc<'_>,
+    review_min_days: f64,
+    limit: usize,
+) -> Result<Vec<ReviewItem>> {
+    let svc = svc.inner().clone();
+    blocking(move || svc.review_queue(review_min_days, limit)).await
+}
+
+#[tauri::command]
 fn list_solves(svc: Svc) -> Result<Vec<Solve>> {
     svc.solves()
 }
@@ -307,6 +317,7 @@ pub fn run() {
             get_settings,
             save_settings,
             get_stats,
+            get_review_queue,
             list_solves,
             export_history,
             import_history,

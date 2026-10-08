@@ -232,7 +232,7 @@ Inefficiencies:
 - [x] Opening a problem runs `problem_statuses()` over all submissions for one id
 - [ ] Recalibration re-inflates each problem's suite once per language under the catalog lock
 - [ ] Settings are re-read from the DB several times per run; toolchains detected twice at start
-- [ ] `PracticeNext` runs the full `get_stats` on every problem-list mount for 3 review items
+- [x] `PracticeNext` runs the full `get_stats` on every problem-list mount for 3 review items
 - [ ] Runner clones `args`/`expected` for every passing case even when they are discarded
 - [ ] Fonts import every subset in woff and woff2; the Safari 15 target needs latin woff2 only
 

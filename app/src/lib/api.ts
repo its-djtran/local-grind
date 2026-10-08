@@ -9,6 +9,7 @@ import type {
   LanguageId,
   ProblemView,
   Progress,
+  ReviewItem,
   RunOutcome,
   Settings,
   Solve,
@@ -42,6 +43,8 @@ export const api = {
   settings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   stats: (recentN: number, reviewMinDays: number) => invoke<Stats>("get_stats", { recentN, reviewMinDays }),
+  reviewQueue: (reviewMinDays: number, limit: number) =>
+    invoke<ReviewItem[]>("get_review_queue", { reviewMinDays, limit }),
   solves: () => invoke<Solve[]>("list_solves"),
   exportHistory: (path: string) => invoke<void>("export_history", { path }),
   importHistory: (path: string, applySettings: boolean) =>

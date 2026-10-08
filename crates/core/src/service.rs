@@ -13,7 +13,7 @@ use crate::catalog::{
 };
 use crate::error::{Error, Result};
 use crate::lang::{Language, Toolchains};
-use crate::metrics::{self, Stats, StatsInput, Zone};
+use crate::metrics::{self, ReviewItem, Stats, StatsInput, Zone};
 use crate::portable::{self, ImportSummary};
 use crate::runner::{self, Limits, RunOptions, RunReport, TestCase};
 use crate::settings::Settings;
@@ -824,6 +824,19 @@ impl Service {
         }))
     }
 
+    /// The top `limit` review suggestions for problems in the catalog, without computing the
+    /// rest of the statistics (the problem list shows these on every visit).
+    pub fn review_queue(&self, review_min_days: f64, limit: usize) -> Result<Vec<ReviewItem>> {
+        let solves = self.user.lock().unwrap().completed_solves()?;
+        Ok(
+            metrics::review_queue(&solves, now_ms(), review_min_days.max(0.0))
+                .into_iter()
+                .filter(|r| r.problem_id.is_some())
+                .take(limit)
+                .collect(),
+        )
+    }
+
     pub fn solves(&self) -> Result<Vec<Solve>> {
         self.user.lock().unwrap().completed_solves()
     }
@@ -985,6 +998,19 @@ mod tests {
 
         let stats = svc.stats(5, 0.0, Zone::Fixed(0)).unwrap();
         assert_eq!(stats.totals.solved, 1);
+        let queue = svc.review_queue(0.0, 3).unwrap();
+        // Same items as the full statistics (days_since may differ by the ms between calls).
+        let key = |r: &ReviewItem| (r.slug.clone(), r.problem_id, r.score, r.reasons.clone());
+        assert_eq!(
+            queue.iter().map(key).collect::<Vec<_>>(),
+            stats.review.iter().map(key).collect::<Vec<_>>()
+        );
+        assert_eq!(queue.len(), 1);
+        assert!(svc.review_queue(0.0, 0).unwrap().is_empty());
+        assert!(
+            svc.review_queue(30.0, 3).unwrap().is_empty(),
+            "solved too recently"
+        );
         assert_eq!(stats.totals.submissions, 2);
 
         let dir = tempfile::tempdir().unwrap();

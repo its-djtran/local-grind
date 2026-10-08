@@ -52,9 +52,9 @@ describe("App", () => {
     expect(within(practice).getByText("clean solve, just due for a refresh")).toBeInTheDocument();
   });
 
-  it("still suggests list progress when stats fail", async () => {
+  it("still suggests list progress when the review queue fails", async () => {
     installBackend((cmd) => {
-      if (cmd === "get_stats") throw "nope";
+      if (cmd === "get_review_queue") throw "nope";
     });
     await boot();
     const practice = await screen.findByRole("region", { name: "Practice next" });

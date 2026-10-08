@@ -270,7 +270,8 @@ fn format_minutes(ratio: f64, difficulty: Difficulty) -> String {
     format!("{ratio:.1}x your {} average", difficulty.as_str())
 }
 
-fn review_queue(solves: &[Solve], now: i64, min_days: f64) -> Vec<ReviewItem> {
+/// Completed solves ranked for review (also part of [`compute`]'s statistics).
+pub fn review_queue(solves: &[Solve], now: i64, min_days: f64) -> Vec<ReviewItem> {
     struct Rec<'a> {
         latest: &'a Solve,
         solves: usize,

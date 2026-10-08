@@ -387,6 +387,10 @@ export function createBackend(): Backend {
         return state.settings;
       case "get_stats":
         return stats();
+      case "get_review_queue":
+        return stats()
+          .review.filter((r) => r.problem_id !== null)
+          .slice(0, a.limit as number);
       case "list_solves":
         return state.solves.filter((s) => s.completed_at !== null);
       case "export_history":
