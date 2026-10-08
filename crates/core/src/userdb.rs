@@ -233,6 +233,9 @@ impl UserDb {
     }
 
     fn init(conn: Connection) -> Result<UserDb> {
+        // Enforces user_list_items -> user_lists (ON DELETE CASCADE). The bundled SQLite already
+        // defaults to it; stating it keeps that true with any SQLite build.
+        conn.execute_batch("PRAGMA foreign_keys = ON")?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if version as usize > MIGRATIONS.len() {
             return Err(Error::Invalid(format!(
@@ -401,9 +404,8 @@ impl UserDb {
         Ok(())
     }
 
+    /// Deletes a list; its items go with it (ON DELETE CASCADE).
     pub fn delete_user_list(&self, id: i64) -> Result<()> {
-        self.conn
-            .execute("DELETE FROM user_list_items WHERE list_id = ?1", [id])?;
         self.conn
             .execute("DELETE FROM user_lists WHERE id = ?1", [id])?;
         Ok(())
@@ -903,7 +905,17 @@ mod tests {
         assert!(db.create_user_list("").is_err());
         assert!(db.create_user_list(&"x".repeat(61)).is_err());
         assert!(db.set_in_user_list(999, 1, true).is_err());
+        db.set_in_user_list(fav, 2, true).unwrap();
         db.delete_user_list(fav).unwrap();
+        let orphans: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM user_list_items WHERE list_id = ?1",
+                [fav],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(orphans, 0, "items are deleted with their list");
         let lists = db.user_lists().unwrap();
         assert_eq!(lists.len(), 1);
         assert_eq!(lists[0].name, "Final round");

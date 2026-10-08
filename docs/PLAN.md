@@ -207,8 +207,9 @@ Bugs:
       before the version check (`userdb.rs`, `portable.rs`)
 - [x] Heatmap/streak/weekly buckets use today's UTC offset for all history, so days shift
       across DST (`metrics.rs`; offset from `StatsPage.svelte`)
-- [ ] Foreign keys are never enabled, so `ON DELETE CASCADE` is inert; `delete_user_list`
-      compensates with two DELETEs outside a transaction (`userdb.rs`)
+- [x] Foreign keys are never enabled, so `ON DELETE CASCADE` is inert; `delete_user_list`
+      compensates with two DELETEs outside a transaction (`userdb.rs`) (not quite: the bundled
+      SQLite defaults foreign keys on; now explicit, and the redundant DELETE is gone)
 - [ ] Import/export round-trip gaps: submissions re-keyed by id (exported slug unused),
       `Solve.submission_id` dropped, draft/note `updated_at` reset, active solves not exported
 - [ ] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
