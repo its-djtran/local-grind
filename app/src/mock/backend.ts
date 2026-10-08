@@ -263,6 +263,7 @@ export function createBackend(): Backend {
             { id: "rust", name: "Rust", available: false, executable: "rustc" },
           ],
           catalog_built_at: "2026-10-07T12:00:00.000Z",
+          build: { version: "0.2.0", commit: "4381dab0c0de" },
         } satisfies Bootstrap;
       case "get_problem":
         return view(id, a.language as LanguageId | undefined);

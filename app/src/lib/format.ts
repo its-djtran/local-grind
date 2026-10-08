@@ -1,4 +1,4 @@
-import type { Verdict } from "./types";
+import type { BuildInfo, Verdict } from "./types";
 
 export function formatRuntime(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return "—";
@@ -93,4 +93,10 @@ export function compareToReference(value: number, reference: number): string {
   const ratio = value / reference;
   if (ratio <= 1.05) return "on par with or better than the reference";
   return `${ratio.toFixed(1)}x the reference`;
+}
+
+/** "Local Grind 0.2.0 (4381dab0c0de) · problem catalog built …" for the About line in Settings. */
+export function formatBuild(build: BuildInfo, catalogBuiltAt: string | null): string {
+  const app = `Local Grind ${build.version}${build.commit ? ` (${build.commit})` : ""}`;
+  return catalogBuiltAt ? `${app} · problem catalog built ${catalogBuiltAt}` : app;
 }

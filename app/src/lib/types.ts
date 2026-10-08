@@ -227,6 +227,13 @@ export interface Bootstrap {
   user_lists: UserList[];
   languages: LanguageInfo[];
   catalog_built_at: string | null;
+  build: BuildInfo;
+}
+
+/** The app's SemVer version and the git commit it was built from. */
+export interface BuildInfo {
+  version: string;
+  commit: string | null;
 }
 
 export interface Aggregate {

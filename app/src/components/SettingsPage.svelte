@@ -3,7 +3,7 @@
   import { api, errorMessage } from "../lib/api";
   import { app } from "../lib/state.svelte";
   import type { CalibrationStatus, Settings, ToolchainStatus } from "../lib/types";
-  import { formatDateTime } from "../lib/format";
+  import { formatBuild, formatDateTime } from "../lib/format";
   import { onMount } from "svelte";
 
   let draft = $state<Settings>(structuredClone($state.snapshot(app.settings!)));
@@ -252,7 +252,7 @@
       <button class="danger" onclick={clearData}>Clear history…</button>
     </div>
     {#if message}<p role="status">{message}</p>{/if}
-    {#if app.boot?.catalog_built_at}<p class="muted small">Problem catalog built {app.boot.catalog_built_at}.</p>{/if}
+    {#if app.boot}<p class="muted small">{formatBuild(app.boot.build, app.boot.catalog_built_at)}</p>{/if}
   </section>
 </div>
 

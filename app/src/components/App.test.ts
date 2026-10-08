@@ -296,7 +296,7 @@ describe("App", () => {
     backend.state.confirm = true;
     await fireEvent.click(screen.getByText("Clear history…"));
     await screen.findByText("History cleared.");
-    expect(screen.getByText(/Problem catalog built/)).toBeInTheDocument();
+    expect(screen.getByText(/^Local Grind 0\.2\.0 \(4381dab0c0de\) · problem catalog built 2026-10-07/)).toBeInTheDocument();
   });
 
   it("recalibrates benchmarks on this machine", async () => {

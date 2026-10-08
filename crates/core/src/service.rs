@@ -20,6 +20,7 @@ use crate::settings::Settings;
 use crate::timeutil::now_ms;
 use crate::types::{Comparator, Signature};
 use crate::userdb::{ProblemRef, Solve, Submission, UserDb, UserList};
+use crate::BuildInfo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -61,6 +62,7 @@ pub struct Bootstrap {
     pub user_lists: Vec<UserList>,
     pub languages: Vec<LanguageInfo>,
     pub catalog_built_at: Option<String>,
+    pub build: BuildInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -350,6 +352,7 @@ impl Service {
             user_lists: self.user_lists()?,
             languages: self.languages(),
             catalog_built_at: self.catalog.lock().unwrap().meta("built_at")?,
+            build: BuildInfo::current(),
         })
     }
 
@@ -937,6 +940,7 @@ mod tests {
         assert_eq!(b.companies[0].name, "Google");
         assert_eq!(b.topics, vec!["Array".to_string()]);
         assert_eq!(b.catalog_built_at.as_deref(), Some("2026-10-07"));
+        assert_eq!(b.build, BuildInfo::current());
         assert_eq!(b.languages.len(), Language::ALL.len());
 
         let v = svc.problem(1, None).unwrap();

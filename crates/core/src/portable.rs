@@ -152,7 +152,7 @@ pub fn export(db: &UserDb, problems: &[ProblemSummary]) -> Result<Export> {
         format: FORMAT.into(),
         version: VERSION,
         exported_at: to_iso(now_ms()),
-        app_version: env!("CARGO_PKG_VERSION").into(),
+        app_version: crate::BuildInfo::current().version,
         settings: db.settings()?,
         submissions,
         solves,

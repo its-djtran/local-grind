@@ -4,6 +4,7 @@ import {
   formatClock,
   formatDate,
   formatDateTime,
+  formatBuild,
   formatDuration,
   formatMemory,
   formatRelative,
@@ -73,5 +74,12 @@ describe("format", () => {
     expect(compareToReference(18, 10)).toBe("1.8x the reference");
     expect(compareToReference(1, 0)).toBe("");
     expect(compareToReference(NaN, 3)).toBe("");
+  });
+
+  it("formats the build line", () => {
+    expect(formatBuild({ version: "1.2.3", commit: "abc1234" }, "2026-10-08")).toBe(
+      "Local Grind 1.2.3 (abc1234) · problem catalog built 2026-10-08",
+    );
+    expect(formatBuild({ version: "1.2.3", commit: null }, null)).toBe("Local Grind 1.2.3");
   });
 });

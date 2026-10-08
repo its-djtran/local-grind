@@ -24,7 +24,7 @@ if ((coverage)); then
   step "rust tests + coverage (floor 90%)"
   log=$(mktemp)
   if ! cargo tarpaulin --engine llvm --workspace --skip-clean --fail-under 90 \
-    --exclude-files 'app/src-tauri/src/main.rs' --exclude-files 'app/src-tauri/build.rs' --out Stdout >"$log" 2>&1; then
+    --exclude-files 'app/src-tauri/src/main.rs' --exclude-files 'app/src-tauri/build.rs' --exclude-files 'crates/core/build.rs' --out Stdout >"$log" 2>&1; then
     grep -E '^\|\| |coverage|FAILED|panicked' "$log" | tail -40
     echo "rust tests or coverage gate failed (full log: $log)"
     exit 1
