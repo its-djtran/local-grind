@@ -127,7 +127,6 @@ Remaining:
       Python), so non-Python users do not need Python for custom testcases
 - [x] Per-language benchmarks for every reference (442 benchmarks, 10 runs each)
 - Deferred (per user, 2026-10-07): Java and Go drivers
-- [ ] Per-language reference solutions and benchmarks where available
 
 ### M5 — Review tool
 Pulled forward while building M1 (done):
@@ -174,11 +173,11 @@ Remaining:
 - [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
       opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
-### M8 — Refinement (complete; CI awaits a git remote)
+### M8 — Refinement (complete; first CI run not yet verified)
 - [x] "Use testcase": add a failed submission's input to the console (LeetCode parity)
 - [x] Personal notes per problem: Notes tab with autosave, kept in `user.db`, exported/imported
 - [~] CI workflow (`.github/workflows/ci.yml`, macOS) running `scripts/check.sh` and the smoke
-      test; written but not yet exercised on GitHub (the repository has no remote yet)
+      test; the GitHub remote now exists, but a run of the workflow has not been verified
 - [x] Personal lists: create/delete lists (rename exists in the backend only; see the review
       backlog), save problems from the workspace (★ Save),
       filter the problem list by them, see their progress in Stats, export/import (merged by name)
@@ -255,7 +254,7 @@ Cruft:
 - [x] `Verdict::parse` formats every variant to compare strings; dead `.tok-function` CSS rule;
       unused `_count`/`count()` in `lg_gen.py`; unused `Serialize` on `BuildReport`; unused
       `status` variable in `scripts/smoke.sh`
-- [ ] Docs: ARCHITECTURE.md tables miss `smoke.sh`, `release.sh`, `fetch_python.sh`, `error.rs`,
+- [x] Docs: ARCHITECTURE.md tables miss `smoke.sh`, `release.sh`, `fetch_python.sh`, `error.rs`,
       `chart.ts`, `shortcuts.ts`, `smoke.ts`; CLAUDE.md/CONTENT.md omit `lg-content starter`
       and `bench`; the stale unchecked M4 item above duplicates completed work; M8's "CI awaits a
       git remote" is outdated now that `origin` exists (the workflow still needs a first run)

@@ -24,6 +24,7 @@ Validate a problem while you work on it:
 cargo run -q -p lg-content -- check <slug>      # build one problem without writing the DB
 cargo run -q -p lg-content -- build             # rebuild assets/problems.db
 cargo run -q -p lg-content -- bench <slug>      # record reference runtime/memory (10 runs)
+cargo run -q -p lg-content -- starter <slug> cpp  # print a language's starter code
 ```
 
 `check` runs the generator, executes the reference solution through the real judge, verifies

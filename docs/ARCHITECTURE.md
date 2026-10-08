@@ -34,7 +34,7 @@ read-only SQLite catalog.
 | `app/src` | Svelte 5 UI (`lib/` logic, `components/` views, `mock/` in-memory backend) |
 | `content/` | Problem sources, lists, company tags — see `docs/CONTENT.md` |
 | `assets/` | Build outputs (`problems.db`, gitignored) and branding sources |
-| `scripts/` | `check.sh` (full gate), `import_companies.py`, `webshot.swift` |
+| `scripts/` | `check.sh` (full gate), `smoke.sh` (real-app end-to-end test), `release.sh` (.app/.dmg), `fetch_python.sh` (bundled CPython), `import_companies.py`, `webshot.swift` |
 
 ## Core modules (`crates/core/src`)
 
@@ -45,12 +45,13 @@ read-only SQLite catalog.
 | `runner` | Spawns a `Program` in its own process group, streams results, enforces time limits, measures peak RSS via `wait4`, produces a `RunReport` with a `Verdict` |
 | `judge` | Output comparison modes and problem-specific validators |
 | `catalog` | Read API over `problems.db` and `CatalogWriter` used by `lg-content` |
-| `userdb` | Migrations and CRUD for submissions, drafts, solves (timers) and settings |
+| `userdb` | Migrations and CRUD for submissions, drafts, solves (timers), settings, notes, personal lists and local benchmarks |
 | `metrics` | One-pass statistics and the review queue; days follow the system timezone per timestamp (DST-aware) |
 | `portable` | JSON export/import of all user data |
 | `settings` | User preferences with sanitizing |
 | `service` | The facade the shell calls: bootstrap, problem views, run, submit, stats, ... |
-| `timeutil` | ISO-8601 helpers without a date crate |
+| `timeutil` | ISO-8601 and local-timezone helpers without a date crate |
+| `error` | The crate's `Error` (invalid data, not found, toolchain, database, I/O, JSON) and `Result` |
 
 ### Judge protocol
 
@@ -152,7 +153,8 @@ progress is pushed to the UI as `submit-progress` events.
 | `lib/state.svelte.ts` | App-wide state (bootstrap data, settings, theme application, toasts) |
 | `lib/router.svelte.ts` | Hash router: `#/problems`, `#/problems/<id>`, `#/stats`, `#/settings` |
 | `lib/workspace.svelte.ts` | Problem workspace controller: drafts, timer, run, submit, history |
-| `lib/filter.ts`, `testcases.ts`, `timer.ts`, `format.ts`, `calendar.ts`, `review.ts`, `editor.ts` | Pure, unit-tested logic |
+| `lib/filter.ts`, `testcases.ts`, `timer.ts`, `format.ts`, `calendar.ts`, `review.ts`, `editor.ts`, `chart.ts`, `shortcuts.ts` | Pure, unit-tested logic |
+| `lib/smoke.ts` | In-app driver for the real-app smoke test (`scripts/smoke.sh`) |
 | `components/` | Views; kept thin over the `lib/` logic |
 | `mock/backend.ts` | In-memory backend used by component tests and `npm run dev:mock` |
 

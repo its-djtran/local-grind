@@ -14,9 +14,12 @@ cargo test --workspace                            # Rust tests
 cargo run -q -p lg-content -- build               # content/ -> assets/problems.db
 cargo run -q -p lg-content -- check <slug>...     # validate problems without writing the DB
 cargo run -q -p lg-content -- judge <slug> f.py   # judge any solution against a problem's suite
+cargo run -q -p lg-content -- bench <slug>...     # record reference benchmarks (10 runs)
+cargo run -q -p lg-content -- starter <slug> rust # print the starter code for a language
 cd app && npx vitest run                          # frontend tests (add --coverage for the gate)
 scripts/smoke.sh                                  # end-to-end test of the real desktop app (with timing budgets)
-scripts/release.sh [--skip-checks]                # bundled Python + catalog + gate + .app/.dmg + smoke of the bundle
+scripts/release.sh [--skip-checks]                # bundled Python + gate (with catalog) + .app/.dmg + smoke of the bundle
+scripts/fetch_python.sh                           # download the pinned relocatable CPython for bundling
 cd app && npx tauri dev                           # run the desktop app (needs assets/problems.db)
 cd app && npm run dev:mock                        # UI in a browser against the mock backend (:1421)
 swiftc -O scripts/webshot.swift -o /tmp/webshot && /tmp/webshot http://localhost:1421/#/stats out.png
