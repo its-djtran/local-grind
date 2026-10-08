@@ -142,9 +142,11 @@ fn cache_store(program: &Program, build_dir: &Path, entry: &Path) {
     prune_cache(root, CACHE_ENTRIES);
 }
 
-/// Marks a cache entry as used so eviction is least-recently-used.
+/// Marks a cache entry as used so eviction is least-recently-used. Eviction orders entries by
+/// their directory's modification time, which rewriting a file inside does not change, so the
+/// time is set directly.
 fn touch_entry(entry: &Path) {
-    let _ = std::fs::write(entry.join(".used"), b"");
+    let _ = std::fs::File::open(entry).and_then(|d| d.set_modified(std::time::SystemTime::now()));
 }
 
 /// Keeps the `keep` most recently used cache entries and removes staging directories left
@@ -1380,7 +1382,12 @@ mod tests {
             std::thread::sleep(Duration::from_millis(15));
         }
         std::fs::create_dir(dir.path().join(".staging-x")).unwrap();
-        // Using an old entry makes it the most recent one.
+        // Using an old entry makes it the most recent one, also when it was used before.
+        touch_entry(&dir.path().join("e0"));
+        std::thread::sleep(Duration::from_millis(15));
+        touch_entry(&dir.path().join("e1"));
+        touch_entry(&dir.path().join("e4"));
+        std::thread::sleep(Duration::from_millis(15));
         touch_entry(&dir.path().join("e0"));
         prune_cache(dir.path(), 2);
         let mut left: Vec<String> = std::fs::read_dir(dir.path())

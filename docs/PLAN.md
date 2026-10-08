@@ -200,7 +200,7 @@ Bugs:
       not, since solutions may `delete` nodes they remove, as on LeetCode)
 - [x] `export_history` / `import_history` are sync Tauri commands (main thread) doing file I/O
       and full submission loads; make them `async` + `blocking()` with I/O moved into `Service`
-- [ ] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,
+- [x] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,
       so it is not least-recently-used (`runner.rs` `touch_entry` / `prune_cache`)
 - [ ] One invalid settings value makes `settings()` fall back to defaults silently (wiping
       toolchain paths on the next save); imports of newer exports fail with a serde error
