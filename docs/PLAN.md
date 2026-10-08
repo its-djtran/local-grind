@@ -215,7 +215,7 @@ Bugs:
 - [x] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
 - [x] Stats can show a stale result when window fields change quickly (`StatsPage.svelte`)
 - [x] `ProblemList.deleteList` has no error handling
-- [ ] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
+- [x] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
       hand-rolled `tempfile_dir()` (`crates/content/src/lib.rs`)
 - [x] `gen.py` ran without a timeout, so a hung generator stalled the build forever (found
       2026-10-08: an orphaned generator from an earlier experiment had run for 22 h); 120 s limit

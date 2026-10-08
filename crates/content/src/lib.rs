@@ -788,19 +788,6 @@ pub fn judge_file(
     Ok(out)
 }
 
-fn tempfile_dir() -> Result<PathBuf> {
-    let dir = std::env::temp_dir().join(format!(
-        "lg-bench-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
-}
-
 fn truncate(s: &str) -> String {
     if s.len() <= 300 {
         s.to_string()
@@ -843,9 +830,12 @@ fn benchmark_one(
 ) -> Result<Benchmark> {
     let mut opts = reference_limits();
     opts.keep_all_cases = false;
-    // Compile once; every timed run reuses the cached binary.
-    let cache = tempfile_dir()?;
-    opts.cache_dir = Some(cache.clone());
+    // Compile once; every timed run reuses the cached binary. Removed on every exit path.
+    let cache = tempfile::Builder::new()
+        .prefix("lg-bench-")
+        .tempdir()
+        .map_err(|e| e.to_string())?;
+    opts.cache_dir = Some(cache.path().to_path_buf());
     let (mut runtime, mut memory) = (0.0, 0u64);
     for _ in 0..runs.max(1) {
         let r = judge_suite(src, language, code, tests, &opts, tools)?;
@@ -858,7 +848,6 @@ fn benchmark_one(
         runtime += r.runtime_ms;
         memory += r.memory_kb;
     }
-    let _ = std::fs::remove_dir_all(&cache);
     let runs = runs.max(1);
     Ok(Benchmark {
         runtime_ms: (runtime / runs as f64 * 100.0).round() / 100.0,
