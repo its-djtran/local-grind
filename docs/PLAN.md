@@ -229,7 +229,7 @@ Inefficiencies:
       reference first (~7x slower `judge`); split suite building from verification
 - [ ] `lg-content check` runs problems serially; reuse `build`'s worker pool
 - [x] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
-- [ ] Opening a problem runs `problem_statuses()` over all submissions for one id
+- [x] Opening a problem runs `problem_statuses()` over all submissions for one id
 - [ ] Recalibration re-inflates each problem's suite once per language under the catalog lock
 - [ ] Settings are re-read from the DB several times per run; toolchains detected twice at start
 - [ ] `PracticeNext` runs the full `get_stats` on every problem-list mount for 3 review items

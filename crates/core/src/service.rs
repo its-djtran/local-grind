@@ -376,18 +376,11 @@ impl Service {
             .unwrap_or_else(|| starter.clone());
         let active_solve = user.active_solve(&problem.summary.slug)?;
         let note = user.note(id)?.unwrap_or_default();
-        let status = user
-            .problem_statuses()?
-            .into_iter()
-            .find(|(pid, _)| *pid == id)
-            .map(|(_, ok)| {
-                if ok {
-                    Status::Solved
-                } else {
-                    Status::Attempted
-                }
-            })
-            .unwrap_or(Status::Todo);
+        let status = match user.problem_status(id)? {
+            Some(true) => Status::Solved,
+            Some(false) => Status::Attempted,
+            None => Status::Todo,
+        };
         let lists = self
             .lists
             .iter()

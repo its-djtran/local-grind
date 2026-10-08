@@ -643,6 +643,17 @@ impl UserDb {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    /// One problem's entry of [`UserDb::problem_statuses`]: `None` without submissions, else
+    /// whether any was accepted.
+    pub fn problem_status(&self, problem_id: i64) -> Result<Option<bool>> {
+        let accepted: Option<i64> = self.conn.query_row(
+            "SELECT MAX(verdict = 'Accepted') FROM submissions WHERE problem_id = ?1",
+            [problem_id],
+            |r| r.get(0),
+        )?;
+        Ok(accepted.map(|a| a == 1))
+    }
+
     // ---- solves ----
 
     pub fn active_solve(&self, slug: &str) -> Result<Option<Solve>> {
@@ -969,6 +980,11 @@ mod tests {
             activity[0],
             Activity::from(&db.all_submissions().unwrap()[0])
         );
+        assert_eq!(
+            (db.problem_status(1).unwrap(), db.problem_status(2).unwrap()),
+            (Some(true), Some(false))
+        );
+        assert_eq!(db.problem_status(3).unwrap(), None);
         let mut statuses = db.problem_statuses().unwrap();
         statuses.sort();
         assert_eq!(statuses, vec![(1, true), (2, false)]);
