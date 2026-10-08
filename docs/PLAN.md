@@ -214,7 +214,7 @@ Bugs:
       `Solve.submission_id` dropped, draft/note `updated_at` reset, active solves not exported
 - [x] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
 - [x] Stats can show a stale result when window fields change quickly (`StatsPage.svelte`)
-- [ ] `ProblemList.deleteList` has no error handling
+- [x] `ProblemList.deleteList` has no error handling
 - [ ] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
       hand-rolled `tempfile_dir()` (`crates/content/src/lib.rs`)
 - [ ] Lists and `companies.json` silently drop unknown slugs; `ListFile` lacks

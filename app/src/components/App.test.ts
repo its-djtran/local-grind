@@ -112,6 +112,17 @@ describe("App", () => {
     await fireEvent.click(screen.getByText("Add"));
   });
 
+  it("reports a failed list deletion and keeps the list", async () => {
+    const backend = installBackend((cmd) => {
+      if (cmd === "delete_user_list") throw "database is locked";
+    });
+    backend.state.userLists.push({ id: 7, name: "Onsite", problem_ids: [] });
+    await boot();
+    await fireEvent.click(await screen.findByLabelText("Delete list Onsite"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("database is locked"));
+    expect(screen.getByLabelText("Delete list Onsite")).toBeInTheDocument();
+  });
+
   it("restores filters from the session and tolerates corrupt state", async () => {
     installBackend();
     sessionStorage.setItem("lg-filters", JSON.stringify({ query: "valid" }));

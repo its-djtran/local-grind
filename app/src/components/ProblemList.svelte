@@ -67,8 +67,12 @@
   async function deleteList(listId: string, name: string) {
     const ok = await ask(`Delete the list "${name}"? The problems themselves are not affected.`, { title: "Delete list", kind: "warning" });
     if (!ok) return;
-    app.setUserLists(await api.deleteUserList(Number(listId.slice(5))));
-    if (filters.listId === listId) filters.listId = "";
+    try {
+      app.setUserLists(await api.deleteUserList(Number(listId.slice(5))));
+      if (filters.listId === listId) filters.listId = "";
+    } catch (e) {
+      app.notify(errorMessage(e));
+    }
   }
 
   function random() {
