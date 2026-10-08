@@ -14,15 +14,21 @@
   let minDays = $state(7);
   let sort = $state<ReviewSort>("score");
 
+  let latest = 0;
+
   async function load() {
+    // Only the newest request may update the page; an older one can finish later.
+    const request = ++latest;
     loading = true;
     try {
-      stats = await api.stats(Math.max(1, recentN || 1), Math.max(0, minDays || 0));
+      const next = await api.stats(Math.max(1, recentN || 1), Math.max(0, minDays || 0));
+      if (request !== latest) return;
+      stats = next;
       error = null;
     } catch (e) {
-      error = errorMessage(e);
+      if (request === latest) error = errorMessage(e);
     } finally {
-      loading = false;
+      if (request === latest) loading = false;
     }
   }
 

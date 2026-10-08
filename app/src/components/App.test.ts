@@ -3,7 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/sve
 
 const table = async () => within(await screen.findByRole("table", { name: "Problems" }));
 import App from "../App.svelte";
-import { installBackend } from "../test/backend";
+import { installBackend, tick } from "../test/backend";
+import type { Stats } from "../lib/types";
 import { router } from "../lib/router.svelte";
 
 async function boot(hash = "#/problems") {
@@ -220,6 +221,31 @@ describe("App", () => {
     const table = screen.getByText("By difficulty").closest("section")!;
     expect(within(table).getByText("Easy")).toBeInTheDocument();
     await fireEvent.change(screen.getByLabelText("Recent window"), { target: { value: "5" } });
+  });
+
+  it("keeps the newest statistics when an older request finishes last", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    const backend = installBackend((cmd, a) => {
+      if (cmd !== "get_stats" || ++calls !== 2) return undefined;
+      // The first change's request is slow and carries a marker value.
+      return gate.then(async () => {
+        const stale = (await backend.handle(cmd, a)) as Stats;
+        return { ...stale, totals: { ...stale.totals, longest_streak: 4242 } };
+      });
+    });
+    await boot("#/stats");
+    await screen.findByText("Statistics");
+    const recent = screen.getByLabelText("Recent window");
+    await fireEvent.change(recent, { target: { value: "5" } });
+    await fireEvent.change(recent, { target: { value: "6" } });
+    await waitFor(() => expect(calls).toBe(3));
+    release();
+    await new Promise((r) => setTimeout(r, 50));
+    await tick();
+    expect(screen.getByText("Longest streak")).toBeInTheDocument();
+    expect(screen.queryByText(/4242/)).not.toBeInTheDocument();
   });
 
   it("shows stats errors", async () => {
