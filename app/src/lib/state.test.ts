@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { installBackend, tick } from "../test/backend";
-import { app, applyAppearance, resolveTheme } from "./state.svelte";
+import { app, applyAppearance, followSystemTheme, resolveTheme } from "./state.svelte";
 import { defaultSettings } from "../mock/backend";
+import type { Settings } from "./types";
 
 describe("app state", () => {
   it("resolves themes", () => {
@@ -18,6 +19,38 @@ describe("app state", () => {
     expect(el.style.getPropertyValue("--font-family")).toContain("Fira Code");
     applyAppearance({ ...defaultSettings(), theme: "system" });
     expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+
+  it("follows OS light/dark changes only while the theme is system", () => {
+    let dark = true;
+    let listener: (() => void) | null = null;
+    const query = {
+      get matches() {
+        return dark;
+      },
+      addEventListener: (_: string, l: () => void) => (listener = l),
+      removeEventListener: () => (listener = null),
+    } as unknown as MediaQueryList;
+    const original = window.matchMedia;
+    window.matchMedia = () => query;
+    try {
+      let settings: Settings = { ...defaultSettings(), theme: "system" };
+      const stop = followSystemTheme(() => settings, query);
+      dark = false;
+      listener!();
+      expect(document.documentElement.dataset.theme).toBe("light");
+      settings = { ...settings, theme: "dark" };
+      document.documentElement.dataset.theme = "dark";
+      dark = true;
+      listener!();
+      dark = false;
+      listener!();
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      stop();
+      expect(listener).toBeNull();
+    } finally {
+      window.matchMedia = original;
+    }
   });
 
   it("loads, saves settings and toggles theme", async () => {

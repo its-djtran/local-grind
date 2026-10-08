@@ -18,14 +18,32 @@ export function applyAppearance(s: Settings, root: HTMLElement = document.docume
   root.style.setProperty("--font-family", `"${s.font_family}", "Inconsolata", ui-monospace, Menlo, monospace`);
 }
 
+/** Re-applies the appearance when the OS switches light/dark while the theme is "system". */
+export function followSystemTheme(
+  settings: () => Settings | null,
+  query: MediaQueryList = window.matchMedia("(prefers-color-scheme: dark)"),
+): () => void {
+  const onChange = () => {
+    const s = settings();
+    if (s?.theme === "system") applyAppearance(s);
+  };
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 class AppState {
   boot = $state<Bootstrap | null>(null);
   settings = $state<Settings | null>(null);
   error = $state<string | null>(null);
   toast = $state<string | null>(null);
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
+  private followingSystemTheme = false;
 
   async load(): Promise<void> {
+    if (!this.followingSystemTheme && typeof window.matchMedia === "function") {
+      followSystemTheme(() => this.settings);
+      this.followingSystemTheme = true;
+    }
     try {
       const boot = await api.bootstrap();
       this.boot = boot;

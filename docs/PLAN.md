@@ -212,7 +212,7 @@ Bugs:
       SQLite defaults foreign keys on; now explicit, and the redundant DELETE is gone)
 - [ ] Import/export round-trip gaps: submissions re-keyed by id (exported slug unused),
       `Solve.submission_id` dropped, draft/note `updated_at` reset, active solves not exported
-- [ ] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
+- [x] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
 - [ ] Stats can show a stale result when window fields change quickly (`StatsPage.svelte`)
 - [ ] `ProblemList.deleteList` has no error handling
 - [ ] `lg-content bench` leaks its temp dir on failure; use `tempfile::TempDir` instead of the
