@@ -660,63 +660,91 @@ impl Service {
             .filter(|t| t.ok)
             .map(|t| t.language)
             .collect();
+        // One job per problem, so its suite is loaded (inflated and parsed) once for all of its
+        // languages rather than once per reference.
         let mut jobs = Vec::new();
         for p in &self.summaries {
+            let mut references = Vec::new();
             for &lang in &available {
                 if let Some(code) = self.reference_solution(p.id, lang)? {
-                    jobs.push((p.id, lang, code));
+                    references.push((lang, code));
                 }
             }
+            if !references.is_empty() {
+                jobs.push((p.id, references));
+            }
         }
-        let total = jobs.len();
+        let total: usize = jobs.iter().map(|(_, refs)| refs.len()).sum();
         let workers = self
             .settings()?
             .eval
             .max_parallel_jobs
-            .clamp(1, total.max(1));
+            .clamp(1, jobs.len().max(1));
         let queue = Mutex::new(jobs.into_iter());
         let done = AtomicUsize::new(0);
         let summary = Mutex::new(CalibrationSummary::default());
+        let cancelled = || {
+            let stop = self.calibration_cancel.load(Ordering::SeqCst);
+            if stop {
+                summary.lock().unwrap().cancelled = true;
+            }
+            stop
+        };
         std::thread::scope(|s| {
             for _ in 0..workers {
                 s.spawn(|| loop {
-                    if self.calibration_cancel.load(Ordering::SeqCst) {
-                        summary.lock().unwrap().cancelled = true;
+                    if cancelled() {
                         break;
                     }
-                    let Some((id, lang, code)) = queue.lock().unwrap().next() else {
+                    let Some((id, references)) = queue.lock().unwrap().next() else {
                         break;
                     };
-                    let ok = self.calibrate_one(id, lang, &code, runs).is_ok();
-                    let mut sum = summary.lock().unwrap();
-                    if ok {
-                        sum.measured += 1;
-                    } else {
-                        sum.failed += 1;
+                    let suite = {
+                        let c = self.catalog.lock().unwrap();
+                        c.problem(id).and_then(|p| Ok((p, c.tests(id)?)))
+                    };
+                    for (lang, code) in references {
+                        if cancelled() {
+                            break;
+                        }
+                        let ok = suite.as_ref().is_ok_and(|(problem, tests)| {
+                            self.calibrate_one(problem, tests, lang, &code, runs)
+                                .is_ok()
+                        });
+                        let mut sum = summary.lock().unwrap();
+                        if ok {
+                            sum.measured += 1;
+                        } else {
+                            sum.failed += 1;
+                        }
+                        drop(sum);
+                        progress(done.fetch_add(1, Ordering::SeqCst) + 1, total);
                     }
-                    drop(sum);
-                    progress(done.fetch_add(1, Ordering::SeqCst) + 1, total);
                 });
             }
         });
         Ok(summary.into_inner().unwrap())
     }
 
-    fn calibrate_one(&self, id: i64, language: Language, code: &str, runs: u32) -> Result<()> {
-        let (problem, tests) = {
-            let c = self.catalog.lock().unwrap();
-            (c.problem(id)?, c.tests(id)?)
-        };
+    fn calibrate_one(
+        &self,
+        problem: &Problem,
+        tests: &[TestCase],
+        language: Language,
+        code: &str,
+        runs: u32,
+    ) -> Result<()> {
+        let id = problem.summary.id;
         let tools = self.toolchains.lock().unwrap().clone();
         let program = language.driver().program(&problem.signature, code, &tools);
         let opts = RunOptions {
             keep_all_cases: false,
-            ..self.run_options(&problem, false)?
+            ..self.run_options(problem, false)?
         };
         let (mut runtime, mut memory) = (0.0, 0u64);
         let runs = runs.max(1);
         for _ in 0..runs {
-            let r = runner::execute(&program, &tests, &problem.comparator, &opts, &mut |_, _| {})?;
+            let r = runner::execute(&program, tests, &problem.comparator, &opts, &mut |_, _| {})?;
             if r.verdict != runner::Verdict::Accepted {
                 return Err(Error::Invalid(format!(
                     "reference for problem {id} ({language}) was {:?}",
@@ -1220,7 +1248,9 @@ mod tests {
         let s = svc
             .recalibrate(1, &|_, _| svc.cancel_recalibration())
             .unwrap();
-        assert!(s.cancelled || s.measured <= 2);
+        // Problem 1's second reference is skipped once the first reports progress.
+        assert!(s.cancelled);
+        assert_eq!((s.measured, s.failed), (1, 0));
 
         svc.clear_local_benchmarks().unwrap();
         assert!(!svc.problem(1, None).unwrap().benchmarks["python"].local);
