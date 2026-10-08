@@ -340,11 +340,39 @@ fn run_to_completion(cmd: &[String], dir: &Path, timeout: Duration) -> Result<(b
     Ok((exit.code == Some(0) && !watchdog.fired(), out))
 }
 
-/// Resident memory of a live process in KB, if it can be read.
+/// Resident memory and CPU time (user + system) of a live process.
+#[derive(Debug, Clone, Copy)]
+struct ProcStats {
+    rss_kb: u64,
+    cpu: Duration,
+}
+
 #[cfg(target_os = "macos")]
-pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
+fn proc_stats(pid: libc::pid_t) -> Option<ProcStats> {
+    use std::sync::OnceLock;
+    // CPU times are reported in Mach absolute-time units.
+    #[repr(C)]
+    struct Timebase {
+        numer: u32,
+        denom: u32,
+    }
+    extern "C" {
+        // libSystem; declared here because the libc crate's binding is deprecated.
+        fn mach_timebase_info(info: *mut Timebase) -> libc::c_int;
+    }
+    static TIMEBASE: OnceLock<(u64, u64)> = OnceLock::new();
+    let &(numer, denom) = TIMEBASE.get_or_init(|| {
+        let mut tb = Timebase { numer: 0, denom: 0 };
+        // SAFETY: mach_timebase_info only writes the struct it is given.
+        let ok = unsafe { mach_timebase_info(&mut tb) } == 0 && tb.denom != 0;
+        if ok {
+            (tb.numer as u64, tb.denom as u64)
+        } else {
+            (1, 1)
+        }
+    });
     // SAFETY: proc_pidinfo writes at most `size` bytes into a zeroed proc_taskinfo.
-    unsafe {
+    let info = unsafe {
         let mut info: libc::proc_taskinfo = std::mem::zeroed();
         let size = std::mem::size_of::<libc::proc_taskinfo>() as libc::c_int;
         let n = libc::proc_pidinfo(
@@ -354,40 +382,60 @@ pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
             &mut info as *mut _ as *mut libc::c_void,
             size,
         );
-        (n == size).then_some(info.pti_resident_size / 1024)
-    }
+        (n == size).then_some(info)?
+    };
+    let ticks = (info.pti_total_user + info.pti_total_system) as u128;
+    Some(ProcStats {
+        rss_kb: info.pti_resident_size / 1024,
+        cpu: Duration::from_nanos((ticks * numer as u128 / denom as u128) as u64),
+    })
 }
 
-/// Resident memory of a live process in KB, if it can be read.
 #[cfg(not(target_os = "macos"))]
-pub fn rss_kb(pid: libc::pid_t) -> Option<u64> {
+fn proc_stats(pid: libc::pid_t) -> Option<ProcStats> {
+    // SAFETY: sysconf has no preconditions.
+    let (page, tick) = unsafe {
+        (
+            libc::sysconf(libc::_SC_PAGESIZE) as u64,
+            libc::sysconf(libc::_SC_CLK_TCK) as u64,
+        )
+    };
     let statm = std::fs::read_to_string(format!("/proc/{pid}/statm")).ok()?;
     let pages: u64 = statm.split_whitespace().nth(1)?.parse().ok()?;
-    // SAFETY: sysconf has no preconditions.
-    let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
-    Some(pages * page / 1024)
+    // Fields after the parenthesised command name start at field 3 (state); utime and stime
+    // are fields 14 and 15.
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let mut rest = stat.rsplit_once(')')?.1.split_whitespace().skip(11);
+    let utime: u64 = rest.next()?.parse().ok()?;
+    let stime: u64 = rest.next()?.parse().ok()?;
+    Some(ProcStats {
+        rss_kb: pages * page / 1024,
+        cpu: Duration::from_millis((utime + stime) * 1000 / tick.max(1)),
+    })
 }
 
 const MEMORY_POLL: Duration = Duration::from_millis(20);
 
-/// Solution-time budget shared between the reader and the watchdog. A case that runs longer
-/// than the remaining budget (plus a grace period for harness overhead) is stopped without
-/// waiting for the wall-clock limit.
+/// Solution-time budget shared between the reader and the watchdog. A case that burns more
+/// CPU time than the remaining budget (plus a grace period for harness overhead) is stopped
+/// without waiting for the wall-clock limit. CPU time rather than wall time is what counts
+/// here, so a correct program that is merely descheduled on a busy machine is not killed; a
+/// blocked program still ends at the wall-clock limit.
 struct Budget {
     limit: Duration,
     grace: Duration,
-    /// (time of the last result, solution time used so far)
-    state: Mutex<(Instant, Duration)>,
+    /// (results received so far, solution time used so far)
+    state: Mutex<(u64, Duration)>,
 }
 
 impl Budget {
-    fn exceeded(&self) -> bool {
-        let (last, used) = *self.state.lock().unwrap();
-        used + last.elapsed() > self.limit + self.grace
+    fn record(&self, used: Duration) {
+        let mut state = self.state.lock().unwrap();
+        *state = (state.0 + 1, used);
     }
 
-    fn record(&self, used: Duration) {
-        *self.state.lock().unwrap() = (Instant::now(), used);
+    fn snapshot(&self) -> (u64, Duration) {
+        *self.state.lock().unwrap()
     }
 }
 
@@ -416,6 +464,8 @@ impl Watchdog {
         let (d, t, m) = (disarmed.clone(), timed_out.clone(), out_of_memory.clone());
         let deadline = Instant::now() + timeout;
         let polling = memory_limit_kb.is_some() || budget.is_some();
+        // (results seen, process CPU time when the latest of them was noticed)
+        let mut mark = (0u64, Duration::ZERO);
         thread::spawn(move || loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
             let wait = if polling {
@@ -426,10 +476,22 @@ impl Watchdog {
             if rx.recv_timeout(wait) != Err(mpsc::RecvTimeoutError::Timeout) {
                 return;
             }
-            let over_time =
-                Instant::now() >= deadline || budget.as_ref().is_some_and(|b| b.exceeded());
-            let over_memory =
-                memory_limit_kb.is_some_and(|limit| rss_kb(pid).is_some_and(|rss| rss > limit));
+            let stats = if polling { proc_stats(pid) } else { None };
+            let over_budget = match (&budget, stats) {
+                (Some(b), Some(s)) => {
+                    let (results, used) = b.snapshot();
+                    if results != mark.0 {
+                        mark = (results, s.cpu);
+                    }
+                    used + s.cpu.saturating_sub(mark.1) > b.limit + b.grace
+                }
+                _ => false,
+            };
+            let over_time = Instant::now() >= deadline || over_budget;
+            let over_memory = matches!(
+                (memory_limit_kb, stats),
+                (Some(limit), Some(s)) if s.rss_kb > limit
+            );
             if over_time || over_memory {
                 let guard = d.lock().unwrap();
                 if !*guard {
@@ -609,7 +671,7 @@ pub fn execute(
     let budget = Arc::new(Budget {
         limit,
         grace: limit + Duration::from_secs(1),
-        state: Mutex::new((Instant::now(), Duration::ZERO)),
+        state: Mutex::new((0, Duration::ZERO)),
     });
     let watchdog = Watchdog::arm(
         pid,
@@ -1063,9 +1125,20 @@ mod tests {
     }
 
     #[test]
-    fn reads_resident_memory() {
-        assert!(rss_kb(std::process::id() as libc::pid_t).unwrap() > 100);
-        assert_eq!(rss_kb(-5), None);
+    fn reads_process_memory_and_cpu_time() {
+        let pid = std::process::id() as libc::pid_t;
+        let before = proc_stats(pid).unwrap();
+        assert!(before.rss_kb > 100);
+        let spin = Instant::now();
+        let mut x = 0u64;
+        while spin.elapsed() < Duration::from_millis(100) {
+            x = std::hint::black_box(x.wrapping_add(1));
+        }
+        let gained = proc_stats(pid).unwrap().cpu - before.cpu;
+        // Busy-waiting 100 ms adds roughly that much CPU time (other test threads may add more).
+        assert!(gained >= Duration::from_millis(50), "{gained:?}");
+        assert!(gained < Duration::from_secs(60), "{gained:?}");
+        assert!(proc_stats(-5).is_none());
     }
 
     #[test]
@@ -1122,8 +1195,27 @@ mod tests {
     }
 
     #[test]
+    fn waiting_without_cpu_does_not_use_the_budget() {
+        // A tight budget and a case that takes a while to arrive without using CPU, as when the
+        // judge is descheduled on a loaded machine: the wall-clock limit still applies, the
+        // budget does not.
+        let script = r#"sleep 1.5; printf '\036LG {"i":0,"ns":1000,"out":0}\n'"#;
+        let opts = RunOptions {
+            limits: Limits {
+                time_limit_ms: 5,
+                wall_limit_ms: 30_000,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let r = run(&shell(script), &cases(1), opts);
+        assert_eq!(r.verdict, Verdict::Accepted, "{r:?}");
+    }
+
+    #[test]
     fn hung_case_is_stopped_within_the_budget() {
-        let script = r#"printf '\036LG {"i":0,"ns":1000,"out":0}\n'; sleep 30"#;
+        // An infinite loop burns CPU, so the budget stops it long before the wall-clock limit.
+        let script = r#"printf '\036LG {"i":0,"ns":1000,"out":0}\n'; while :; do :; done"#;
         let opts = RunOptions {
             limits: Limits {
                 time_limit_ms: 200,

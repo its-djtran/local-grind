@@ -66,14 +66,16 @@ line the judge cannot parse (e.g. NaN) is a Runtime Error. Stdout is read with b
 exhaust the app's memory. The verdict is decided by the earliest failure: a wrong answer only
 wins if it happened before a crash, timeout or memory overrun, and the case that was running
 when the process failed is recorded with its stdout. The watchdog also stops a case once the
-solution-time budget plus a grace period is used up, instead of waiting for the wall limit.
+solution-time budget plus a grace period is used up, instead of waiting for the wall limit. It
+measures the process's CPU time since the latest result rather than wall time, so a correct
+program descheduled on a busy machine is not killed; a blocked process ends at the wall limit.
 In collect-only mode (used by Run and for reference outputs) the runner records outputs without
 judging them and the verdict only describes how the process ended.
 
 The runner judges each line as it arrives (so a submission stops at the first wrong answer),
 sums the harness-measured solution time (interpreter start-up and parsing are excluded) against
 the problem's time limit, keeps a wall-clock watchdog for hangs, and kills the whole process
-group when done. The watchdog also samples the child's resident memory every 20 ms
+group when done. The watchdog also samples the child's resident memory and CPU time every 20 ms
 (`proc_pidinfo` on macOS, `/proc` on Linux) and kills it past the memory limit. Peak memory
 comes from `wait4`'s `ru_maxrss`. With low-priority judging enabled the child lowers its own
 priority (nice 10) before exec.
