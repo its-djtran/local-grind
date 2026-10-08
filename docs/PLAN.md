@@ -210,8 +210,10 @@ Bugs:
 - [x] Foreign keys are never enabled, so `ON DELETE CASCADE` is inert; `delete_user_list`
       compensates with two DELETEs outside a transaction (`userdb.rs`) (not quite: the bundled
       SQLite defaults foreign keys on; now explicit, and the redundant DELETE is gone)
-- [ ] Import/export round-trip gaps: submissions re-keyed by id (exported slug unused),
+- [x] Import/export round-trip gaps: submissions re-keyed by id (exported slug unused),
       `Solve.submission_id` dropped, draft/note `updated_at` reset, active solves not exported
+      (reviewed, left as is: ids are LeetCode problem numbers and do not change; nothing reads
+      `submission_id` or `updated_at`; an export records completed work, not a running timer)
 - [x] "System" theme does not follow OS changes while the app is open (`state.svelte.ts`)
 - [x] Stats can show a stale result when window fields change quickly (`StatsPage.svelte`)
 - [x] `ProblemList.deleteList` has no error handling
@@ -236,7 +238,10 @@ Inefficiencies:
       spawning a judge process; the lenient settings parser got a whole-document fast path)
 - [x] `PracticeNext` runs the full `get_stats` on every problem-list mount for 3 review items
 - [x] Runner clones `args`/`expected` for every passing case even when they are discarded
-- [ ] Fonts import every subset in woff and woff2; the Safari 15 target needs latin woff2 only
+- [x] Fonts import every subset in woff and woff2; the Safari 15 target needs latin woff2 only
+      (reviewed, left as is: faces load lazily by unicode-range and woff only without woff2
+      support, so only latin woff2 is fetched; the rest is 296 KB of a 101 MB bundle and keeps
+      accented characters in Inconsolata)
 
 Cruft:
 - [ ] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
