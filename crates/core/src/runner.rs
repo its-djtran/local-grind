@@ -529,13 +529,14 @@ impl Watchdog {
 
 /// Reads one line (without the newline) into `buf`, keeping at most `cap` bytes; the rest of an
 /// over-long line is consumed and discarded. Stops early once more than `allowance` bytes have
-/// been consumed. Returns `(bytes consumed, truncated)`; 0 bytes consumed means end of stream.
+/// been consumed. Returns `(bytes consumed, truncated, terminated)`, where `terminated` means the
+/// line ended with a newline; 0 bytes consumed means end of stream.
 fn read_line_capped(
     reader: &mut impl BufRead,
     buf: &mut Vec<u8>,
     cap: usize,
     allowance: u64,
-) -> std::io::Result<(usize, bool)> {
+) -> std::io::Result<(usize, bool, bool)> {
     buf.clear();
     let (mut consumed, mut truncated) = (0, false);
     loop {
@@ -545,7 +546,7 @@ fn read_line_capped(
             Err(e) => return Err(e),
         };
         if available.is_empty() {
-            return Ok((consumed, truncated));
+            return Ok((consumed, truncated, false));
         }
         let (chunk, done) = match available.iter().position(|&b| b == b'\n') {
             Some(pos) => (&available[..pos], Some(pos + 1)),
@@ -560,7 +561,7 @@ fn read_line_capped(
         reader.consume(used);
         consumed += used;
         if done.is_some() || consumed as u64 > allowance {
-            return Ok((consumed, truncated));
+            return Ok((consumed, truncated, done.is_some()));
         }
     }
 }
@@ -702,9 +703,9 @@ pub fn execute(
     };
     loop {
         let allowance = MAX_OUTPUT_BYTES - output_bytes;
-        let (n, truncated) =
+        let (n, truncated, terminated) =
             match read_line_capped(&mut reader, &mut raw, MAX_LINE_BYTES, allowance) {
-                Ok((0, _)) | Err(_) => break,
+                Ok((0, ..)) | Err(_) => break,
                 Ok(r) => r,
             };
         output_bytes += n as u64;
@@ -723,6 +724,10 @@ pub fn execute(
             push_capped(&mut pending_stdout, "\n");
             continue;
         };
+        if !terminated {
+            // The process ended mid-result (killed or crashed): the exit status explains why.
+            break;
+        }
         let msg = match serde_json::from_str::<HarnessLine>(message) {
             Ok(m) if !truncated => m,
             _ => {
@@ -1181,17 +1186,39 @@ mod tests {
         let mut reader = std::io::Cursor::new(b"abcdef\nxyz".to_vec());
         assert_eq!(
             read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
-            (7, true)
+            (7, true, true)
         );
         assert_eq!(buf, b"abc");
         assert_eq!(
             read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
-            (3, false)
+            (3, false, false)
         );
         assert_eq!(
             read_line_capped(&mut reader, &mut buf, 3, 1 << 20).unwrap(),
-            (0, false)
+            (0, false, false)
         );
+    }
+
+    #[test]
+    fn a_result_cut_off_by_the_process_ending_is_not_misread() {
+        // Crashing mid-write reports the crash, not an unreadable result.
+        let crash = r#"printf '\036LG {"i":0,"ns":1,"out":[1,2'; kill -SEGV $$"#;
+        let r = run(&shell(crash), &cases(1), RunOptions::default());
+        assert_eq!(r.verdict, Verdict::RuntimeError);
+        let msg = r.error.unwrap();
+        assert!(msg.contains("signal 11"), "{msg}");
+        // Being killed by the time budget mid-write is a time limit.
+        let spin = r#"printf '\036LG {"i":0,"ns":1,"out":[1,2'; while :; do :; done"#;
+        let opts = RunOptions {
+            limits: Limits {
+                time_limit_ms: 50,
+                wall_limit_ms: 30_000,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let r = run(&shell(spin), &cases(1), opts);
+        assert_eq!(r.verdict, Verdict::TimeLimitExceeded, "{:?}", r.error);
     }
 
     #[test]

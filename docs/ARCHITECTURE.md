@@ -61,7 +61,9 @@ error in an interpreted language yields `{"compile_error":"..."}`. Anything else
 user's output, attributed to the following test.
 
 Result lines are accepted only in index order (duplicates and stray lines are ignored); a result
-line the judge cannot parse (e.g. NaN) is a Runtime Error. Stdout is read with bounded lines
+line the judge cannot parse (e.g. NaN) is a Runtime Error; a result line cut off without its
+newline because the process died is ignored, so the exit status (timeout, memory, signal)
+decides. Stdout is read with bounded lines
 (64 MB per line, 64 KB of captured user output, 256 MB in total), so a runaway program cannot
 exhaust the app's memory. The verdict is decided by the earliest failure: a wrong answer only
 wins if it happened before a crash, timeout or memory overrun, and the case that was running
