@@ -202,7 +202,7 @@ Bugs:
       and full submission loads; make them `async` + `blocking()` with I/O moved into `Service`
 - [x] Compile-cache eviction sorts by directory mtime, which rewriting `.used` does not change,
       so it is not least-recently-used (`runner.rs` `touch_entry` / `prune_cache`)
-- [ ] One invalid settings value makes `settings()` fall back to defaults silently (wiping
+- [x] One invalid settings value makes `settings()` fall back to defaults silently (wiping
       toolchain paths on the next save); imports of newer exports fail with a serde error
       before the version check (`userdb.rs`, `portable.rs`)
 - [ ] Heatmap/streak/weekly buckets use today's UTC offset for all history, so days shift

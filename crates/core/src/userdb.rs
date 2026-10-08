@@ -256,9 +256,9 @@ impl UserDb {
             .query_row("SELECT json FROM settings WHERE id = 1", [], |r| r.get(0))
             .optional()?;
         Ok(match json {
-            Some(j) => serde_json::from_str::<Settings>(&j)
-                .unwrap_or_default()
-                .sanitized(),
+            Some(j) => serde_json::from_str(&j)
+                .map(|v| Settings::from_value_lenient(&v))
+                .unwrap_or_default(),
             None => Settings::default(),
         })
     }
@@ -832,6 +832,20 @@ mod tests {
         let saved = db.save_settings(&s).unwrap();
         assert_eq!(saved.font_size, 32);
         assert_eq!(db.settings().unwrap().font_size, 32);
+        // One value this version cannot read (e.g. written by a newer app) keeps the rest.
+        db.conn
+            .execute(
+                r#"UPDATE settings SET json = '{"language":"java","font_size":18,
+                    "eval":{"toolchain_paths":{"python":"/opt/py"}}}'"#,
+                [],
+            )
+            .unwrap();
+        let s = db.settings().unwrap();
+        assert_eq!(
+            (s.language, s.font_size),
+            (Settings::default().language, 18)
+        );
+        assert_eq!(s.eval.toolchain_paths["python"], "/opt/py");
         db.conn
             .execute("UPDATE settings SET json = 'garbage'", [])
             .unwrap();

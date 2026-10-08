@@ -71,6 +71,7 @@ pub struct Export {
     pub version: u32,
     pub exported_at: String,
     pub app_version: String,
+    #[serde(deserialize_with = "lenient_settings")]
     pub settings: Settings,
     pub submissions: Vec<ExportedSubmission>,
     pub solves: Vec<ExportedSolve>,
@@ -80,6 +81,12 @@ pub struct Export {
     pub notes: Vec<ExportedNote>,
     #[serde(default)]
     pub lists: Vec<ExportedList>,
+}
+
+fn lenient_settings<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> std::result::Result<Settings, D::Error> {
+    Value::deserialize(d).map(|v| Settings::from_value_lenient(&v))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -170,12 +177,6 @@ fn time_of(s: &str) -> Result<i64> {
 }
 
 fn import_native(db: &UserDb, data: Export, apply_settings: bool) -> Result<ImportSummary> {
-    if data.version > VERSION {
-        return Err(Error::Invalid(format!(
-            "export version {} is newer than this app supports ({VERSION})",
-            data.version
-        )));
-    }
     let mut summary = ImportSummary {
         source: FORMAT.into(),
         ..Default::default()
@@ -264,6 +265,16 @@ pub fn import(db: &UserDb, json: &str, apply_settings: bool) -> Result<ImportSum
     let value: Value = serde_json::from_str(json)?;
     if value.get("format").and_then(Value::as_str) != Some(FORMAT) {
         return Err(Error::Invalid("not a Local Grind export file".into()));
+    }
+    // Checked before parsing the rest, which a newer format may not match.
+    if let Some(version) = value
+        .get("version")
+        .and_then(Value::as_u64)
+        .filter(|&v| v > VERSION as u64)
+    {
+        return Err(Error::Invalid(format!(
+            "export version {version} is newer than this app supports ({VERSION})"
+        )));
     }
     let data: Export = serde_json::from_value(value)?;
     db.transaction(|db| import_native(db, data, apply_settings))
@@ -386,12 +397,30 @@ mod tests {
     }
 
     #[test]
+    fn unreadable_settings_values_do_not_block_an_import() {
+        let src = UserDb::in_memory().unwrap();
+        let mut json = serde_json::to_value(export(&src, &[]).unwrap()).unwrap();
+        json["settings"]["theme"] = Value::String("neon".into());
+        json["settings"]["font_size"] = Value::from(22);
+        let dst = UserDb::in_memory().unwrap();
+        let summary = import(&dst, &json.to_string(), true).unwrap();
+        assert!(summary.settings_applied);
+        let s = dst.settings().unwrap();
+        assert_eq!((s.theme, s.font_size), (Settings::default().theme, 22));
+    }
+
+    #[test]
     fn rejects_newer_versions_and_garbage() {
         let db = UserDb::in_memory().unwrap();
         let mut data = export(&db, &[]).unwrap();
         data.version = 99;
-        let json = serde_json::to_string(&data).unwrap();
-        assert!(import(&db, &json, false).is_err());
+        let mut json = serde_json::to_value(&data).unwrap();
+        // A newer export may not match this format; the version is reported, not a parse error.
+        json["submissions"] = Value::String("new layout".into());
+        let err = import(&db, &json.to_string(), false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("newer than this app supports"), "{err}");
         assert!(import(&db, "{\"x\":1}", false).is_err());
         assert!(import(&db, "not json", false).is_err());
     }

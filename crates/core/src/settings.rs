@@ -1,6 +1,7 @@
 //! User preferences, persisted as one JSON document in the user database.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 use crate::lang::Language;
@@ -87,6 +88,28 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Reads stored or imported settings field by field: a value this version cannot parse (an
+    /// option from a newer or older app, a hand edit) falls back to its default instead of
+    /// discarding every other setting. The result is sanitized.
+    pub fn from_value_lenient(stored: &Value) -> Settings {
+        let mut merged = serde_json::to_value(Settings::default()).expect("settings serialize");
+        if let Value::Object(fields) = stored {
+            for (key, value) in fields {
+                match (key.as_str(), value) {
+                    ("eval", Value::Object(eval)) => {
+                        for (k, v) in eval {
+                            try_set(&mut merged, &["eval", k], v);
+                        }
+                    }
+                    _ => try_set(&mut merged, &[key], value),
+                }
+            }
+        }
+        serde_json::from_value::<Settings>(merged)
+            .unwrap_or_default()
+            .sanitized()
+    }
+
     /// Clamps values into supported ranges so a hand-edited import cannot break the UI.
     pub fn sanitized(mut self) -> Settings {
         self.font_size = self.font_size.clamp(10, 32);
@@ -106,6 +129,15 @@ impl Settings {
     }
 }
 
+/// Sets `path` in `merged` to `value` if the result still parses as [`Settings`].
+fn try_set(merged: &mut Value, path: &[&str], value: &Value) {
+    let mut candidate = merged.clone();
+    *path.iter().fold(&mut candidate, |v, k| &mut v[*k]) = value.clone();
+    if serde_json::from_value::<Settings>(candidate.clone()).is_ok() {
+        *merged = candidate;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,6 +153,37 @@ mod tests {
         assert!(s.eval.max_parallel_jobs >= 1);
         let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back, s);
+    }
+
+    #[test]
+    fn lenient_parsing_keeps_every_readable_field() {
+        let stored = serde_json::json!({
+            "theme": "neon",
+            "font_size": 20,
+            "language": "java",
+            "keymap": "vim",
+            "eval": {
+                "memory_limit_mb": 512,
+                "max_parallel_jobs": "many",
+                "toolchain_paths": {"python": "/opt/py/bin/python3"}
+            },
+            "from_a_newer_app": true
+        });
+        let s = Settings::from_value_lenient(&stored);
+        let d = Settings::default();
+        assert_eq!(
+            (s.theme, s.language),
+            (d.theme, d.language),
+            "unreadable values default"
+        );
+        assert_eq!((s.font_size, s.keymap), (20, Keymap::Vim));
+        assert_eq!(s.eval.memory_limit_mb, 512);
+        assert_eq!(s.eval.max_parallel_jobs, d.eval.max_parallel_jobs);
+        assert_eq!(s.eval.toolchain_paths["python"], "/opt/py/bin/python3");
+        // Values are sanitized; non-objects give the defaults.
+        let s = Settings::from_value_lenient(&serde_json::json!({"font_size": 99}));
+        assert_eq!(s.font_size, 32);
+        assert_eq!(Settings::from_value_lenient(&serde_json::json!("x")), d);
     }
 
     #[test]
