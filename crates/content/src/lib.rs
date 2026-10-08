@@ -901,7 +901,7 @@ fn benchmark_one(
 pub const USAGE: &str = "usage:
   lg-content build [--content DIR] [--out FILE] [--jobs N]
   lg-content bench [--content DIR] [--runs N] [SLUG...]
-  lg-content check [--content DIR] [SLUG...]
+  lg-content check [--content DIR] [--jobs N] [SLUG...]
   lg-content judge [--content DIR] SLUG SOLUTION.{py,js,cpp,rs}
   lg-content starter [--content DIR] SLUG LANGUAGE";
 
@@ -946,8 +946,8 @@ pub fn cli(args: &[String]) -> Result<String> {
             }
             let mut lines = Vec::new();
             let mut errors = Vec::new();
-            for src in &sources {
-                match build_problem(src, &tools) {
+            for (src, r) in sources.iter().zip(build_all(&sources, &tools, jobs)) {
+                match r {
                     Ok(b) => {
                         lines.push(format!("ok   {:<50} {:>4} tests", src.slug, b.tests.len()))
                     }

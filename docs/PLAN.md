@@ -227,7 +227,7 @@ Bugs:
 Inefficiencies:
 - [x] `lg-content judge` / `bench` run `build_problem`, which verifies every extra-language
       reference first (~7x slower `judge`); split suite building from verification
-- [ ] `lg-content check` runs problems serially; reuse `build`'s worker pool
+- [x] `lg-content check` runs problems serially; reuse `build`'s worker pool
 - [x] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
 - [x] Opening a problem runs `problem_statuses()` over all submissions for one id
 - [ ] Recalibration re-inflates each problem's suite once per language under the catalog lock
