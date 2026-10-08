@@ -51,17 +51,29 @@ impl Verdict {
         }
     }
 
+    /// Stable name used in the user database (the variant name, as serde writes it).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Verdict::Accepted => "Accepted",
+            Verdict::WrongAnswer => "WrongAnswer",
+            Verdict::TimeLimitExceeded => "TimeLimitExceeded",
+            Verdict::MemoryLimitExceeded => "MemoryLimitExceeded",
+            Verdict::RuntimeError => "RuntimeError",
+            Verdict::CompileError => "CompileError",
+        }
+    }
+
+    /// Inverse of [`Verdict::as_str`].
     pub fn parse(s: &str) -> Option<Verdict> {
-        [
-            Verdict::Accepted,
-            Verdict::WrongAnswer,
-            Verdict::TimeLimitExceeded,
-            Verdict::MemoryLimitExceeded,
-            Verdict::RuntimeError,
-            Verdict::CompileError,
-        ]
-        .into_iter()
-        .find(|v| format!("{v:?}") == s)
+        Some(match s {
+            "Accepted" => Verdict::Accepted,
+            "WrongAnswer" => Verdict::WrongAnswer,
+            "TimeLimitExceeded" => Verdict::TimeLimitExceeded,
+            "MemoryLimitExceeded" => Verdict::MemoryLimitExceeded,
+            "RuntimeError" => Verdict::RuntimeError,
+            "CompileError" => Verdict::CompileError,
+            _ => return None,
+        })
     }
 }
 
@@ -1444,7 +1456,9 @@ mod tests {
             Verdict::CompileError,
         ] {
             assert!(!v.label().is_empty());
-            assert_eq!(Verdict::parse(&format!("{v:?}")), Some(v));
+            assert_eq!(Verdict::parse(v.as_str()), Some(v));
+            // Matches serde's representation, which exports and the UI use.
+            assert_eq!(serde_json::to_value(v).unwrap(), v.as_str());
         }
         assert_eq!(Verdict::parse("Nope"), None);
     }
