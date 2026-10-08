@@ -537,7 +537,16 @@ fn verify_extra_solutions(src: &Source, tests: &[TestCase], tools: &Toolchains) 
     Ok(())
 }
 
+/// Builds a problem and requires every other-language reference solution to be accepted.
 pub fn build_problem(src: &Source, tools: &Toolchains) -> Result<Built> {
+    let built = build_suite(src, tools)?;
+    verify_extra_solutions(src, &built.tests, tools)?;
+    Ok(built)
+}
+
+/// Builds a problem's catalog row and test suite without judging the other-language references
+/// (`judge` only needs the suite; `bench` judges each reference on every timed run anyway).
+fn build_suite(src: &Source, tools: &Toolchains) -> Result<Built> {
     let examples = example_args(src)?;
     let mut args = examples.clone();
     args.extend(generated_args(src, tools)?);
@@ -567,7 +576,6 @@ pub fn build_problem(src: &Source, tools: &Toolchains) -> Result<Built> {
         .zip(outputs)
         .map(|(args, expected)| TestCase { args, expected })
         .collect();
-    verify_extra_solutions(src, &tests, tools)?;
     let bench_path = src.dir.join("benchmark.json");
     let benchmarks = if bench_path.is_file() {
         serde_json::from_str(&read(&bench_path)?)
@@ -679,14 +687,8 @@ pub struct BuildReport {
 }
 
 /// Builds every problem (in parallel) and writes the catalog to `out`.
-pub fn build(
-    content: &Path,
-    out: &Path,
-    tools: &Toolchains,
-    jobs: usize,
-    built_at: &str,
-) -> Result<BuildReport> {
-    let sources = load_all(content)?;
+/// [`build_problem`] for each source on `jobs` threads; results are in source order.
+fn build_all(sources: &[Source], tools: &Toolchains, jobs: usize) -> Vec<Result<Built>> {
     let results: Mutex<Vec<(usize, Result<Built>)>> = Mutex::new(Vec::new());
     let next = Mutex::new(0usize);
     std::thread::scope(|s| {
@@ -706,9 +708,21 @@ pub fn build(
     });
     let mut results = results.into_inner().unwrap();
     results.sort_by_key(|(i, _)| *i);
+    results.into_iter().map(|(_, r)| r).collect()
+}
+
+pub fn build(
+    content: &Path,
+    out: &Path,
+    tools: &Toolchains,
+    jobs: usize,
+    built_at: &str,
+) -> Result<BuildReport> {
+    let sources = load_all(content)?;
+    let results = build_all(&sources, tools, jobs);
     let errors: Vec<String> = results
         .iter()
-        .filter_map(|(_, r)| r.as_ref().err().cloned())
+        .filter_map(|r| r.as_ref().err().cloned())
         .collect();
     if !errors.is_empty() {
         return Err(errors.join("\n"));
@@ -721,7 +735,7 @@ pub fn build(
         .map_err(|e| e.to_string())?;
     let mut report = BuildReport::default();
     let mut slugs = HashMap::new();
-    for (_, r) in results {
+    for r in results {
         let b = r.expect("errors handled above");
         let id = b.problem.summary.id;
         slugs.insert(b.problem.summary.slug.clone(), id);
@@ -773,7 +787,7 @@ pub fn judge_file(
     code: &str,
     tools: &Toolchains,
 ) -> Result<String> {
-    let built = build_problem(src, tools)?;
+    let built = build_suite(src, tools)?;
     let time = built.problem.time_limit_ms;
     let opts = RunOptions {
         limits: Limits {
@@ -833,7 +847,7 @@ pub fn benchmark(
     tools: &Toolchains,
     runs: u32,
 ) -> Result<BTreeMap<Language, Benchmark>> {
-    let built = build_problem(src, tools)?;
+    let built = build_suite(src, tools)?;
     let mut out = BTreeMap::new();
     for (&language, code) in &built.solutions {
         if toolchain_ok(language, tools) {

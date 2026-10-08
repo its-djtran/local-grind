@@ -225,7 +225,7 @@ Bugs:
 - [x] `check.sh --no-coverage` silently skips the catalog gate (undocumented)
 
 Inefficiencies:
-- [ ] `lg-content judge` / `bench` run `build_problem`, which verifies every extra-language
+- [x] `lg-content judge` / `bench` run `build_problem`, which verifies every extra-language
       reference first (~7x slower `judge`); split suite building from verification
 - [ ] `lg-content check` runs problems serially; reuse `build`'s worker pool
 - [x] `scripts/release.sh` builds the catalog, then `check.sh` builds it again (~37 s)
