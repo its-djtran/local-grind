@@ -780,23 +780,30 @@ pub fn execute(
         }
         let passed =
             opts.collect_only || judge::matches(cmp, &cases[i].args, &cases[i].expected, &output);
-        let result = CaseResult {
-            index: i,
-            passed,
-            args: cases[i].args.clone(),
-            expected: cases[i].expected.clone(),
-            output: Some(output),
-            stdout: stdout_text,
-            runtime_ns: ns,
-        };
+        let first_failure = !passed && first_wrong.is_none();
+        // Building a result copies the case's arguments and expected value (up to megabytes),
+        // so it is only done when the result is kept.
+        if opts.keep_all_cases || first_failure {
+            let result = CaseResult {
+                index: i,
+                passed,
+                args: cases[i].args.clone(),
+                expected: cases[i].expected.clone(),
+                output: Some(output),
+                stdout: stdout_text,
+                runtime_ns: ns,
+            };
+            if first_failure {
+                report.failure = Some(result.clone());
+            }
+            if opts.keep_all_cases {
+                report.cases.push(result);
+            }
+        }
         if passed {
             report.passed += 1;
-        } else if first_wrong.is_none() {
+        } else if first_failure {
             first_wrong = Some(i);
-            report.failure = Some(result.clone());
-        }
-        if opts.keep_all_cases {
-            report.cases.push(result);
         }
         progress(report.passed, cases.len());
         if !passed && opts.stop_on_failure {
