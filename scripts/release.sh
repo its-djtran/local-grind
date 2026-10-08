@@ -4,10 +4,27 @@
 #   with --skip-checks only the catalog is built), 3. tauri build (.app + .dmg) with the catalog
 #   and Python as resources,
 #   4. smoke-test the built app bundle itself.
-# Usage: scripts/release.sh [--skip-checks]
+# Releases are built from a clean tree whose HEAD carries the tag vX.Y.Z matching the version in
+# Cargo.toml (see scripts/bump_version.sh); --untagged allows a local test build of anything else.
+# Usage: scripts/release.sh [--skip-checks] [--untagged]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
+skip_checks=0 untagged=0
+for arg in "$@"; do
+  case "$arg" in
+    --skip-checks) skip_checks=1 ;;
+    --untagged) untagged=1 ;;
+    *) echo "usage: scripts/release.sh [--skip-checks] [--untagged]" >&2 && exit 2 ;;
+  esac
+done
+version=$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
+if ((!untagged)); then
+  [[ -z "$(git status --porcelain)" ]] ||
+    { echo "error: uncommitted changes; commit them, or pass --untagged for a local build" >&2 && exit 1; }
+  git tag --points-at HEAD | grep -qx "v$version" ||
+    { echo "error: HEAD is not tagged v$version; cut a release with scripts/bump_version.sh, or pass --untagged" >&2 && exit 1; }
+fi
 # macOS has no coreutils `timeout`; perl ships with the OS.
 with_timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 step() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
@@ -15,7 +32,7 @@ step() { printf '\n\033[1;33m==> %s\033[0m\n' "$*"; }
 step "bundled Python"
 scripts/fetch_python.sh
 
-if [[ "${1:-}" == "--skip-checks" ]]; then
+if ((skip_checks)); then
   step "problem catalog"
   cargo run -q --release -p lg-content -- build
 else

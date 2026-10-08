@@ -24,6 +24,34 @@ Node.js when installed and otherwise macOS's built-in JavaScriptCore. C++ needs 
 Command Line Tools (`xcode-select --install`) and Rust needs rustup. Settings → Evaluation shows
 what was found and lets you point at a specific toolchain.
 
+### Updating
+
+Quit Local Grind, open the new `.dmg` and drag the app onto **Applications**, choosing
+**Replace**. Your history, settings, notes and lists live in
+`~/Library/Application Support/dev.localgrind.app/`, not in the app, so they carry over; a newer
+version upgrades them automatically. Downgrading is not supported (an older version refuses to
+open data written by a newer one), so export your history from Settings before upgrading if you
+may want to go back.
+
+The running version and the commit it was built from are shown at the bottom of Settings (and
+in Finder's Get Info); changes between versions are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Versioning
+
+Local Grind follows [Semantic Versioning](https://semver.org/). Its public interface is what
+users and contributors depend on: the user data and history export format, the content format
+in `content/` together with the `lg-content` commands, and the app's documented behaviour.
+
+- **MAJOR**: a version that cannot read user data or exports written by an earlier version, or
+  that requires existing problem content to be rewritten.
+- **MINOR**: new features, problems, lists or languages, and backward-compatible changes.
+- **PATCH**: bug fixes and content corrections.
+
+While the version is 0.y.z, a minor release may also include breaking changes; they are called
+out in the changelog. The version lives in one place, `[workspace.package]` in `Cargo.toml`;
+`scripts/bump_version.sh major|minor|patch` cuts a release (the changelog entry, a release
+commit and a `vX.Y.Z` tag) and `scripts/release.sh` builds only tagged releases.
+
 ## Development
 
 Requirements: Rust (stable), Node 20+, Python 3 (used to run Python solutions and to generate

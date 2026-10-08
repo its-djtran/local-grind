@@ -178,3 +178,16 @@ driven by settings. Inconsolata is bundled via `@fontsource` (no network access 
   drives the real UI through the core flows and the app exits with the result.
 - Visual checks: `npm run dev:mock` serves the UI against the mock backend; `scripts/webshot.swift`
   renders a URL with WebKit (the same engine Tauri uses on macOS) to a PNG.
+
+## Versioning and releases
+
+The version (SemVer, see `README.md`) is defined once, in `[workspace.package]` of the root
+`Cargo.toml`: every crate inherits it, and the Tauri bundle reads it from the shell crate because
+`tauri.conf.json` sets no version. `crates/core/build.rs` records the git commit as
+`LOCALGRIND_COMMIT`; `BuildInfo::current()` exposes both, `Bootstrap.build` sends them to the UI
+(shown in Settings) and history exports record the version.
+
+`scripts/bump_version.sh` cuts a release: it bumps the version, dates the changelog's
+`[Unreleased]` section, commits and creates the annotated tag `vX.Y.Z`. `scripts/release.sh`
+builds only from a clean tree whose HEAD carries the tag matching the version (`--untagged` for
+local test builds), so every distributed build is reproducible from its tag.

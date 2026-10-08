@@ -28,6 +28,9 @@ rendering comparable to LeetCode's, which is the core of the "same experience" r
   redistributed as open source. See `docs/CONTENT.md`. Confirmed by the owner on 2026-10-08:
   REQS now asks for "the same (or very similar!) descriptions": the same problem in its spirit,
   not copied text.
+- **Semantic Versioning** (owner, 2026-10-08). The public interface is the user data and export
+  format, the content format with `lg-content`, and documented app behaviour (see `README.md`).
+  0.1.0 is the 2026-10-07 build the owner installed, tagged retroactively.
 - **Expected outputs are generated.** Each problem's reference solution, run through the app's
   own judge, produces every expected output; examples are cross-checked at build time.
 - **Benchmarks.** The REQS asks for the optimal solution's time/memory (average of 10 runs).
@@ -172,6 +175,9 @@ Remaining:
       → smoke-test the built app. The .app (101 MB with bundled Python) passes the smoke test;
       the .dmg was built on a normal machine (the agent sandbox cannot run `hdiutil create`),
       installed, and confirmed working by the owner (2026-10-07)
+- [x] Versioning (owner request, 2026-10-08): SemVer with the workspace `Cargo.toml` as the only
+      version source, `scripts/bump_version.sh` for releases (changelog entry, commit, tag),
+      tagged-only `release.sh`, version and commit shown in Settings, `CHANGELOG.md`
 - [x] Performance budgets in the real-app smoke test: startup ≤ 2 s (measured ~190 ms),
       opening a problem ≤ 1 s (~51 ms), stats ≤ 1 s (~52 ms)
 
