@@ -245,9 +245,9 @@ Inefficiencies:
 
 Cruft:
 - [x] Unused dependencies: `codemirror` (npm), `serde_json` in `app/src-tauri`
-- [~] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
+- [x] API functions/commands with no UI caller: `api.settings` / `get_settings`, `api.solves` /
       `list_solves`, `api.renameUserList` / `rename_user_list` (the first two are removed;
-      renaming has backend support but no UI: add a rename control or drop it, owner's call)
+      renaming is kept and its UI is an intake item, per the owner, 2026-10-08)
 - [x] Over-broad `pub` items in `runner`, `lang`, `cpp`, `rust`, `judge`, `metrics`, `userdb`
 - [x] Misplaced/stale comments: `service.rs` `user_lists()` carries `reset_code`'s doc comment;
       `runner.rs` progress doc; module docs of `portable.rs`, `userdb.rs`, `crates/content`
@@ -263,3 +263,11 @@ Cruft:
 - [ ] The NeetCode 150 problems not already in Blind 75 ∪ Grind 75, with the same pipeline
       (statement, editorial, hints, generator, references in all four languages, benchmarks)
 - [ ] NeetCode 150 list (grouped by topic) and company tags
+
+## Intake
+Development items accepted but not yet scheduled into a milestone.
+
+- [ ] Rename personal lists from the UI (owner request, 2026-10-08). The backend already
+      supports it (`Service::rename_user_list`, the `rename_user_list` command, `api.renameUserList`
+      and the mock); needed: a rename control on the list card in the problem list (and/or the
+      workspace Save menu), name validation errors shown inline, and tests.
